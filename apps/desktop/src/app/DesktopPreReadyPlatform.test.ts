@@ -171,7 +171,7 @@ describe("DesktopPreReadyPlatform", () => {
         assert.equal(identity.desktopName, "io.github.kodji7202code.simplycode.desktop");
         assert.include(identity.desktopEntry ?? "", "Exec=/Applications/current.AppImage %U");
         assert.include(identity.desktopEntry ?? "", "Name=SimplyCode");
-        assert.include(identity.desktopEntry ?? "", "MimeType=x-scheme-handler/t3code;");
+        assert.include(identity.desktopEntry ?? "", "MimeType=x-scheme-handler/simplycode;");
         assert.include(
           identity.desktopEntry ?? "",
           "Icon=/xdg/icons/io.github.kodji7202code.simplycode.desktop.png",
@@ -250,7 +250,7 @@ describe("DesktopPreReadyPlatform", () => {
         const entry = writeFileSyncMock.mock.calls.find(
           ([path]) => path === "/xdg/applications/io.github.kodji7202code.simplycode.desktop",
         )?.[1];
-        assert.include(entry, 'Exec="/opt/SimplyCode/t3code" %U');
+        assert.include(entry, "Exec=/opt/SimplyCode/t3code %U");
       }),
     ).pipe(Effect.ensuring(Effect.sync(() => vi.unstubAllEnvs())));
   });

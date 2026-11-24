@@ -200,7 +200,7 @@ describe("DesktopLinuxUrlHandler", () => {
     );
     assert.include(entry, "NoDisplay=true");
     assert.notInclude(entry, "StartupWMClass=");
-    assert.include(entry, "MimeType=x-scheme-handler/t3code;");
+    assert.include(entry, "MimeType=x-scheme-handler/simplycode;");
     assert.include(entry, "Icon=/home/al ice/icons/T3\\\\x.png");
   });
 
@@ -259,7 +259,7 @@ describe("DesktopLinuxUrlHandler", () => {
           recorded.files[0]?.content,
           "Exec=/home/alice/Applications/SimplyCode.AppImage %U",
         );
-        assert.include(recorded.files[0]?.content, "MimeType=x-scheme-handler/t3code;");
+        assert.include(recorded.files[0]?.content, "MimeType=x-scheme-handler/simplycode;");
         assert.deepEqual(recorded.commands, [
           {
             command: "update-desktop-database",
@@ -270,7 +270,7 @@ describe("DesktopLinuxUrlHandler", () => {
             args: [
               "default",
               "io.github.kodji7202code.simplycode.desktop",
-              "x-scheme-handler/t3code",
+              "x-scheme-handler/simplycode",
             ],
           },
         ]);
@@ -304,7 +304,7 @@ describe("DesktopLinuxUrlHandler", () => {
         environment: { desktopLauncherPath: Option.some("/opt/SimplyCode/t3code") },
       });
 
-      assert.include(recorded.files[0]?.content, 'Exec="/opt/SimplyCode/t3code" %U');
+      assert.include(recorded.files[0]?.content, "Exec=/opt/SimplyCode/t3code %U");
     });
   });
 
@@ -333,7 +333,7 @@ describe("DesktopLinuxUrlHandler", () => {
           args: [
             "default",
             "io.github.kodji7202code.simplycode.desktop",
-            "x-scheme-handler/t3code",
+            "x-scheme-handler/simplycode",
           ],
         },
       ]);
@@ -634,22 +634,15 @@ it.layer(NodeServices.layer)("DesktopLinuxUrlHandler theme icons", (it) => {
       yield* registerWithRealFileSystem(run);
       assert.deepEqual([...(yield* fileSystem.readDirectory(fixture.appsDir))].sort(), [
         "io.github.kodji7202code.simplycode.png",
-        "io.github.kodji7202code.simplycode.png",
       ]);
-      for (const name of [
-        "io.github.kodji7202code.simplycode",
-        "io.github.kodji7202code.simplycode",
-      ]) {
+      for (const name of ["io.github.kodji7202code.simplycode"]) {
         const target = path.join(fixture.appsDir, `${name}.png`);
         assert.deepEqual([...(yield* fileSystem.readFile(target))], [...icon]);
         yield* fileSystem.utimes(target, fixture.pastSeconds, fixture.pastSeconds);
       }
 
       yield* registerWithRealFileSystem(run);
-      for (const name of [
-        "io.github.kodji7202code.simplycode",
-        "io.github.kodji7202code.simplycode",
-      ]) {
+      for (const name of ["io.github.kodji7202code.simplycode"]) {
         const info = yield* fileSystem.stat(path.join(fixture.appsDir, `${name}.png`));
         assert.equal(Option.getOrThrow(info.mtime).getTime(), fixture.pastSeconds * 1000);
       }
@@ -664,13 +657,9 @@ it.layer(NodeServices.layer)("DesktopLinuxUrlHandler theme icons", (it) => {
       const path = yield* Path.Path;
       const fixture = yield* themeIconFixture(new Uint8Array([1, 2, 3]));
       yield* fixture.seedCache;
-      const lower = path.join(fixture.appsDir, "io.github.kodji7202code.simplycode.png");
-      const upper = path.join(fixture.appsDir, "io.github.kodji7202code.simplycode.png");
-      yield* fileSystem.writeFile(lower, new Uint8Array([3, 2, 1]));
-      yield* fileSystem.writeFile(upper, new Uint8Array([1, 2, 3]));
-      for (const target of [lower, upper]) {
-        yield* fileSystem.utimes(target, fixture.pastSeconds, fixture.pastSeconds);
-      }
+      const target = path.join(fixture.appsDir, "io.github.kodji7202code.simplycode.png");
+      yield* fileSystem.writeFile(target, new Uint8Array([3, 2, 1]));
+      yield* fileSystem.utimes(target, fixture.pastSeconds, fixture.pastSeconds);
       const run: ThemeIconRun = {
         root: fixture.root,
         commands: [],
@@ -680,9 +669,7 @@ it.layer(NodeServices.layer)("DesktopLinuxUrlHandler theme icons", (it) => {
       yield* registerWithRealFileSystem(run);
       yield* registerWithRealFileSystem(run);
 
-      assert.deepEqual([...(yield* fileSystem.readFile(lower))], [1, 2, 3]);
-      const upperInfo = yield* fileSystem.stat(upper);
-      assert.equal(Option.getOrThrow(upperInfo.mtime).getTime(), fixture.pastSeconds * 1000);
+      assert.deepEqual([...(yield* fileSystem.readFile(target))], [1, 2, 3]);
       assert.deepEqual(
         run.commands.filter(({ command }) => command === "gtk-update-icon-cache"),
         [{ command: "gtk-update-icon-cache", args: ["-f", "-t", fixture.hicolorDir] }],

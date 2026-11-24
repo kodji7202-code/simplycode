@@ -256,8 +256,8 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
       Effect.gen(function* () {
         const probed: Array<{ port: number; role: string | undefined }> = [];
         const offset = yield* findFirstAvailableOffset({
-          // 6733 + 833 = 7566, which browsers block as sane-port.
-          startOffset: 833,
+          // 6733 + 3347 = 10080, which browsers block.
+          startOffset: 3347,
           requireServerPort: true,
           requireWebPort: true,
           checkPortAvailability: (port, role) => {
@@ -266,10 +266,10 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
           },
         });
 
-        assert.equal(offset, 834);
+        assert.equal(offset, 3348);
         assert.deepStrictEqual(probed, [
-          { port: 14_607, role: "server" },
-          { port: 6567, role: "web" },
+          { port: 18_121, role: "server" },
+          { port: 10_081, role: "web" },
         ]);
       }),
     );
@@ -335,7 +335,7 @@ it.layer(NodeServices.layer)("dev-runner", (it) => {
         });
 
         assert.deepStrictEqual(probed, [
-          { port: 13_773, role: "server" },
+          { port: 14_773, role: "server" },
           { port: 6733, role: "web" },
         ]);
       }),

@@ -348,6 +348,20 @@ const FILE_EDITS: ReadonlyArray<{
       ["5733", "6733"],
       ["5734", "6734"],
       ["6566", "7566"],
+      // BASE_WEB_PORT is 6733 for the fork; the only fetch-blocked port it can
+      // reach is 10080.
+      [
+        "// 6733 + 833 = 7566, which browsers block as sane-port.",
+        "// 6733 + 3347 = 10080, which browsers block.",
+      ],
+      [
+        "startOffset: 833,\n          requireServerPort: true,\n          requireWebPort: true,",
+        "startOffset: 3347,\n          requireServerPort: true,\n          requireWebPort: true,",
+      ],
+      ["assert.equal(offset, 834);", "assert.equal(offset, 3348);"],
+      ['{ port: 14_607, role: "server" }', '{ port: 18_121, role: "server" }'],
+      ['{ port: 6567, role: "web" }', '{ port: 10_081, role: "web" }'],
+      ['{ port: 13_773, role: "server" }', '{ port: 14_773, role: "server" }'],
     ],
   },
   {
@@ -482,8 +496,15 @@ const FILE_EDITS: ReadonlyArray<{
   {
     file: "apps/server/src/serviceLauncher.ts",
     edits: [
-      ['? "t3.exe" : "t3";', '? "t3.exe" : "t3" /* rebrand-keep */;'],
-      ['? "t3.exe" : "simplycode";', '? "t3.exe" : "t3" /* rebrand-keep */;'],
+      // EOL-anchored so the formatter-moved `; /* rebrand-keep */` form does
+      // not match again (marker lands after the semicolon post-format).
+      ['? "t3.exe" : "t3";\n', '? "t3.exe" : "t3"; /* rebrand-keep */\n'],
+      ['? "t3.exe" : "simplycode";', '? "t3.exe" : "t3"; /* rebrand-keep */'],
+      // Repairs a tree where the substring find re-fired on the marked line.
+      [
+        '? "t3.exe" : "t3" /* rebrand-keep */; /* rebrand-keep */',
+        '? "t3.exe" : "t3"; /* rebrand-keep */',
+      ],
       // The repoint matchers look for the archive exe inside versions dirs.
       [
         '  /^(ExecStart=.*?[\\\\/]runtime[\\\\/]versions[\\\\/])([^\\\\/\\s"]+)([\\\\/]t3)(?=["\\s])/m,\n  /(<string>[^<]*?[\\\\/]runtime[\\\\/]versions[\\\\/])([^\\\\/<]+)([\\\\/]t3<\\/string>\\s*<string>__service-launcher<\\/string>)/,\n  /(<Arguments>--headless "[^"<]*?[\\\\/]runtime[\\\\/]versions[\\\\/])([^\\\\/"<]+)([\\\\/]t3\\.exe" "__service-launcher")/,',
@@ -572,6 +593,7 @@ const FILE_EDITS: ReadonlyArray<{
       ["bin\\/t3\\.mjs", "bin\\/simplycode\\.mjs"],
       ['"lib/node_modules/t3"', '"lib/node_modules/simplycode"'],
       ['"bin/t3"', '"bin/simplycode"'],
+      ["manifest.bin.t3", "manifest.bin.simplycode"],
     ],
   },
   {
@@ -651,10 +673,6 @@ const FILE_EDITS: ReadonlyArray<{
     edits: [['"snap-shot@t3.codes"', '"snap-shot@simplycode.invalid"']],
   },
   {
-    file: "apps/server/src/cli/invocation.ts",
-    edits: [["manifest.bin.t3", "manifest.bin.simplycode"]],
-  },
-  {
     file: "scripts/build-desktop-artifact.ts",
     edits: [
       ['schemes: ["t3code", "t3code-dev"]', 'schemes: ["simplycode", "simplycode-dev"]'],
@@ -707,6 +725,95 @@ const FILE_EDITS: ReadonlyArray<{
       [
         '? "t3.exe" : "t3" /* rebrand-keep */; /* rebrand-keep */',
         '? "t3.exe" : "t3"; /* rebrand-keep */',
+      ],
+    ],
+  },
+  {
+    // The desktop registers only simplycode schemes; the app-scheme matchers
+    // must accept them or deep links and pairing links are silently dropped.
+    file: "packages/shared/src/promptLinks.ts",
+    edits: [
+      ["/^t3code(?:-[a-z]+)?:$/", "/^simplycode(?:-[a-z]+)?:$/"],
+      ['scheme = "t3code"', 'scheme = "simplycode"'],
+    ],
+  },
+  {
+    file: "packages/shared/src/remote.ts",
+    edits: [["/^t3code(?:-[a-z]+)?:$/", "/^simplycode(?:-[a-z]+)?:$/"]],
+  },
+  {
+    file: "apps/desktop/src/app/DesktopClerk.test.ts",
+    edits: [['"/tmp/app-data/t3code-dev"', '"/tmp/app-data/simplycode-dev"']],
+  },
+  {
+    file: "apps/desktop/src/app/DesktopLifecycle.test.ts",
+    edits: [['"T3CODE://pair?token=spent"', '"SIMPLYCODE://pair?token=spent"']],
+  },
+  {
+    file: "apps/desktop/src/app/DesktopCliCommand.test.ts",
+    edits: [["`${home}/.t3`", "`${home}/.simplycode`"]],
+  },
+  {
+    file: "apps/desktop/src/app/DesktopCliShim.test.ts",
+    edits: [['"./bin/t3"', '"./bin/simplycode"']],
+  },
+  {
+    file: "apps/desktop/src/app/DesktopLinuxUrlHandler.test.ts",
+    edits: [
+      ["x-scheme-handler/t3code", "x-scheme-handler/simplycode"],
+      // A path without special characters is written unquoted.
+      ['Exec="/opt/SimplyCode/t3code" %U', "Exec=/opt/SimplyCode/t3code %U"],
+      // linuxThemeIconNames dedupes [lowercase, original]; the fork's
+      // all-lowercase desktop id installs a single icon name.
+      [
+        '"io.github.kodji7202code.simplycode.png",\n        "io.github.kodji7202code.simplycode.png",',
+        '"io.github.kodji7202code.simplycode.png",',
+      ],
+      [
+        '"io.github.kodji7202code.simplycode",\n        "io.github.kodji7202code.simplycode",',
+        '"io.github.kodji7202code.simplycode",',
+      ],
+      [
+        `const lower = path.join(fixture.appsDir, "io.github.kodji7202code.simplycode.png");
+      const upper = path.join(fixture.appsDir, "io.github.kodji7202code.simplycode.png");
+      yield* fileSystem.writeFile(lower, new Uint8Array([3, 2, 1]));
+      yield* fileSystem.writeFile(upper, new Uint8Array([1, 2, 3]));
+      for (const target of [lower, upper]) {
+        yield* fileSystem.utimes(target, fixture.pastSeconds, fixture.pastSeconds);
+      }`,
+        `const target = path.join(
+        fixture.appsDir,
+        "io.github.kodji7202code.simplycode.png",
+      );
+      yield* fileSystem.writeFile(target, new Uint8Array([3, 2, 1]));
+      yield* fileSystem.utimes(target, fixture.pastSeconds, fixture.pastSeconds);`,
+      ],
+      [
+        `assert.deepEqual([...(yield* fileSystem.readFile(lower))], [1, 2, 3]);
+      const upperInfo = yield* fileSystem.stat(upper);
+      assert.equal(Option.getOrThrow(upperInfo.mtime).getTime(), fixture.pastSeconds * 1000);`,
+        `assert.deepEqual([...(yield* fileSystem.readFile(target))], [1, 2, 3]);`,
+      ],
+    ],
+  },
+  {
+    file: "apps/desktop/src/app/DesktopPreReadyPlatform.test.ts",
+    edits: [
+      ["x-scheme-handler/t3code", "x-scheme-handler/simplycode"],
+      ['Exec="/opt/SimplyCode/t3code" %U', "Exec=/opt/SimplyCode/t3code %U"],
+    ],
+  },
+  {
+    file: "apps/desktop/src/electron/ElectronProtocol.test.ts",
+    edits: [["'self' t3code-dev:", "'self' simplycode-dev:"]],
+  },
+  {
+    file: "packages/source-control-github/src/shared/definition.test.ts",
+    edits: [
+      ['repository: "t3tools/t3code"', 'repository: "t3tools/simplycode"'],
+      [
+        '"https://github.com/pingdotgg/t3code/pull/8600#issuecomment-1"',
+        '"https://github.com/kodji7202-code/simplycode/pull/8600#issuecomment-1"',
       ],
     ],
   },

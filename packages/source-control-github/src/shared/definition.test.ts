@@ -9,7 +9,7 @@ describe("GitHub change request URLs", () => {
   it("reads a pull request on any host, lower-casing host and repository", () => {
     expect(parse("https://github.com/T3Tools/SimplyCode/pull/123/files?w=1#diff")).toEqual({
       host: "github.com",
-      repository: "t3tools/t3code",
+      repository: "t3tools/simplycode",
       number: 123,
       repositoryUrl: "https://github.com/T3Tools/SimplyCode",
     });
@@ -87,7 +87,7 @@ describe("GitHub change request URLs", () => {
       definition.changeRequestUrlFromReferenceAutolink(new URL(url));
     expect(
       candidate("https://github.com/kodji7202-code/simplycode/issues/8600#issuecomment-1"),
-    ).toBe("https://github.com/pingdotgg/t3code/pull/8600#issuecomment-1");
+    ).toBe("https://github.com/kodji7202-code/simplycode/pull/8600#issuecomment-1");
     expect(candidate("https://code.github.example.com/acme/web/issues/42")).toBe(
       "https://code.github.example.com/acme/web/pull/42",
     );
