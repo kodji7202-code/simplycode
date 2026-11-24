@@ -20,6 +20,7 @@ import {
   type ThreadId,
 } from "@t3tools/contracts";
 import { resolveUserMessagePresentation } from "@t3tools/client-runtime/user-message";
+import { parseBotPrompt } from "@t3tools/shared/botPrompt";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowUpIcon,
@@ -274,7 +275,10 @@ export function QueuedRunsControl({
             ? ""
             : assistantCitationsToPlainText(
                 composerFileLinksToPlainText(
-                  replaceComposerContextReferences(item.text, (reference) => reference.label),
+                  replaceComposerContextReferences(
+                    parseBotPrompt(item.text)?.prompt ?? item.text,
+                    (reference) => reference.label,
+                  ),
                 ),
               ).trim();
           const isEditing = item.runId !== null && item.runId === props.editingRunId;

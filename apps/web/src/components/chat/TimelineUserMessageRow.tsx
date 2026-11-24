@@ -4,6 +4,7 @@ import { filePreviewKind } from "@t3tools/shared/filePreview";
 import type { MarkdownExtensions } from "~/markdown/wordsHast";
 import { T, useGT, useMessages, Var } from "gt-react";
 import { findRevealRef } from "./markdownFindContext";
+import { parseBotPrompt } from "@t3tools/shared/botPrompt";
 import {
   type EnvironmentId,
   type MessageId,
@@ -34,6 +35,7 @@ import ChatMarkdown from "../ChatMarkdown";
 import {
   CalendarClockIcon,
   ChevronDownIcon,
+  ChevronRightIcon,
   DownloadIcon,
   EyeIcon,
   type LucideIcon,
@@ -1212,6 +1214,38 @@ const COLLAPSED_USER_MESSAGE_FADE_HEIGHT_REM = 1.75;
 
 const COLLAPSED_USER_MESSAGE_FADE_MASK = `linear-gradient(to bottom, black calc(100% - ${COLLAPSED_USER_MESSAGE_FADE_HEIGHT_REM}rem), transparent)`;
 
+/** A bot run's standing instructions, folded so the run's own prompt reads as the message. */
+function BotPreambleDisclosure(props: { name: string; soul: string }) {
+  const ctx = use(TimelineRowCtx);
+  const gt = useGT();
+  const [expanded, setExpanded] = useState(false);
+  const revealRef = findRevealRef(() => setExpanded(true));
+  const mounted = expanded || ctx.findActive;
+  return (
+    <div className="mb-1.5">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((value) => !value)}
+        className="flex items-center gap-1 rounded-sm text-2xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        <ChevronRightIcon className={cn("size-3", expanded && "rotate-90")} aria-hidden />
+        {gt("Standing instructions")} · {props.name}
+      </button>
+      {mounted ? (
+        <div
+          ref={revealRef}
+          hidden={!expanded}
+          data-thread-find-text="true"
+          className="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg bg-muted/50 px-2.5 py-2 text-2xs text-muted-foreground"
+        >
+          {props.soul}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(props: {
   text: string;
   renderContextReference: (reference: ChatMarkdownContextReference) => ReactNode;
@@ -1222,7 +1256,10 @@ const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(prop
   const [expanded, setExpanded] = useState(false);
   const revealForFind = () => setExpanded(true);
   const revealRef = findRevealRef(revealForFind);
-  const hasVisibleBody = props.text.trim().length > 0;
+  // A bot's standing instructions repeat every run; show the run's own prompt and fold the soul.
+  const botParts = parseBotPrompt(props.text);
+  const bodyText = botParts?.prompt ?? props.text;
+  const hasVisibleBody = bodyText.trim().length > 0;
   const { ref: contentRef, tallEnough: canCollapse } = useTallEnoughToFold(
     props.collapsible !== false && hasVisibleBody,
   );
@@ -1231,6 +1268,9 @@ const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(prop
 
   return (
     <div>
+      {botParts !== null ? (
+        <BotPreambleDisclosure name={botParts.name} soul={botParts.soul} />
+      ) : null}
       {hasVisibleBody ? (
         <div
           ref={revealRef}
@@ -1252,7 +1292,7 @@ const CollapsibleUserMessageBody = memo(function CollapsibleUserMessageBody(prop
         >
           <div ref={contentRef}>
             <UserMessageBody
-              text={props.text}
+              text={bodyText}
               renderContextReference={props.renderContextReference}
               skills={props.skills}
               markdownCwd={props.markdownCwd}

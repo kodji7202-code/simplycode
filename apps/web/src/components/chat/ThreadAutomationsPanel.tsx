@@ -52,8 +52,8 @@ function taskScheduleLine(
   return (
     <>
       {scheduleLabel(task.schedule, timestampFormat, timeZone, task.nextRunAt, resolve)}
-      {task.blockedByPolicy !== undefined ? (
-        ` · ${task.blockedByPolicy}`
+      {task.blockedByPolicy !== undefined || task.blockedByBot !== undefined ? (
+        ` · ${task.blockedByPolicy ?? task.blockedByBot}`
       ) : task.enabled && task.nextRunAt !== null ? (
         <>
           {" · "}

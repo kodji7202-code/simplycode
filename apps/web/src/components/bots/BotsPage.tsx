@@ -4,17 +4,19 @@ import {
   CommandId,
   EnvironmentId,
   type Bot,
+  type ScheduledTask,
 } from "@t3tools/contracts";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
-import { useNavigate, useSearch } from "@tanstack/react-router";
-import { T, useGT, useMessages } from "gt-react";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { T, useGT, useLocale, useMessages } from "gt-react";
 import { BotIcon, PencilIcon, PlayIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 
+import { useClientSettings } from "../../hooks/useSettings";
 import { cn, randomUUID } from "../../lib/utils";
 import { requestConfirmDialog } from "../../confirmDialog";
 import { m } from "../../i18n/messages";
@@ -44,6 +46,7 @@ import {
 import { WorkspacePageHeader } from "../WorkspacePageHeader";
 import { BotEditorDialog } from "./BotEditorDialog";
 import { APPROVAL_MODE_RUNTIME_LABELS, botAutomationCount } from "./botPage.logic";
+import { scheduleLabel } from "../settings/scheduledTasksSettings.logic";
 
 function botAvatarLabel(bot: Bot): string {
   return bot.avatar?.trim() || (bot.name.trim()[0] ?? "B").toUpperCase();
@@ -52,20 +55,30 @@ function botAvatarLabel(bot: Bot): string {
 function BotRow(props: {
   readonly environmentId: EnvironmentId;
   readonly bot: Bot;
-  readonly automationCount: number;
+  readonly tasks: ReadonlyArray<ScheduledTask>;
+  readonly timeZone: string | undefined;
   readonly canOperate: boolean;
   readonly onEdit: () => void;
 }) {
-  const { environmentId, bot, automationCount, canOperate, onEdit } = props;
+  const { environmentId, bot, tasks, timeZone, canOperate, onEdit } = props;
   const gt = useGT();
+  const messages = useMessages();
+  const locale = useLocale();
+  const timestampFormat = useClientSettings((settings) => settings.timestampFormat);
   const navigate = useNavigate();
   const setEnabled = useAtomCommand(serverEnvironment.setBotEnabled, {
     label: "bot enabled",
+  });
+  const setTaskEnabled = useAtomCommand(serverEnvironment.setScheduledTaskEnabled, {
+    label: "automation enabled",
   });
   const deleteBot = useAtomCommand(serverEnvironment.deleteBot, { label: "bot delete" });
   const runNow = useAtomCommand(serverEnvironment.runBotNow, { label: "bot run now" });
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState<"toggle" | "run" | "delete" | null>(null);
+  const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
+  const automations = tasks.filter((task) => task.botId === bot.id);
+  const automationCount = botAutomationCount(tasks, bot.id);
 
   const reportFailure = (title: string, error: unknown) => {
     toastManager.add(
@@ -199,6 +212,70 @@ function BotRow(props: {
                 </TooltipPopup>
               </Tooltip>
             </form>
+          ) : null}
+          {automations.length > 0 || canOperate ? (
+            <div className="mt-2.5 border-t border-border/50 pt-2">
+              <ul className="space-y-1">
+                {automations.map((task) => (
+                  <li key={task.id} className="flex items-center gap-2 text-2xs">
+                    <Switch
+                      checked={task.enabled}
+                      disabled={busyTaskId !== null || !canOperate}
+                      aria-label={gt("Enable {title}", { title: task.title })}
+                      onCheckedChange={() => {
+                        if (
+                          busyTaskId !== null ||
+                          !readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)
+                        )
+                          return;
+                        setBusyTaskId(task.id);
+                        void setTaskEnabled({
+                          environmentId,
+                          input: { id: task.id, enabled: !task.enabled },
+                        }).then((result) => {
+                          setBusyTaskId(null);
+                          if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+                            reportFailure(
+                              gt("Could not update automation"),
+                              squashAtomCommandFailure(result),
+                            );
+                          }
+                        });
+                      }}
+                    />
+                    <Link
+                      to="/settings/scheduled-tasks"
+                      search={{ environmentId, taskId: task.id }}
+                      className="min-w-0 flex-1 truncate rounded-sm font-medium hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      {task.title}
+                    </Link>
+                    <span className="shrink-0 text-muted-foreground">
+                      {task.blockedByBot ??
+                        task.blockedByPolicy ??
+                        scheduleLabel(
+                          task.schedule,
+                          timestampFormat,
+                          timeZone,
+                          task.nextRunAt,
+                          messages,
+                          locale,
+                        )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {canOperate ? (
+                <Link
+                  to="/settings/scheduled-tasks"
+                  search={{ environmentId, botId: bot.id }}
+                  className="mt-1.5 inline-flex items-center gap-1 rounded-sm text-2xs text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  <PlusIcon className="size-3" aria-hidden />
+                  <T>Add automation</T>
+                </Link>
+              ) : null}
+            </div>
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -381,7 +458,8 @@ export function BotsPage() {
                   key={bot.id}
                   environmentId={environmentId ?? EnvironmentId.make("")}
                   bot={bot}
-                  automationCount={botAutomationCount(tasks, bot.id)}
+                  tasks={tasks}
+                  timeZone={tasksQuery.data?.timeZone}
                   canOperate={canOperate}
                   onEdit={() => setEditor({ bot })}
                 />
