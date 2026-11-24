@@ -15,7 +15,7 @@ import {
 } from "../ui/dialog";
 import { ChatGptUsageButton } from "./ChatGptUsageButton";
 
-const STORAGE_KEY = "t3:chatgpt-sharing-welcome:v1";
+const STORAGE_KEY = "simplycode:chatgpt-sharing-welcome:v1";
 function readAcknowledgedProfiles(): string[] {
   try {
     const value: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
@@ -70,7 +70,7 @@ export function ChatGptWelcomeCoordinator() {
           </DialogTitle>
           <DialogDescription>
             <T>
-              Eligible usage in T3 Code uses your ChatGPT plan. Manage your shared usage and any
+              Eligible usage in SimplyCode uses your ChatGPT plan. Manage your shared usage and any
               credit settings in ChatGPT.
             </T>
           </DialogDescription>

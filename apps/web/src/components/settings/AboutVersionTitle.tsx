@@ -48,6 +48,10 @@ export function AboutVersionTitle() {
           </TooltipPopup>
         </Tooltip>
       </code>
+      <span className="text-2xs text-muted-foreground">
+        {gt("An unofficial fork of T3 Code. Not affiliated with T3 Tools, Inc.")}{" "}
+        {/* rebrand-keep */}
+      </span>
     </span>
   );
 }

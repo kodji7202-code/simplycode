@@ -173,9 +173,12 @@ export function SavedBackendListRow({
       toastManager.add({
         type: "success",
         title: gt("MCP URL copied"),
-        description: gt("Add it to an agent, e.g. claude mcp add --transport http t3 {url}", {
-          url,
-        }),
+        description: gt(
+          "Add it to an agent, e.g. claude mcp add --transport http simplycode {url}",
+          {
+            url,
+          },
+        ),
       });
     },
     onError: (error) => {
@@ -773,13 +776,15 @@ function ConfiguredCloudLinkRow({
         <SettingsRow
           title={setting("t3-connect").title}
           description={gt(
-            "This environment was removed from T3 Connect. Run `t3 connect link` on the host to link it again.",
+            "This environment was removed from T3 Connect. Run `simplycode connect link` on the host to link it again.",
           )}
         />
       ) : (
         <SettingsRow
           title={setting("t3-connect").title}
-          description={gt("Run `t3 connect link` on the host, then restart T3 Code there.")}
+          description={gt(
+            "Run `simplycode connect link` on the host, then restart SimplyCode there.",
+          )}
         />
       )}
       {signedOut && showSwitch ? null : (
