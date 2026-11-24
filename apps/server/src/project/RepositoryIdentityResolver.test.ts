@@ -58,7 +58,7 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       expect(identity?.displayName).toBe("T3Tools/t3code");
       expect(identity?.provider).toBe("github");
       expect(identity?.owner).toBe("T3Tools");
-      expect(identity?.name).toBe("t3code");
+      expect(identity?.name).toBe("simplycode");
       expect(yield* resolver.resolve(path.join(cwd, ".git"))).toBeNull();
     }).pipe(Effect.provide(RepositoryIdentityResolver.layer)),
   );
@@ -583,7 +583,7 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       expect(identity?.canonicalKey).toBe("gitlab.com/t3tools/platform/t3code");
       expect(identity?.displayName).toBe("T3Tools/platform/t3code");
       expect(identity?.owner).toBe("T3Tools");
-      expect(identity?.name).toBe("t3code");
+      expect(identity?.name).toBe("simplycode");
     }).pipe(Effect.provide(RepositoryIdentityResolver.layer)),
   );
 });

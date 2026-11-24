@@ -12,7 +12,9 @@ export const FEEDBACK_TRACE_TURNS = 5;
 
 const reportFields = {
   kind: AgentFeedbackKind,
-  subject: Schema.String.annotate({ description: "T3 tool name, `t3` command, or `general`." }),
+  subject: Schema.String.annotate({
+    description: "T3 tool name, `simplycode` command, or `general`.",
+  }),
   expected: FeedbackText,
   actual: FeedbackText,
   workaround: FeedbackText.annotate({ description: "What you did instead, or empty." }),
@@ -66,7 +68,7 @@ export const FeedbackAwaitingApproval = Schema.Struct({
 export type FeedbackAwaitingApproval = typeof FeedbackAwaitingApproval.Type;
 
 export const FEEDBACK_OFF_MESSAGE =
-  "Agent feedback is off. Turn it on in T3 Code under Settings > Labs, then try again.";
+  "Agent feedback is off. Turn it on in SimplyCode under Settings > Labs, then try again.";
 
 export class FeedbackOffError extends Schema.TaggedError<FeedbackOffError>()(
   "FeedbackOffError",
@@ -81,7 +83,7 @@ export type FeedbackSource = "mcp" | "cli";
 
 // Requested reports count when their card is shown, unprompted ones when stored.
 export const MAX_REPORTS_PER_TURN = 3;
-// Reports from no turn, such as `t3 feedback`, have no turn to count in.
+// Reports from no turn, such as `simplycode feedback`, have no turn to count in.
 export const MAX_REPORTS_OUTSIDE_TURNS_PER_HOUR = 10;
 
 export class FeedbackLimitError extends Schema.TaggedError<FeedbackLimitError>()(
@@ -120,101 +122,102 @@ export class FeedbackStorageError extends Schema.TaggedError<FeedbackStorageErro
   }
 }
 
-/** The MCP client label `t3 feedback` signs in with, so its reports count as `cli`. */
-export const FEEDBACK_CLI_CLIENT_LABEL = "t3 feedback cli";
+/** The MCP client label `simplycode feedback` signs in with, so its reports count as `cli`. */
+export const FEEDBACK_CLI_CLIENT_LABEL = "simplycode feedback cli";
 
-/** Listed `t3` command paths a report may name. A CLI test keeps this in step with binCli. */
+/** Listed `simplycode` command paths a report may name. A CLI test keeps this in step with binCli. */
 export const T3_CLI_COMMANDS: ReadonlyArray<string> = [
-  "t3",
-  "t3 help",
-  "t3 serve",
-  "t3 app",
-  "t3 pair",
-  "t3 auth",
-  "t3 auth connect-device",
-  "t3 auth connect-device approve",
-  "t3 auth connect-device list",
-  "t3 auth connect-device revoke",
-  "t3 auth pairing",
-  "t3 auth pairing create",
-  "t3 auth pairing list",
-  "t3 auth pairing revoke",
-  "t3 auth session",
-  "t3 auth session issue",
-  "t3 auth session list",
-  "t3 auth session revoke",
-  "t3 environment",
-  "t3 environment link",
-  "t3 environment list",
-  "t3 environment unlink",
-  "t3 browser",
-  "t3 browser setup",
-  "t3 project",
-  "t3 project add",
-  "t3 project remove",
-  "t3 project rename",
-  "t3 thread",
-  "t3 thread list",
-  "t3 thread start",
-  "t3 thread send",
-  "t3 thread show",
-  "t3 feedback",
-  "t3 feedback list",
-  "t3 workflow",
-  "t3 workflow start",
-  "t3 workflow list",
-  "t3 workflow show",
-  "t3 workflow resume",
-  "t3 workflow cancel",
-  "t3 workflow signal",
-  "t3 workflow questions",
-  "t3 workflow hooks",
-  "t3 workflow store",
-  "t3 workflow store list",
-  "t3 workflow store set",
-  "t3 workflow store delete",
-  "t3 up",
-  "t3 status",
-  "t3 service",
-  "t3 service install",
-  "t3 service restart",
-  "t3 service uninstall",
-  "t3 service status",
-  "t3 service protect",
-  "t3 update",
-  "t3 install",
-  "t3 uninstall",
-  "t3 theme",
-  "t3 theme set",
-  "t3 theme clear",
-  "t3 theme show",
-  "t3 trace",
-  "t3 trace summary",
-  "t3 doctor",
-  "t3 policy",
-  "t3 policy show",
-  "t3 policy check",
-  "t3 policy templates",
-  "t3 policy settings",
-  "t3 triage",
-  "t3 connect",
-  "t3 connect link",
-  "t3 connect login",
-  "t3 connect logout",
-  "t3 connect publish",
-  "t3 connect status",
-  "t3 connect unlink",
+  "simplycode",
+  "simplycode help",
+  "simplycode serve",
+  "simplycode app",
+  "simplycode pair",
+  "simplycode auth",
+  "simplycode auth connect-device",
+  "simplycode auth connect-device approve",
+  "simplycode auth connect-device list",
+  "simplycode auth connect-device revoke",
+  "simplycode auth pairing",
+  "simplycode auth pairing create",
+  "simplycode auth pairing list",
+  "simplycode auth pairing revoke",
+  "simplycode auth session",
+  "simplycode auth session issue",
+  "simplycode auth session list",
+  "simplycode auth session revoke",
+  "simplycode environment",
+  "simplycode environment link",
+  "simplycode environment list",
+  "simplycode environment unlink",
+  "simplycode browser",
+  "simplycode browser setup",
+  "simplycode project",
+  "simplycode project add",
+  "simplycode project remove",
+  "simplycode project rename",
+  "simplycode thread",
+  "simplycode thread list",
+  "simplycode thread start",
+  "simplycode thread send",
+  "simplycode thread show",
+  "simplycode feedback",
+  "simplycode feedback list",
+  "simplycode workflow",
+  "simplycode workflow start",
+  "simplycode workflow list",
+  "simplycode workflow show",
+  "simplycode workflow resume",
+  "simplycode workflow cancel",
+  "simplycode workflow signal",
+  "simplycode workflow questions",
+  "simplycode workflow hooks",
+  "simplycode workflow store",
+  "simplycode workflow store list",
+  "simplycode workflow store set",
+  "simplycode workflow store delete",
+  "simplycode up",
+  "simplycode status",
+  "simplycode service",
+  "simplycode service install",
+  "simplycode service restart",
+  "simplycode service uninstall",
+  "simplycode service status",
+  "simplycode service protect",
+  "simplycode update",
+  "simplycode install",
+  "simplycode uninstall",
+  "simplycode theme",
+  "simplycode theme set",
+  "simplycode theme clear",
+  "simplycode theme show",
+  "simplycode trace",
+  "simplycode trace summary",
+  "simplycode doctor",
+  "simplycode policy",
+  "simplycode policy show",
+  "simplycode policy check",
+  "simplycode policy templates",
+  "simplycode policy settings",
+  "simplycode triage",
+  "simplycode connect",
+  "simplycode connect link",
+  "simplycode connect login",
+  "simplycode connect logout",
+  "simplycode connect publish",
+  "simplycode connect status",
+  "simplycode connect unlink",
 ];
 
 export type FeedbackInput = typeof FeedbackInput.Type;
 export type FeedbackReport = typeof FeedbackReport.Type;
 
 export const FEEDBACK_SUBJECT_MESSAGE =
-  "Set subject to the exact T3 tool name, the t3 command, or `general`.";
+  "Set subject to the exact T3 tool name, the simplycode command, or `general`.";
 
 // The shared resolver knows the presented tools; the prefix covers the rest, such as these.
 // Codex also registers `t3-code-direct` for T3 tools it keeps out of Code Mode.
-const T3_PREFIX = /^(?:mcp__t3[-_]?code(?:[-_]direct)?__|t3[-_]?code(?:[-_]direct)?[.:/])/iu;
+const T3_PREFIX =
+  /^(?:mcp__t3[-_]?code(?:[-_]direct)?__|simplycode[-_]?code(?:[-_]direct)?[.:/])/iu;
 
 /** The bare name of a registered T3 tool however a provider prefixed it, else undefined. */
 export const resolveT3ToolName = (name: string, toolNames: ReadonlyArray<string>) => {
@@ -227,7 +230,7 @@ export const resolveT3ToolName = (name: string, toolNames: ReadonlyArray<string>
     .toSorted((a, b) => b.length - a.length)[0];
 };
 
-/** The stored subject, or undefined when the value names no T3 tool, `t3` command, or `general`. */
+/** The stored subject, or undefined when the value names no T3 tool, `simplycode` command, or `general`. */
 export const resolveFeedbackSubject = (value: string, toolNames: ReadonlyArray<string>) => {
   const subject = value.trim();
   if (subject === "general" || T3_CLI_COMMANDS.includes(subject)) return subject;

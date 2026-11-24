@@ -78,7 +78,7 @@ const encodeEffectRequest = Schema.encodeSync(Schema.fromJsonString(Orchestratio
 
 const pullRequest = (number: number) => ({
   host: "github.com",
-  repository: "pingdotgg/t3code",
+  repository: "kodji7202-code/simplycode",
   number,
 });
 

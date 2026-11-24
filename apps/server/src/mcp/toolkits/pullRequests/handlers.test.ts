@@ -70,12 +70,12 @@ function makeProject(
     locator: {
       source: "git-remote",
       remoteName: "origin",
-      remoteUrl: "git@github.com:T3Tools/T3Code.git",
+      remoteUrl: "git@github.com:T3Tools/SimplyCode.git",
     },
     provider: SourceControlProviderKind.make("github"),
-    displayName: "T3Tools/T3Code",
+    displayName: "T3Tools/SimplyCode",
     owner: "T3Tools",
-    name: "T3Code",
+    name: "SimplyCode",
   },
 ): OrchestrationProjectShell {
   return {
@@ -276,13 +276,13 @@ describe("pull request toolkit handlers", () => {
     Effect.gen(function* () {
       const harness = yield* makeHarness();
       const result = yield* harness.call("link_pull_request", {
-        url: "https://github.com/T3Tools/T3Code/pull/123/files",
+        url: "https://github.com/T3Tools/SimplyCode/pull/123/files",
       });
       expect(result).toEqual({
         host: "github.com",
         repository: "t3tools/t3code",
         number: 123,
-        url: "https://github.com/T3Tools/T3Code/pull/123/files",
+        url: "https://github.com/T3Tools/SimplyCode/pull/123/files",
         alreadyLinked: false,
       });
       expect(yield* Ref.get(harness.commands)).toMatchObject([
@@ -322,16 +322,16 @@ describe("pull request toolkit handlers", () => {
       for (const host of ["git.cafe", "staging.git.cafe"]) {
         for (const project of [makeProject(), makeProject(null)]) {
           for (const target of [
-            { host, repository: "PingDotGG/T3Code", number: 21353 },
-            { url: `https://${host}/PingDotGG/T3Code/pull/21353` },
-            { url: `https://${host}/PingDotGG/T3Code/pulls/21353` },
+            { host, repository: "PingDotGG/SimplyCode", number: 21353 },
+            { url: `https://${host}/PingDotGG/SimplyCode/pull/21353` },
+            { url: `https://${host}/PingDotGG/SimplyCode/pulls/21353` },
           ]) {
             const harness = yield* makeHarness({ project });
             const result = yield* harness.call("link_pull_request", target);
-            const url = `https://${host}/pingdotgg/t3code/pulls/21353`;
+            const url = `https://${host}/kodji7202-code/simplycode/pulls/21353`;
             expect(result).toMatchObject({
               host,
-              repository: "pingdotgg/t3code",
+              repository: "kodji7202-code/simplycode",
               number: 21353,
               url,
             });
@@ -339,7 +339,7 @@ describe("pull request toolkit handlers", () => {
               {
                 type: "thread.pull-request.link",
                 host,
-                repository: "pingdotgg/t3code",
+                repository: "kodji7202-code/simplycode",
                 number: 21353,
                 url,
               },

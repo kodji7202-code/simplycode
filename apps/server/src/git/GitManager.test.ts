@@ -1095,7 +1095,7 @@ it.layer(layerGitManagerTest)("GitManager", (it) => {
         ),
       ).toEqual([]);
 
-      // A remote added outside T3 Code shows on the next read.
+      // A remote added outside SimplyCode shows on the next read.
       yield* runGit(repoDir, [
         "remote",
         "add",
@@ -1962,7 +1962,7 @@ it.layer(layerGitManagerTest)("GitManager", (it) => {
         yield* configureVisibleRemoteUrlWithLocalRewrite(
           repoDir,
           "origin",
-          "https://github.com/pingdotgg/t3code.git",
+          "https://github.com/kodji7202-code/simplycode.git",
           remoteDir,
         );
         yield* runGit(repoDir, ["checkout", "-b", "feature/no-upstream"]);
@@ -6859,7 +6859,7 @@ it.layer(layerGitManagerTest)("GitManager", (it) => {
     }),
   );
 
-  it.effect.each([{ blocker: null }, { blocker: "t3code" }, { blocker: "t3code/pr-81" }])(
+  it.effect.each([{ blocker: null }, { blocker: "simplycode" }, { blocker: "t3code/pr-81" }])(
     "preserves fork upstream tracking when preparing a worktree PR thread (local branch $blocker)",
     ({ blocker }) =>
       Effect.gen(function* () {
