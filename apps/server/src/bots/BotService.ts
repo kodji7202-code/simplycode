@@ -35,7 +35,7 @@ import * as Orchestrator from "../orchestration-v2/Orchestrator.ts";
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
 import * as ScheduledTasks from "../scheduledTasks/ScheduledTaskService.ts";
 import { BotStore } from "./BotStore.ts";
-import { botPrompt } from "./botPrompt.ts";
+import { botPrompt } from "@t3tools/shared/botPrompt";
 
 function botError(message: string, input?: { botId?: BotId; cause?: unknown }) {
   return new BotError({
@@ -218,8 +218,9 @@ export const layer = Layer.effect(
         if (!bot.enabled) return yield* botError("Bot is disabled.", { botId: input.id });
         yield* requireProject(bot.projectId, input.id);
         const commandId =
-          input.commandId ??
-          CommandId.make(`bot-run:${input.id}:${DateTime.toEpochMillis(yield* DateTime.now)}`);
+          input.commandId === undefined
+            ? CommandId.make(`bot-run:${input.id}:${DateTime.toEpochMillis(yield* DateTime.now)}`)
+            : CommandId.make(`bot-run:${input.id}:${input.commandId}`);
         const launched = yield* threadLaunch
           .launch({
             commandId,

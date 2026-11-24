@@ -225,7 +225,7 @@ it.effect("runNow launches with the wrapped prompt, bot mode and a bot tag", () 
       expect(launch?.runtimeMode).toBe("auto");
       expect(launch?.title).toBe("Night Watch: Check it.");
       expect(launch?.text).toBe(
-        'You are "Night Watch", a SimplyCode bot. Follow these standing instructions:\n\nAlways be terse.\n\n---\n\nCheck it.',
+        'You are "Night Watch", a SimplyCode bot. Follow these standing instructions:\n\nAlways be terse.\n\n--- end of standing instructions ---\n\nCheck it.',
       );
       const tag = seen.dispatches.find((command) => command.type === "thread.tag.set");
       expect(tag?.tag).toBe("bot:night-watch");

@@ -168,7 +168,7 @@ it.effect("wraps the launch prompt and tags the thread for a bot task", () =>
       yield* service.runNow({ id: created.task.id });
       expect(launchedMessages).toHaveLength(1);
       expect(launchedMessages[0]?.text).toBe(
-        'You are "Night Watch", a SimplyCode bot. Follow these standing instructions:\n\nStand guard.\n\n---\n\nRun the checks.',
+        'You are "Night Watch", a SimplyCode bot. Follow these standing instructions:\n\nStand guard.\n\n--- end of standing instructions ---\n\nRun the checks.',
       );
       const tag = dispatches.find((command) => command.type === "thread.tag.set");
       expect(tag?.tag).toBe("bot:night-watch");
