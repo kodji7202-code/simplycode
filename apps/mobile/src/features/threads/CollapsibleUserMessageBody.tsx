@@ -1,7 +1,8 @@
-import { T } from "gt-react-native";
+import { T, useGT } from "gt-react-native";
 import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   Pressable,
+  ScrollView,
   View,
   type ColorValue,
   type LayoutChangeEvent,
@@ -9,11 +10,44 @@ import {
 } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { AppText as Text } from "../../components/ui/AppText";
+import { SymbolView } from "../../components/ui/AppSymbol";
 
 const FOLDED_HEIGHT = 176;
+const SOUL_MAX_HEIGHT = 220;
 
 // Fold only when opening at least doubles what is on screen, matching web's useTallEnoughToFold.
 const isTallEnoughToFold = (height: number) => height >= FOLDED_HEIGHT * 2;
+
+/** A bot run's standing instructions, collapsed behind a label so only the run prompt shows. */
+export function BotPreambleDisclosure(props: { readonly name: string; readonly soul: string }) {
+  const gt = useGT();
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <View className="gap-1">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((value) => !value)}
+        className="min-h-11 flex-row items-center gap-1.5 active:opacity-70"
+      >
+        <SymbolView
+          name={expanded ? "chevron.up" : "chevron.down"}
+          size={11}
+          tintColorClassName="accent-user-bubble-foreground-muted"
+          type="monochrome"
+        />
+        <Text className="font-t3-medium text-xs text-user-bubble-foreground-muted">
+          {gt("Standing instructions · {name}", { name: props.name })}
+        </Text>
+      </Pressable>
+      {expanded ? (
+        <ScrollView style={{ maxHeight: SOUL_MAX_HEIGHT }} nestedScrollEnabled>
+          <Text className="text-xs text-user-bubble-foreground-muted">{props.soul}</Text>
+        </ScrollView>
+      ) : null}
+    </View>
+  );
+}
 
 export function CollapsibleUserMessageBody(props: {
   readonly collapsible: boolean;

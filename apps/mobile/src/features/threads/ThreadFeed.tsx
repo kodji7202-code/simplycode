@@ -1,4 +1,5 @@
-import { CollapsibleUserMessageBody } from "./CollapsibleUserMessageBody";
+import { BotPreambleDisclosure, CollapsibleUserMessageBody } from "./CollapsibleUserMessageBody";
+import { parseBotPrompt } from "@t3tools/shared/botPrompt";
 import { msg, T, useGT, useLocale, useMessages } from "gt-react-native";
 import { m } from "../../i18n/messages";
 import { errorDisplayMessage } from "@t3tools/client-runtime/errors";
@@ -2257,6 +2258,8 @@ function renderFeedEntry(
     const isUser = message.role === "user";
     const presentation = resolveUserMessagePresentation(message);
     const renderedText = presentation.text;
+    const botPreamble = isUser ? parseBotPrompt(renderedText) : null;
+    const bodyText = botPreamble?.prompt ?? renderedText;
     const styles = isUser ? markdownStyles.user : markdownStyles.assistant;
     const timestampLabel = props.formatMessageTime(isUser ? message.createdAt : message.updatedAt);
     const attachments = message.attachments ?? [];
@@ -2547,6 +2550,9 @@ function renderFeedEntry(
                     <MarkdownImageAvailableWidthContext
                       value={props.userBubbleMaxWidth - USER_BUBBLE_HORIZONTAL_PADDING * 2}
                     >
+                      {botPreamble !== null ? (
+                        <BotPreambleDisclosure name={botPreamble.name} soul={botPreamble.soul} />
+                      ) : null}
                       <CollapsibleUserMessageBody
                         collapsible={foldRowId === null}
                         expanded={props.expandedWorkRows[`message:${message.id}`] ?? false}
@@ -2556,7 +2562,7 @@ function renderFeedEntry(
                         bubbleColor={userBubbleColor}
                       >
                         <UserMessageContent
-                          text={renderedText}
+                          text={bodyText}
                           environmentId={props.environmentId}
                           context={message.context}
                           markdownStyles={styles}

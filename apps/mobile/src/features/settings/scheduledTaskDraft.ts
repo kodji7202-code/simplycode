@@ -1,6 +1,13 @@
-import { isWebhookDedupeTemplate, scheduledTaskThreadMode } from "@t3tools/contracts";
+import {
+  botRuntimeMode,
+  isWebhookDedupeTemplate,
+  scheduledTaskThreadMode,
+} from "@t3tools/contracts";
 import type {
+  Bot,
+  BotId,
   ModelSelection,
+  ProviderInteractionMode,
   ServerConfig,
   ProjectId,
   RuntimeMode,
@@ -214,6 +221,8 @@ export type ScheduledTaskDraft = {
   readonly enabled: boolean;
   readonly startFromOrigin: boolean;
   readonly runtimeMode: RuntimeMode;
+  readonly interactionMode: ProviderInteractionMode;
+  readonly botId: BotId | null;
 };
 
 function draftSignature(draft: ScheduledTaskDraft): string {
@@ -244,6 +253,8 @@ function draftSignature(draft: ScheduledTaskDraft): string {
     draft.enabled,
     draft.startFromOrigin,
     draft.runtimeMode,
+    draft.interactionMode,
+    draft.botId,
   ]);
 }
 
@@ -306,6 +317,8 @@ export function createDraft(
     enabled: true,
     startFromOrigin: true,
     runtimeMode: "full-access",
+    interactionMode: "default",
+    botId: null,
   };
 }
 
@@ -332,5 +345,29 @@ export function editDraft(task: ScheduledTask): ScheduledTaskDraft {
         ? (task.workspaceStrategy.startFromOrigin ?? false)
         : true,
     runtimeMode: task.runtimeMode,
+    interactionMode: task.interactionMode,
+    botId: task.botId ?? null,
+  };
+}
+
+/** Prefills a bot-bound task's defaults; schedule, title, and prompt stay untouched. */
+export function applyBotToDraft(draft: ScheduledTaskDraft, bot: Bot): ScheduledTaskDraft {
+  return {
+    ...draft,
+    botId: bot.id,
+    projectId: bot.projectId,
+    threadId: null,
+    modelSelection: bot.modelSelection,
+    modelSelectionIsExplicit: true,
+    runtimeMode: botRuntimeMode(bot.approvalMode),
+    interactionMode: bot.interactionMode,
+    workspace: bot.workspaceStrategy.type,
+    baseRef: bot.workspaceStrategy.type === "worktree" ? bot.workspaceStrategy.baseRef : "",
+    checkoutPath:
+      bot.workspaceStrategy.type === "existing_worktree" ? bot.workspaceStrategy.worktreePath : "",
+    startFromOrigin:
+      bot.workspaceStrategy.type === "worktree"
+        ? (bot.workspaceStrategy.startFromOrigin ?? draft.startFromOrigin)
+        : draft.startFromOrigin,
   };
 }
