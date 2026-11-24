@@ -1,8 +1,7 @@
-/**
- * Renders every SimplyCode icon asset (all channels, `.icon` projects, web and
- * Android copies) from `assets/brand-src/simplycode-mark.svg` via sharp and
- * `scripts/lib/icon-export.ts`. One-time step; outputs are committed.
- */
+// Renders every icon asset (all channels, .icon projects, web/Android copies)
+// from assets/brand-src/simplycode-head.png. The master is a manual artifact:
+// robot-heads@0.3.0 RobotHead (rectangle/happy/emerald, antenna, paused) shot
+// in headless Chrome on a transparent 1024 canvas, trimmed + re-centered.
 
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
@@ -12,16 +11,16 @@ import sharp from "sharp";
 import { encodePngIco, WINDOWS_ICON_SIZES } from "./lib/icon-export.ts";
 
 const REPO_ROOT = NodePath.resolve(NodeURL.fileURLToPath(new URL(".", import.meta.url)), "..");
-const MASTER_PATH = NodePath.join(REPO_ROOT, "assets/brand-src/simplycode-mark.svg");
+const MASTER_PATH = NodePath.join(REPO_ROOT, "assets/brand-src/simplycode-head.png");
 
-const MASTER_BG = "#0B0B0D";
-const MASTER_FG = "#FFFFFF";
+const EMERALD = "#00d47e";
+const SMALL_ICON_MAX = 32;
+const BG_RX_RATIO = 224 / 1024; // rounded-square corner radius of the old SVG master
 
 interface Channel {
   readonly dir: string; // assets/<dir>
   readonly name: string; // filename stem prefix
   readonly bg: string;
-  readonly fg: string;
   /** Icon Composer `fill.solid` display-p3 triple. */
   readonly composerFill: string;
 }
@@ -31,52 +30,23 @@ const CHANNELS: ReadonlyArray<Channel> = [
     dir: "prod",
     name: "black",
     bg: "#0B0B0D",
-    fg: "#FFFFFF",
     composerFill: "display-p3:0.04314,0.04314,0.05098,1.00000",
   },
   {
     dir: "nightly",
     name: "nightly",
     bg: "#111533",
-    fg: "#8F8CF5",
     composerFill: "display-p3:0.06667,0.08235,0.20000,1.00000",
   },
   {
     dir: "dev",
     name: "blueprint",
     bg: "#347FF8",
-    fg: "#FFFFFF",
     composerFill: "display-p3:0.20392,0.49804,0.97255,1.00000",
   },
 ];
 
-const master = NodeFS.readFileSync(MASTER_PATH, "utf8");
-
-/** Master with channel colors; `transparentBg` drops the rounded square. */
-function markSvg(channel: Channel, opts: { transparentBg?: boolean; size?: number } = {}): string {
-  let svg = master
-    .replaceAll(`fill="${MASTER_BG}"`, `fill="${channel.bg}"`)
-    .replaceAll(`stroke="${MASTER_FG}"`, `stroke="${channel.fg}"`);
-  if (opts.transparentBg) svg = svg.replace(/<rect id="bg"[^/]*\/>\n?/, "");
-  if (opts.size)
-    svg = svg.replace('width="1024" height="1024"', `width="${opts.size}" height="${opts.size}"`);
-  return svg;
-}
-
-/** Glyph only, centered inside `canvas` at `scale` of the 1024 master box. */
-function glyphOnlySvg(fg: string, canvas: number, scale: number): string {
-  const inner = Math.round(canvas / scale); // viewBox units mapped to canvas
-  const offset = Math.round((canvas - canvas * scale) / 2);
-  void inner;
-  const glyph = master
-    .match(/<g id="glyph"[\s\S]*?<\/g>/)![0]
-    .replaceAll(`stroke="${MASTER_FG}"`, `stroke="${fg}"`);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas}" height="${canvas}" viewBox="0 0 ${canvas} ${canvas}">\n  <g transform="translate(${offset} ${offset}) scale(${(canvas * scale) / 1024})">\n  ${glyph}\n  </g>\n</svg>\n`;
-}
-
-function solidSvg(color: string, size: number): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><rect width="${size}" height="${size}" fill="${color}"/></svg>`;
-}
+const headMaster = NodeFS.readFileSync(MASTER_PATH);
 
 const written: string[] = [];
 
@@ -87,31 +57,104 @@ function write(rel: string, contents: Buffer | string) {
   written.push(rel);
 }
 
-async function png(svg: string, size: number): Promise<Buffer> {
-  return sharp(Buffer.from(svg), { density: 384 }).resize(size, size).png().toBuffer();
+/** Head scaled to `fraction` of `canvas`, centered on a transparent canvas. */
+async function headLayer(canvas: number, fraction: number): Promise<Buffer> {
+  const size = Math.round(canvas * fraction);
+  const head = await sharp(headMaster).resize(size, size).png().toBuffer();
+  return sharp({
+    create: {
+      width: canvas,
+      height: canvas,
+      channels: 4,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    },
+  })
+    .composite([
+      { input: head, left: Math.round((canvas - size) / 2), top: Math.round((canvas - size) / 2) },
+    ])
+    .png()
+    .toBuffer();
 }
 
-async function writePng(rel: string, svg: string, size: number) {
-  write(rel, await png(svg, size));
+/** Soft emerald glow matching `layer`'s alpha silhouette at ~0.45 opacity. */
+async function glowLayer(layer: Buffer, canvas: number): Promise<Buffer> {
+  const alpha = await sharp(layer)
+    .extractChannel(3)
+    .blur(Math.max(6, Math.round(canvas * 0.045)))
+    .linear(0.45, 0)
+    .png()
+    .toBuffer();
+  const { r, g, b } = hexToRgb(EMERALD);
+  return sharp({
+    create: { width: canvas, height: canvas, channels: 3, background: { r, g, b } },
+  })
+    .joinChannel(alpha)
+    .png()
+    .toBuffer();
 }
 
-async function writeIco(rel: string, svg: string) {
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  return {
+    r: Number.parseInt(hex.slice(1, 3), 16),
+    g: Number.parseInt(hex.slice(3, 5), 16),
+    b: Number.parseInt(hex.slice(5, 7), 16),
+  };
+}
+
+async function roundedSquareBg(channel: Channel, canvas: number): Promise<Buffer> {
+  const rx = Math.round(canvas * BG_RX_RATIO);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvas}" height="${canvas}"><rect width="${canvas}" height="${canvas}" rx="${rx}" fill="${channel.bg}"/></svg>`;
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+/**
+ * Channel app icon at `canvas`: rounded-square background, emerald head with a
+ * soft glow behind it. Small sizes drop the glow and enlarge the head.
+ */
+async function fullIconPng(channel: Channel, canvas: number): Promise<Buffer> {
+  const small = canvas <= SMALL_ICON_MAX;
+  const head = await headLayer(canvas, small ? 0.84 : 0.72);
+  const overlays: sharp.OverlayOptions[] = small
+    ? [{ input: head }]
+    : [{ input: await glowLayer(head, canvas) }, { input: head }];
+  return sharp(await roundedSquareBg(channel, canvas))
+    .composite(overlays)
+    .png()
+    .toBuffer();
+}
+
+async function writePng(rel: string, contents: Promise<Buffer> | Buffer) {
+  write(rel, await contents);
+}
+
+async function writeIco(rel: string, channel: Channel) {
   const images = [];
   for (const size of WINDOWS_ICON_SIZES) {
-    images.push({ size, contents: await png(svg, size) });
+    images.push({ size, contents: await fullIconPng(channel, size) });
   }
   write(rel, encodePngIco(images));
 }
 
-const TEXT_LAYER_SVG = (channel: Channel) =>
-  `<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
-  <g fill="none" stroke="${channel.fg}" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">
-    <polyline points="46,44 28,64 46,84"/>
-    <polyline points="82,44 100,64 82,84"/>
-    <line x1="70" y1="36" x2="58" y2="92"/>
-  </g>
-</svg>
-`;
+/** Head silhouette in solid `color` (alpha taken from the head master). */
+async function silhouettePng(canvas: number, fraction: number, color: string): Promise<Buffer> {
+  const head = await headLayer(canvas, fraction);
+  const alpha = await sharp(head).extractChannel(3).png().toBuffer();
+  const { r, g, b } = hexToRgb(color);
+  return sharp({
+    create: { width: canvas, height: canvas, channels: 3, background: { r, g, b } },
+  })
+    .joinChannel(alpha)
+    .png()
+    .toBuffer();
+}
+
+function solidPng(canvas: number, color: string): Promise<Buffer> {
+  return sharp({
+    create: { width: canvas, height: canvas, channels: 4, background: color },
+  })
+    .png()
+    .toBuffer();
+}
 
 const BACKGROUND_LAYER_SVG = (channel: Channel) =>
   `<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
@@ -128,9 +171,9 @@ function iconJson(channel: Channel): string {
           {
             layers: [
               {
-                "image-name": "text.svg",
-                name: "Text",
-                position: { scale: 8.5, "translation-in-points": [0, 0] },
+                "image-name": "head.png",
+                name: "Head",
+                position: { scale: 0.72, "translation-in-points": [0, 0] },
               },
               {
                 "image-name": "background.svg",
@@ -154,81 +197,70 @@ async function main() {
   for (const channel of CHANNELS) {
     const dir = `assets/${channel.dir}`;
     const n = channel.name;
-    const full = markSvg(channel);
 
     // 1024px masters.
     for (const variant of ["ios", "macos", "universal"]) {
-      await writePng(`${dir}/${n}-${variant}-1024.png`, full, 1024);
+      await writePng(`${dir}/${n}-${variant}-1024.png`, fullIconPng(channel, 1024));
     }
     // Windows + web icon sets.
-    await writeIco(`${dir}/${n}-windows.ico`, full);
-    await writeIco(`${dir}/${n}-web-favicon.ico`, full);
-    await writePng(`${dir}/${n}-web-favicon-16x16.png`, full, 16);
-    await writePng(`${dir}/${n}-web-favicon-32x32.png`, full, 32);
-    await writePng(`${dir}/${n}-web-apple-touch-180.png`, full, 180);
-    await writePng(`${dir}/${n}-web-icon-192x192.png`, full, 192);
-    await writePng(`${dir}/${n}-web-icon-512x512.png`, full, 512);
+    await writeIco(`${dir}/${n}-windows.ico`, channel);
+    await writeIco(`${dir}/${n}-web-favicon.ico`, channel);
+    await writePng(`${dir}/${n}-web-favicon-16x16.png`, fullIconPng(channel, 16));
+    await writePng(`${dir}/${n}-web-favicon-32x32.png`, fullIconPng(channel, 32));
+    await writePng(`${dir}/${n}-web-apple-touch-180.png`, fullIconPng(channel, 180));
+    await writePng(`${dir}/${n}-web-icon-192x192.png`, fullIconPng(channel, 192));
+    await writePng(`${dir}/${n}-web-icon-512x512.png`, fullIconPng(channel, 512));
 
     // Icon Composer project (kept: `vp run icons:export` can re-render on macOS).
     const projectDir = `${dir}/app-icon.icon`;
     const assetsDir = NodePath.join(REPO_ROOT, projectDir, "Assets");
     NodeFS.mkdirSync(assetsDir, { recursive: true });
     for (const stale of NodeFS.readdirSync(assetsDir)) {
-      if (!["background.svg", "text.svg"].includes(stale))
+      if (!["background.svg", "head.png"].includes(stale))
         NodeFS.rmSync(NodePath.join(assetsDir, stale));
     }
     write(`${projectDir}/icon.json`, iconJson(channel));
     write(`${projectDir}/Assets/background.svg`, BACKGROUND_LAYER_SVG(channel));
-    write(`${projectDir}/Assets/text.svg`, TEXT_LAYER_SVG(channel));
+    // Layer renders larger than the 72% slot; icon.json scales it down.
+    const headOnCanvas = await headLayer(1024, 1);
+    const headWithGlow = await sharp({
+      create: {
+        width: 1024,
+        height: 1024,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    })
+      .composite([{ input: await glowLayer(headOnCanvas, 1024) }, { input: headOnCanvas }])
+      .png()
+      .toBuffer();
+    write(`${projectDir}/Assets/head.png`, headWithGlow);
   }
-
-  // Channel-colored source SVG kept beside the outputs for reference.
-  write("assets/prod/logo.svg", markSvg(CHANNELS[0]));
 
   // apps/web/public — checked-in copies of the production web set.
   const prod = CHANNELS[0];
-  const prodFull = markSvg(prod);
-  await writeIco("apps/web/public/favicon.ico", prodFull);
-  await writePng("apps/web/public/favicon-16x16.png", prodFull, 16);
-  await writePng("apps/web/public/favicon-32x32.png", prodFull, 32);
-  await writePng("apps/web/public/apple-touch-icon.png", prodFull, 180);
-  await writePng("apps/web/public/icon-192x192.png", prodFull, 192);
-  await writePng("apps/web/public/icon-512x512.png", prodFull, 512);
+  await writeIco("apps/web/public/favicon.ico", prod);
+  await writePng("apps/web/public/favicon-16x16.png", fullIconPng(prod, 16));
+  await writePng("apps/web/public/favicon-32x32.png", fullIconPng(prod, 32));
+  await writePng("apps/web/public/apple-touch-icon.png", fullIconPng(prod, 180));
+  await writePng("apps/web/public/icon-192x192.png", fullIconPng(prod, 192));
+  await writePng("apps/web/public/icon-512x512.png", fullIconPng(prod, 512));
 
   // apps/mobile/assets — Android adaptive icon + splash + notification sets.
-  const glyphWhite432 = glyphOnlySvg("#FFFFFF", 432, 0.66);
-  await writePng("apps/mobile/assets/android-icon-foreground.png", glyphWhite432, 432);
-  await writePng("apps/mobile/assets/android-icon-mark.png", glyphWhite432, 432);
+  await writePng("apps/mobile/assets/android-icon-foreground.png", headLayer(432, 0.62));
+  await writePng("apps/mobile/assets/android-icon-mark.png", headLayer(432, 0.62));
   await writePng(
     "apps/mobile/assets/android-notification-icon.png",
-    glyphOnlySvg("#FFFFFF", 96, 0.8),
-    96,
+    silhouettePng(96, 0.8, "#FFFFFF"),
   );
-  await writePng(
-    "apps/mobile/assets/android-icon-background-dev.png",
-    solidSvg("#347FF8", 432),
-    432,
-  );
+  await writePng("apps/mobile/assets/android-icon-background-dev.png", solidPng(432, "#347FF8"));
   await writePng(
     "apps/mobile/assets/android-icon-background-nightly.png",
-    solidSvg("#111533", 432),
-    432,
+    solidPng(432, "#111533"),
   );
-  await writePng(
-    "apps/mobile/assets/android-splash-icon-dev.png",
-    glyphOnlySvg("#347FF8", 1152, 0.5),
-    1152,
-  );
-  await writePng(
-    "apps/mobile/assets/android-splash-icon-nightly.png",
-    glyphOnlySvg("#4F46E5", 1152, 0.5),
-    1152,
-  );
-  await writePng(
-    "apps/mobile/assets/android-splash-icon-prod.png",
-    glyphOnlySvg("#0B0B0D", 1152, 0.5),
-    1152,
-  );
+  await writePng("apps/mobile/assets/android-splash-icon-dev.png", headLayer(1152, 0.5));
+  await writePng("apps/mobile/assets/android-splash-icon-nightly.png", headLayer(1152, 0.5));
+  await writePng("apps/mobile/assets/android-splash-icon-prod.png", headLayer(1152, 0.5));
 
   console.log(`generated ${written.length} icon asset(s)`);
   for (const rel of written) console.log(`  ${rel}`);
