@@ -48,7 +48,7 @@ function link(
 ): ThreadPullRequestLink {
   return {
     host: "github.com",
-    repository: "pingdotgg/t3code",
+    repository: "kodji7202-code/simplycode",
     number,
     url: `https://github.com/pingdotgg/t3code/pull/${number}`,
     source: "manual",
@@ -167,7 +167,7 @@ describe("resolveThreadCurrentPullRequest", () => {
       kind: "native" as const,
       id: "s1",
       number: 1,
-      url: "https://github.com/pingdotgg/t3code/stacks/1",
+      url: "https://github.com/kodji7202-code/simplycode/stacks/1",
       base: "main",
       layers: [
         { number: 10, headBranch: "a", state: "open" as const },
@@ -256,7 +256,7 @@ describe("resolveThreadPullRequestChains", () => {
           kind: "native",
           id: "80",
           number: 80,
-          url: "https://github.com/pingdotgg/t3code/stacks/80",
+          url: "https://github.com/kodji7202-code/simplycode/stacks/80",
           base: "main",
           layers: (number < 83
             ? [79, 37, 38, 39, 76, 18, 20]
@@ -291,7 +291,7 @@ describe("resolveThreadPullRequestChains", () => {
           kind: "native",
           id: "s1",
           number: 1,
-          url: "https://github.com/pingdotgg/t3code/stacks/1",
+          url: "https://github.com/kodji7202-code/simplycode/stacks/1",
           base: "main",
           layers: numbers.map((number) => ({ number, headBranch: `pr-${number}`, state: "open" })),
         },
@@ -309,7 +309,7 @@ describe("resolveThreadPullRequestChains", () => {
       kind: "native" as const,
       id: "s1",
       number: 1,
-      url: "https://github.com/pingdotgg/t3code/stacks/1",
+      url: "https://github.com/kodji7202-code/simplycode/stacks/1",
       base: "main",
       layers: [
         { number: 5, headBranch: "a", state: "merged" as const },
@@ -359,7 +359,7 @@ describe("chain selection and badge state", () => {
       kind: "native" as const,
       id: "native-1",
       number: 1,
-      url: "https://github.com/pingdotgg/t3code/stacks/1",
+      url: "https://github.com/kodji7202-code/simplycode/stacks/1",
       base: "main",
       layers: [
         { number: 2, headBranch: "base", state: "merged" as const },
@@ -465,7 +465,7 @@ describe("threadPullRequestSearchTerms", () => {
       ],
     });
     expect(terms).toContain("#12");
-    expect(terms).toContain("pingdotgg/t3code#12");
+    expect(terms).toContain("kodji7202-code/simplycode#12");
     expect(terms).toContain("https://github.com/pingdotgg/t3code/pull/12");
     expect(terms).toContain("Fix login");
     expect(terms).toContain("#34");
@@ -476,7 +476,7 @@ describe("threadPullRequestSearchTerms", () => {
 it("searches the legacy projection when old environments decode to an empty links list", () => {
   const linkedPullRequest = {
     projectId: ProjectId.make("project"),
-    repository: "pingdotgg/t3code",
+    repository: "kodji7202-code/simplycode",
     number: 12,
     url: "https://github.com/pingdotgg/t3code/pull/12",
   };

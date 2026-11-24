@@ -181,7 +181,7 @@ export const AuthTokenExchangeGrantType =
   "urn:ietf:params:oauth:grant-type:token-exchange" as const;
 export const AuthAccessTokenType = "urn:ietf:params:oauth:token-type:access_token" as const;
 export const AuthEnvironmentBootstrapTokenType =
-  "urn:t3:params:oauth:token-type:environment-bootstrap" as const;
+  "urn:simplycode:params:oauth:token-type:environment-bootstrap" as const;
 
 export const ServerAuthDescriptor = Schema.Struct({
   policy: ServerAuthPolicy,
@@ -566,7 +566,7 @@ export const AuthMcpAuthorizationServerMetadata = Schema.Struct({
 export type AuthMcpAuthorizationServerMetadata = typeof AuthMcpAuthorizationServerMetadata.Type;
 
 /**
- * The `software_id` another T3 Code environment registers with when it links
+ * The `software_id` another SimplyCode environment registers with when it links
  * to this one. Its session is then a peer link: the work it starts here stays
  * within that link. Claiming it only ever adds limits.
  */

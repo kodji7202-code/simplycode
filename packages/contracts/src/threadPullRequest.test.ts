@@ -11,7 +11,7 @@ it.effect("decodes a watch saved before passed checks were recorded", () =>
     const [link] = yield* decodeLinks([
       {
         host: "github.com",
-        repository: "pingdotgg/t3code",
+        repository: "kodji7202-code/simplycode",
         number: 42,
         url: "https://github.com/pingdotgg/t3code/pull/42",
         source: "agent",

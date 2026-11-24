@@ -954,7 +954,7 @@ describe("environment shell synchronization", () => {
     Effect.gen(function* () {
       const link = (number: number): ThreadPullRequestLink => ({
         host: "github.com",
-        repository: "pingdotgg/t3code",
+        repository: "kodji7202-code/simplycode",
         number,
         url: `https://github.com/pingdotgg/t3code/pull/${number}`,
         source: "agent",
@@ -1049,7 +1049,7 @@ describe("environment shell synchronization", () => {
     Effect.gen(function* () {
       const link = (number: number): ThreadPullRequestLink => ({
         host: "github.com",
-        repository: "pingdotgg/t3code",
+        repository: "kodji7202-code/simplycode",
         number,
         url: `https://github.com/pingdotgg/t3code/pull/${number}`,
         source: "agent",

@@ -49,11 +49,11 @@ describe("add project shared logic", () => {
     );
 
     for (const input of [
-      "pingdotgg/t3code",
+      "kodji7202-code/simplycode",
       "mona-cat_octo/repo",
       "pingdotgg",
-      "https://github.com/pingdotgg/t3code.git",
-      "git@github.com:pingdotgg/t3code.git",
+      "https://github.com/kodji7202-code/simplycode.git",
+      "git@github.com:kodji7202-code/simplycode.git",
     ]) {
       expect(githubIncompleteOwnerRepositoryMessage(github, input)).toBeNull();
     }
@@ -70,8 +70,8 @@ describe("add project shared logic", () => {
     expect(normalizePastedCloneUrl("imputnet/helium")).toBe(
       "https://github.com/imputnet/helium.git",
     );
-    expect(normalizePastedCloneUrl("  pingdotgg/t3code  ")).toBe(
-      "https://github.com/pingdotgg/t3code.git",
+    expect(normalizePastedCloneUrl("  kodji7202-code/simplycode  ")).toBe(
+      "https://github.com/kodji7202-code/simplycode.git",
     );
   });
 
@@ -97,12 +97,12 @@ describe("add project shared logic", () => {
 
   it("clones the repository when given a page URL copied from the browser", () => {
     for (const [pageUrl, pageRoute, repository] of [
-      ["https://github.com/pingdotgg/t3code/tree/main", "/tree/", "t3code"],
+      ["https://github.com/kodji7202-code/simplycode/tree/main", "/tree/", "t3code"],
       ["https://gitlab.com/gitlab-org/gitlab-runner/-/tree/main", "/-/", "gitlab-runner"],
-      ["https://git.cafe/pingdotgg/t3code/tree/main", "/tree/", "t3code"],
+      ["https://git.cafe/kodji7202-code/simplycode/tree/main", "/tree/", "t3code"],
       ["https://gitlab.example.test/g/p/-/blob/main/src/branch/x", "/-/", "p"],
       ["https://code.company.test/g/p/-/tree/main", "/-/", "p"],
-      ["https://github.com/pingdotgg/t3code/tree/release.git", "/tree/", "t3code"],
+      ["https://github.com/kodji7202-code/simplycode/tree/release.git", "/tree/", "t3code"],
     ] as const) {
       const cloneUrl = normalizePastedCloneUrl(pageUrl);
       expect(cloneUrl).not.toContain(pageRoute);

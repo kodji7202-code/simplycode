@@ -74,7 +74,7 @@ describe("filesystem browse model", () => {
     expect(getFilesystemBrowsePath("~/projects/t3")).toEqual({
       isBrowsing: true,
       directoryPath: "~/projects/",
-      filterQuery: "t3",
+      filterQuery: "simplycode",
       parentPath: "~/",
       canBrowseUp: true,
     });
@@ -115,7 +115,9 @@ describe("filesystem browse model", () => {
     });
     expect(getFilesystemBrowseTabCompletion([], "x")).toBeNull();
     // The list also shows substring and fuzzy matches; Tab completes only the typed name.
-    expect(getFilesystemBrowseTabCompletion([entry("t3code"), entry("my-t3code")], "t3")).toEqual({
+    expect(
+      getFilesystemBrowseTabCompletion([entry("t3code"), entry("my-t3code")], "simplycode"),
+    ).toEqual({
       name: "t3code",
       isComplete: true,
     });
@@ -177,21 +179,23 @@ describe("browse navigation", () => {
 });
 
 describe("browse entry filtering", () => {
-  const entries = ["my-t3code", "t3code", "cotton", "T3Code-old", ".t3", "docs"].map((name) => ({
-    name,
-    fullPath: `~/code/${name}`,
-  }));
+  const entries = ["my-t3code", "t3code", "cotton", "SimplyCode-old", ".simplycode", "docs"].map(
+    (name) => ({
+      name,
+      fullPath: `~/code/${name}`,
+    }),
+  );
   const names = (query: string) =>
     filterFilesystemBrowseEntries(entries, query).visibleEntries.map((entry) => entry.name);
 
   it("keeps every visible entry in order for an empty query", () => {
-    expect(names("")).toEqual(["my-t3code", "t3code", "cotton", "T3Code-old", "docs"]);
+    expect(names("")).toEqual(["my-t3code", "t3code", "cotton", "SimplyCode-old", "docs"]);
   });
 
   it("matches substrings and subsequences, best match first", () => {
-    expect(names("code")).toEqual(["t3code", "T3Code-old", "my-t3code"]);
-    expect(names("t3c")).toEqual(["t3code", "T3Code-old", "my-t3code"]);
-    expect(names("tcd")).toEqual(["t3code", "T3Code-old", "my-t3code"]);
+    expect(names("code")).toEqual(["t3code", "SimplyCode-old", "my-t3code"]);
+    expect(names("t3c")).toEqual(["t3code", "SimplyCode-old", "my-t3code"]);
+    expect(names("tcd")).toEqual(["t3code", "SimplyCode-old", "my-t3code"]);
     expect(names("xyz")).toEqual([]);
   });
 
@@ -207,8 +211,8 @@ describe("browse entry filtering", () => {
   });
 
   it("shows dot folders only when the query starts with a dot", () => {
-    expect(names("t3")).not.toContain(".t3");
-    expect(filterFilesystemBrowseEntries(entries, ".t3")).toEqual({
+    expect(names("simplycode")).not.toContain(".simplycode");
+    expect(filterFilesystemBrowseEntries(entries, ".simplycode")).toEqual({
       visibleEntries: [entries[4]],
       exactEntry: entries[4],
     });
