@@ -11,6 +11,7 @@ import {
 } from "./baseSchemas.ts";
 import { ModelSelection } from "./modelSelection.ts";
 import { OrchestrationV2ThreadLaunchWorkspaceStrategy } from "./orchestrationV2.ts";
+import { ProviderInstanceId } from "./providerInstance.ts";
 import { ProviderInteractionMode, RuntimeMode } from "./providerPolicy.ts";
 
 /**
@@ -205,3 +206,24 @@ export class BotError extends Schema.TaggedError<BotError>()("BotError", {
   botId: Schema.optional(BotId),
   cause: Schema.optional(Schema.Defect()),
 }) {}
+
+/** An empty object: `Schema.Struct({})` advertises "any non-null" as MCP input JSON schema. */
+export const BotsMcpListInput = Schema.Record(Schema.String, Schema.Never);
+export type BotsMcpListInput = typeof BotsMcpListInput.Type;
+
+export const BotsMcpListedBot = Schema.Struct({
+  id: BotId,
+  name: BotProfile.fields.name,
+  role: BotProfile.fields.role,
+  description: BotProfile.fields.description,
+  providerInstanceId: ProviderInstanceId,
+  model: TrimmedNonEmptyString,
+  approvalMode: BotApprovalMode,
+});
+export type BotsMcpListedBot = typeof BotsMcpListedBot.Type;
+
+export const BotsMcpListResult = Schema.Struct({
+  selfBotId: Schema.NullOr(BotId),
+  bots: Schema.Array(BotsMcpListedBot),
+});
+export type BotsMcpListResult = typeof BotsMcpListResult.Type;

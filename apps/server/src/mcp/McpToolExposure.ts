@@ -7,6 +7,7 @@ export const TOOL_SEARCH = "tool_search";
 const DIRECT_TOOLS: ReadonlySet<string> = new Set([
   "orchestrator_capabilities",
   "delegate_task",
+  "delegate_to_bot",
   "task_status",
   TOOL_SEARCH,
 ]);

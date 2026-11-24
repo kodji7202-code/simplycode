@@ -3,6 +3,7 @@ import * as Schema from "effect/Schema";
 import * as SchemaTransformation from "effect/SchemaTransformation";
 
 import { AuthMcpClientAccess } from "./auth.ts";
+import { BotId } from "./bot.ts";
 import {
   ContextTransferId,
   EnvironmentId,
@@ -256,6 +257,24 @@ export const OrchestratorMcpDelegateTaskResult = Schema.Struct({
   next: Schema.optional(OrchestratorMcpRunningTaskNext),
 });
 export type OrchestratorMcpDelegateTaskResult = typeof OrchestratorMcpDelegateTaskResult.Type;
+
+const delegateTaskInputFields = OrchestratorMcpDelegateTaskInput.fields;
+export const BotsMcpDelegateToBotInput = Schema.Struct({
+  botId: BotId,
+  task: delegateTaskInputFields.task,
+  title: delegateTaskInputFields.title,
+  mode: delegateTaskInputFields.mode,
+  timeoutMs: delegateTaskInputFields.timeoutMs,
+  clientRequestId: delegateTaskInputFields.clientRequestId,
+  isolation: delegateTaskInputFields.isolation,
+});
+export type BotsMcpDelegateToBotInput = typeof BotsMcpDelegateToBotInput.Type;
+
+export const BotsMcpDelegateToBotResult = Schema.Struct({
+  ...OrchestratorMcpDelegateTaskResult.fields,
+  botId: BotId,
+});
+export type BotsMcpDelegateToBotResult = typeof BotsMcpDelegateToBotResult.Type;
 
 export const OrchestratorMcpTaskStatusInput = Schema.Struct({
   taskId: NodeId,
