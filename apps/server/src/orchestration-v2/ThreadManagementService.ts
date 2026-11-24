@@ -568,7 +568,7 @@ export interface ThreadManagementServiceShape {
 export class ThreadManagementService extends Context.Service<
   ThreadManagementService,
   ThreadManagementServiceShape
->()("t3/orchestration-v2/ThreadManagementService") {}
+>()("simplycode/orchestration-v2/ThreadManagementService") {}
 
 export const ACTIVE_RUN_STATUSES = [
   "preparing",

@@ -229,6 +229,19 @@ const SCOPED_TEXT_RULES: ReadonlyArray<{
     ],
   },
   {
+    // Effect service keys follow the package name (deterministicKeys); the
+    // `>("`/`()("` anchors keep persisted git-ref namespaces like refs/t3/
+    // and Symbol()/test-fixture strings untouched.
+    prefixes: ["apps/server/src/"],
+    rules: [
+      ['>("t3/', '>("simplycode/'],
+      ['()("t3/', '()("simplycode/'],
+      // Multi-line calls: the key sits alone on its own line (whitespace then
+      // quote), which only happens for these declarations in this tree.
+      ['  "t3/', '  "simplycode/'],
+    ],
+  },
+  {
     prefixes: ["scripts/"],
     rules: [
       ["t3.mjs", "simplycode.mjs"],
@@ -382,6 +395,34 @@ const FILE_EDITS: ReadonlyArray<{
         "ascAppId": "6787819824"
       },`,
         `      "ios": {},`,
+      ],
+    ],
+  },
+  {
+    // The automatic-port selector is offered the fork's default port.
+    file: "apps/server/src/cli/config.test.ts",
+    edits: [
+      [
+        '        [3773, undefined],\n        [3773, "100.64.0.7"],',
+        '        [4773, undefined],\n        [4773, "100.64.0.7"],',
+      ],
+    ],
+  },
+  {
+    // The fork ships no hosted surface: applinks domains, intent filters and
+    // the .well-known files are empty unless SIMPLYCODE_CLERK_RP_DOMAIN is set.
+    file: "apps/mobile/app.config.test.ts",
+    edits: [
+      ['import { DEFAULT_HOSTED_APP_URL } from "@t3tools/shared/connectAuth";\n', ""],
+      [
+        '  // Copied thread links open this app only while app.t3.codes lists it.\n  const host = new URL(DEFAULT_HOSTED_APP_URL).host;\n  expect(config.ios?.associatedDomains).toContain(`applinks:${host}`);\n  expect(appleAppSiteAssociation.applinks.details[0]?.appIDs).toContain(\n    `${config.ios?.appleTeamId}.${identifier}`,\n  );\n  expect(config.android?.intentFilters?.[0]?.data).toEqual([\n    { scheme: "https", host, pathPrefix: "/threads/" },\n  ]);\n  expect(assetLinks.map((link) => link.target.package_name)).toContain(identifier);',
+        "  // The fork ships no hosted surface; applinks activate only when\n  // SIMPLYCODE_CLERK_RP_DOMAIN is set at build time.\n  expect(config.ios?.associatedDomains).toBeUndefined();\n  expect(config.android?.intentFilters).toEqual([]);\n  expect(appleAppSiteAssociation.applinks.details).toEqual([]);\n  expect(assetLinks).toEqual([]);",
+      ],
+      // Repair form for a tree where the scoped host rule already rewrote the
+      // comment to hosted.simplycode.invalid.
+      [
+        '  // Copied thread links open this app only while hosted.simplycode.invalid lists it.\n  const host = new URL(DEFAULT_HOSTED_APP_URL).host;\n  expect(config.ios?.associatedDomains).toContain(`applinks:${host}`);\n  expect(appleAppSiteAssociation.applinks.details[0]?.appIDs).toContain(\n    `${config.ios?.appleTeamId}.${identifier}`,\n  );\n  expect(config.android?.intentFilters?.[0]?.data).toEqual([\n    { scheme: "https", host, pathPrefix: "/threads/" },\n  ]);\n  expect(assetLinks.map((link) => link.target.package_name)).toContain(identifier);',
+        "  // The fork ships no hosted surface; applinks activate only when\n  // SIMPLYCODE_CLERK_RP_DOMAIN is set at build time.\n  expect(config.ios?.associatedDomains).toBeUndefined();\n  expect(config.android?.intentFilters).toEqual([]);\n  expect(appleAppSiteAssociation.applinks.details).toEqual([]);\n  expect(assetLinks).toEqual([]);",
       ],
     ],
   },

@@ -900,8 +900,8 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
         50_123,
       );
       expect(selected).toEqual([
-        [3773, undefined],
-        [3773, "100.64.0.7"],
+        [4773, undefined],
+        [4773, "100.64.0.7"],
       ]);
       expect(yield* resolvePort({ port: Option.some(8788) })).toBe(8788);
       expect(
