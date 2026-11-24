@@ -1,5 +1,8 @@
 import { isListedThreadLineage, isWebhookDedupeTemplate } from "@t3tools/contracts";
 import {
+  type Bot,
+  BotId,
+  botRuntimeMode,
   EnvironmentId,
   MAX_WEBHOOK_DELIVERY_AGE_MINUTES,
   type ProjectId,
@@ -108,6 +111,32 @@ export function validateScheduledTasksSearch(raw: Record<string, unknown>) {
     ...(typeof raw.taskId === "string" && raw.taskId.trim()
       ? { taskId: ScheduledTaskId.make(raw.taskId) }
       : {}),
+    ...(typeof raw.botId === "string" && BOT_ID_PATTERN.test(raw.botId)
+      ? { botId: BotId.make(raw.botId) }
+      : {}),
+  };
+}
+
+const BOT_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,47}$/;
+
+/** A bot choice prefills the run settings; the user can still change any of them. */
+export function applyBotToDraft(draft: DraftState, bot: Bot): DraftState {
+  return {
+    ...draft,
+    botId: bot.id,
+    projectId: bot.projectId,
+    modelSelection: bot.modelSelection,
+    runtimeMode: botRuntimeMode(bot.approvalMode),
+    interactionMode: bot.interactionMode,
+    workspaceMode: bot.workspaceStrategy.type,
+    ...(bot.workspaceStrategy.type === "worktree"
+      ? {
+          baseRef: bot.workspaceStrategy.baseRef,
+          startFromOrigin: bot.workspaceStrategy.startFromOrigin ?? draft.startFromOrigin,
+        }
+      : bot.workspaceStrategy.type === "existing_worktree"
+        ? { existingWorktreePath: bot.workspaceStrategy.worktreePath }
+        : {}),
   };
 }
 
@@ -139,6 +168,9 @@ export interface DraftState {
   readonly modelSelection: ModelSelection | null;
   readonly runtimeMode: RuntimeMode;
   readonly interactionMode: ProviderInteractionMode;
+  readonly botId: string;
+  /** The bot the form opened with, so a save can tell a cleared bot from an unbound one. */
+  readonly savedBotId: string;
   readonly signatureEnabled: boolean;
   readonly signatureHeader: string;
   readonly signatureEncoding: "hex" | "base64";
@@ -345,6 +377,8 @@ export function taskToDraft(task: ScheduledTask): DraftState {
     modelSelection: task.modelSelection,
     runtimeMode: task.runtimeMode,
     interactionMode: task.interactionMode,
+    botId: task.botId ?? "",
+    savedBotId: task.botId ?? "",
     ...(schedule.type === "webhook" && schedule.signature !== null
       ? {
           signatureEnabled: true,

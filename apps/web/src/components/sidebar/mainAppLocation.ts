@@ -18,6 +18,11 @@ export function isSidebarUtilityPage(pathname: string) {
   );
 }
 
+/** Bots is its own sidebar section, not a utility page over the threads view. */
+export function isBotsSectionPage(pathname: string) {
+  return pathname === "/bots";
+}
+
 // Pages the root route always renders without the app shell, so they are never
 // a page to return to. Other paths seen before auth or on a prompt-link landing
 // are still recorded; they are real app URLs, so returning to one is harmless.
@@ -43,7 +48,7 @@ export function startMainAppLocationTracking(router: AnyRouter): () => void {
     appModalReturnThreadTarget = resolveThreadRouteTarget(
       router.state.matches.at(-1)?.params ?? {},
     );
-    if (!isSidebarUtilityPage(pathname)) mainAppHref = href;
+    if (!isSidebarUtilityPage(pathname) && !isBotsSectionPage(pathname)) mainAppHref = href;
   };
   record();
   return router.subscribe("onResolved", record);

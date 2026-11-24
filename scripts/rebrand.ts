@@ -817,17 +817,117 @@ const FILE_EDITS: ReadonlyArray<{
       ],
     ],
   },
+  {
+    // Upstream brands the sidebar as the "T3" mark plus a "Code" text tail;
+    // the fork's wordmark already reads "SimplyCode", so the tail and the stale
+    // accessible name go.
+    file: "apps/web/src/components/sidebar/SidebarChrome.tsx",
+    edits: [
+      // Anchored on the line before the wordmark import so a rerun no longer
+      // finds the two lines adjacent and skips.
+      [
+        `import { useIssuesSupported, usePullRequestsSupported } from "../../state/environments";
+import { T3Wordmark } from "../T3Wordmark";`,
+        `import { useIssuesSupported, usePullRequestsSupported } from "../../state/environments";
+import { SimplyCodeLogo } from "../branding/SimplyCodeLogo";
+import { T3Wordmark } from "../T3Wordmark";`,
+      ],
+      [
+        `function SidebarBrandMark({ onBackdrop }: { onBackdrop: boolean }) {
+  return (
+    <span className="inline-flex min-w-0 items-baseline gap-1 text-sm font-medium tracking-tight">
+      <T3Wordmark aria-label="T3" className="h-[1cap] w-auto shrink-0" />
+      <span
+        className={cn(
+          "truncate [text-box:trim-both_cap_alphabetic] supports-[text-box:trim-both_cap_alphabetic]:py-1",
+          onBackdrop ? "text-white/70" : "text-muted-foreground",
+        )}
+      >
+        {/* oxlint-disable-next-line t3code/no-untranslated-copy -- product wordmark */}
+        {"Code"}
+      </span>
+    </span>
+  );
+}`,
+        `function SidebarBrandMark() {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      <SimplyCodeLogo size={18} />
+      <T3Wordmark aria-label="SimplyCode" className="h-[1cap] w-auto shrink-0" />
+    </span>
+  );
+}`,
+      ],
+      ["<SidebarBrandMark onBackdrop={onBackdrop} />", "<SidebarBrandMark />"],
+      // The offscreen width probe renders the same mark with a fixed prop.
+      ["<SidebarBrandMark onBackdrop={false} />", "<SidebarBrandMark />"],
+      // The robot mark's glow must not be clipped by the brand link.
+      [
+        "items-center overflow-hidden rounded-md outline-hidden",
+        "items-center overflow-visible rounded-md outline-hidden",
+      ],
+    ],
+  },
+  {
+    // Upstream tails the "T3" mark with a "Code" text span; the fork's
+    // wordmark already reads "SimplyCode". The wrapper's aria-label rebrands
+    // via the text rules, so only the tail is removed here.
+    file: "apps/web/src/components/ui/standalone-page.tsx",
+    edits: [
+      [
+        `import type { ReactNode } from "react";
+
+import { T3Wordmark } from "../T3Wordmark";`,
+        `import type { ReactNode } from "react";
+
+import { SimplyCodeLogo } from "../branding/SimplyCodeLogo";
+import { T3Wordmark } from "../T3Wordmark";`,
+      ],
+      // The wordmark line is upstream-verbatim; anchoring on the span open keeps
+      // the rerun from re-prepending the logo. The replace uses the post-rebrand
+      // aria-label so the applied-state check recognizes it.
+      [
+        `        <span className="flex items-baseline gap-1.5" role="img" aria-label="T3 Code">
+          <T3Wordmark className="h-3 w-auto shrink-0 text-foreground" aria-hidden />`,
+        `        <span className="flex items-center gap-1.5" role="img" aria-label="SimplyCode">
+          <SimplyCodeLogo size={18} />
+          <T3Wordmark className="h-3 w-auto shrink-0 text-foreground" aria-hidden />`,
+      ],
+      [
+        `          {/* oxlint-disable-next-line t3code/no-untranslated-copy -- product wordmark */}
+          <span className="text-lg font-medium tracking-tight">Code</span>
+`,
+        "",
+      ],
+    ],
+  },
 ];
 
 // Whole-file rewrites and moves (content is regenerated verbatim every run).
 
 const README_MD = `# SimplyCode
 
+<p align="center"><img src="assets/brand/simplycode-logo.png" width="160" alt="SimplyCode logo"></p>
+
 SimplyCode is an **unofficial community fork** of [T3 Code](https://github.com/pingdotgg/t3code), a minimal open-source GUI for coding agents.
 
 > **Disclaimer:** SimplyCode is not affiliated with, endorsed by, or supported by T3 Tools, Inc.
 > "T3 Code" is a trademark of T3 Tools, Inc. This fork is based on the MIT-licensed
 > T3 Code source code only — it ships no T3 Code branding, wordmark, or icons.
+
+## Bots
+
+Bots are saved, reusable agent profiles: a name, a robot avatar, an optional
+role, a provider and model with a thinking level, an approval mode, and
+project/workspace defaults. Bots can be pinned and enabled or disabled.
+
+The app has a dedicated Bots section next to Threads: a bot sidebar with search
+and pinned bots, an overview of all bots, per-bot conversation lists, a
+run-now composer, and an inline profile panel for editing. Scheduled tasks can
+be owned by a bot, and every bot run is an ordinary thread.
+
+Planned: delegation between bots, per-bot memory and skills, and review
+pipelines.
 
 ## Differences from upstream
 

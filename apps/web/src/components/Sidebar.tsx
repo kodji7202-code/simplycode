@@ -87,7 +87,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
-import { type AnyRouter, useRouter } from "@tanstack/react-router";
+import { type AnyRouter, useLocation, useRouter } from "@tanstack/react-router";
 
 import {
   isAtomCommandInterrupted,
@@ -258,6 +258,9 @@ import {
 } from "./ui/combobox";
 import { SidebarContent, SidebarGroup, useSidebar } from "./ui/sidebar";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
+import { isBotsSectionPage } from "./sidebar/mainAppLocation";
+import { SidebarSectionSwitch } from "./sidebar/SidebarSectionSwitch";
+import { BotsSidebar } from "./bots/BotsSidebar";
 import { SidebarHeaderIconButton, SidebarThreadHeader } from "./sidebar/SidebarThreadHeader";
 import { TooltipProvider } from "./ui/tooltip";
 import {
@@ -3068,6 +3071,18 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       ? shortcutLabelForCommand(keybindings, "chat.newLocal")
       : undefined);
   const newThreadInProjectShortcutLabel = shortcutLabelForCommand(keybindings, "chat.newLocal");
+  const onBotsSection = useLocation({
+    select: (location) => isBotsSectionPage(location.pathname),
+  });
+  if (onBotsSection) {
+    return (
+      <>
+        <SidebarChromeHeader isElectron={isElectron} />
+        <BotsSidebar />
+        <SidebarChromeFooter />
+      </>
+    );
+  }
   return (
     <SidebarFolderDrop>
       <SidebarChromeHeader isElectron={isElectron} />
@@ -3076,6 +3091,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         className="min-h-full"
         fixedHeader={
           <SidebarGroup className="z-[1]">
+            <SidebarSectionSwitch />
             <SidebarThreadHeader
               hasProjects={projectGroups.length > 0}
               projectScope={

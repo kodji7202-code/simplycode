@@ -1,4 +1,6 @@
 import {
+  type Bot,
+  BotId,
   EnvironmentId,
   ProjectId,
   DEFAULT_SERVER_SETTINGS,
@@ -18,6 +20,7 @@ import { resolveSettingsScope, type SettingsScopeSearch } from "./settingsScope"
 
 import { deriveProviderInstanceEntries } from "../../providerInstances";
 import {
+  applyBotToDraft,
   scheduledTaskDefaultModel,
   defaultScheduledTaskProjectId,
   matchesScheduledTaskScope,
@@ -469,4 +472,52 @@ it("shows schedule times in the Time format setting", () => {
     }).format(runAt);
     expect(scheduleLabel(once, hour12 ? "12-hour" : "24-hour")).toBe(`Once, ${dateTime}`);
   }
+});
+
+describe("bot binding", () => {
+  const bot: Bot = {
+    id: BotId.make("night-watch"),
+    name: "Night Watch",
+    enabled: true,
+    pinned: false,
+    projectId: ProjectId.make("bot-project"),
+    workspaceStrategy: { type: "worktree", baseRef: "main", startFromOrigin: true },
+    modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4-mini" },
+    approvalMode: "auto-safe",
+    interactionMode: "plan",
+    limits: {},
+    createdAt: "2026-09-17T00:00:00.000Z",
+    updatedAt: "2026-09-17T00:00:00.000Z",
+    soulBytes: 4,
+    threadTag: "bot:night-watch",
+  };
+
+  it("reads a stored bot into the draft", () => {
+    const draft = taskToDraft({ ...legacyTask, botId: BotId.make("night-watch") });
+    expect(draft.botId).toBe("night-watch");
+    expect(draft.savedBotId).toBe("night-watch");
+  });
+
+  it("prefills run settings from the bot while keeping the schedule draft", () => {
+    const before = taskToDraft(legacyTask);
+    const draft = applyBotToDraft(before, bot);
+    expect(draft.botId).toBe("night-watch");
+    expect(draft.projectId).toBe("bot-project");
+    expect(draft.modelSelection).toEqual(bot.modelSelection);
+    expect(draft.runtimeMode).toBe("auto");
+    expect(draft.interactionMode).toBe("plan");
+    expect(draft.workspaceMode).toBe("worktree");
+    expect(draft.baseRef).toBe("main");
+    // The user's schedule, title, and prompt stay editable.
+    expect(draft.title).toBe(legacyTask.title);
+    expect(draft.prompt).toBe(legacyTask.prompt);
+    expect(draft.intervalMinutes).toBe(before.intervalMinutes);
+  });
+
+  it("keeps the draft fields the bot does not own", () => {
+    const rootBot = { ...bot, workspaceStrategy: { type: "root" } as const };
+    const draft = applyBotToDraft(taskToDraft(legacyTask), rootBot);
+    expect(draft.workspaceMode).toBe("root");
+    expect(draft.baseRef).toBe("release");
+  });
 });

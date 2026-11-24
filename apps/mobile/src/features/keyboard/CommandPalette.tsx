@@ -98,6 +98,7 @@ const ACTION_ICONS: Record<string, AppSymbolName> = {
   appearance: "paintbrush",
   environments: "desktopcomputer",
   usage: "chart.bar.xaxis",
+  bots: "robot",
   archive: "archivebox",
   files: "doc.text",
   terminal: "terminal",
@@ -347,6 +348,13 @@ export function CommandPalette(props: {
         title: gt("Usage", { $context: "command, opens usage settings" }),
         searchTerms: ["limits", "accounts", "quota"],
         run: () => openSettings(navigation, "SettingsUsage"),
+      },
+      {
+        key: "bots",
+        kind: "action",
+        title: gt("Bots"),
+        searchTerms: ["bots", "automations", "agents"],
+        run: () => openSettings(navigation, "SettingsBots"),
       },
       {
         key: "archive",

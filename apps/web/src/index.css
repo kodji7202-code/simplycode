@@ -245,6 +245,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --color-error-surface: var(--error-surface);
   --color-update-foreground: var(--update-foreground);
   --color-update: var(--update);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand: var(--brand);
   --color-success-foreground: var(--success-foreground);
   --color-success: var(--success);
   --color-diff-addition: var(--diff-addition);
@@ -1199,6 +1201,9 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --warning-surface: color-mix(in srgb, var(--warning) 8%, transparent);
   --update: var(--primary);
   --update-foreground: var(--primary);
+  /* SimplyCode brand emerald, fixed across app themes (no --app-theme-* remap). */
+  --brand: var(--color-emerald-600);
+  --brand-foreground: var(--color-emerald-700);
   /* Keep every sidebar primitive on the same light surface hierarchy, including
      portaled mobile sheets and settings navigation outside the app sidebar. */
   --sidebar: var(--color-zinc-50);
@@ -1250,6 +1255,8 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     --warning-foreground: var(--color-amber-400);
     --warning-surface: color-mix(in srgb, var(--warning) 16%, transparent);
     --update-foreground: var(--color-blue-400);
+    --brand: #00d47e;
+    --brand-foreground: var(--color-emerald-400);
     --sidebar: var(--card);
     --sidebar-control-surface: var(--muted);
     --sidebar-row-hover: var(--accent);

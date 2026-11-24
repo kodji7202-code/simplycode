@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
 import type {
+  BotId,
   EnvironmentId,
   OrchestrationV2ThreadLaunchWorkspaceStrategy,
   ProjectId,
@@ -82,6 +83,7 @@ import { EMPTY_SERVER_PROVIDERS, serverEnvironment } from "../../state/server";
 import { threadFamilies } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { WorktreeBaseBranchPicker } from "../WorktreeBaseBranchPicker";
+import { BotAvatar } from "../bots/BotAvatar";
 import { EnvironmentMachineIcon } from "../EnvironmentMachineIcon";
 import { ConnectionStatusDot, connectionPhaseDotClassName } from "../ConnectionStatusDot";
 import { AuthOrchestrationOperateScope, clampManagedRuntimeMode } from "@t3tools/contracts";
@@ -95,6 +97,7 @@ import { SettingsGroup } from "./SettingsGroup";
 import { settingsScopeEnvironmentLabel, settingsScopeEnvironmentLabels } from "./settingsScopeAxis";
 import {
   WEBHOOK_SIGNATURE_DEFAULTS,
+  applyBotToDraft,
   changeDraftProject,
   moveDraftToThread,
   scheduleDraftErrors,
@@ -204,6 +207,8 @@ const EMPTY_DRAFT: DraftState = {
   modelSelection: null,
   runtimeMode: "full-access",
   interactionMode: "default",
+  botId: "",
+  savedBotId: "",
   signatureEnabled: false,
   ...WEBHOOK_SIGNATURE_DEFAULTS,
   signatureSecret: "",
@@ -398,6 +403,7 @@ function statusVariant(status: ScheduledTask["lastRunStatus"]) {
 export function ScheduledTasksSettings(target: {
   readonly environmentId?: EnvironmentId;
   readonly taskId?: ScheduledTaskId | undefined;
+  readonly botId?: BotId | undefined;
 }) {
   const setting = useSearchableSetting();
   const gt = useGT();
@@ -405,6 +411,7 @@ export function ScheduledTasksSettings(target: {
   const [editor, setEditor] = useState<{
     environmentId: EnvironmentId;
     task: ScheduledTask | null;
+    initialBotId?: BotId;
   } | null>(null);
   const openForEdit = (environmentId: EnvironmentId, task: ScheduledTask) => {
     setEditor({ environmentId, task });
@@ -439,13 +446,31 @@ export function ScheduledTasksSettings(target: {
     setOpenedLinkTaskId(target.taskId);
     if (editor === null) setEditor({ environmentId: linkedEnvironmentId, task: linkedTask });
   }
+  // A `botId` link opens the new-task editor pre-set to that bot, once, the same way.
+  const [openedLinkBotId, setOpenedLinkBotId] = useState<BotId | undefined>();
+  if (target.botId === undefined && openedLinkBotId !== undefined) {
+    setOpenedLinkBotId(undefined);
+  }
+  if (
+    target.botId !== undefined &&
+    linkedEnvironmentId !== undefined &&
+    openedLinkBotId !== target.botId
+  ) {
+    setOpenedLinkBotId(target.botId);
+    if (editor === null)
+      setEditor({
+        environmentId: linkedEnvironmentId,
+        task: null,
+        initialBotId: target.botId,
+      });
+  }
   const navigate = useNavigate({ from: "/settings/scheduled-tasks" });
   const closeEditor = () => {
     setEditor(null);
-    if (target.taskId === undefined) return;
+    if (target.taskId === undefined && target.botId === undefined) return;
     void navigate({
       to: "/settings/scheduled-tasks",
-      search: ({ taskId: _closed, ...rest }) => rest,
+      search: ({ taskId: _closed, botId: _bot, ...rest }) => rest,
       replace: true,
     });
   };
@@ -520,9 +545,10 @@ export function ScheduledTasksSettings(target: {
       </SettingsSection>
       {editor ? (
         <ScheduledTaskEditorDialog
-          key={`${editor.environmentId}:${editor.task?.id ?? "new"}`}
+          key={`${editor.environmentId}:${editor.task?.id ?? "new"}:${editor.initialBotId ?? ""}`}
           initialEnvironmentId={editor.environmentId}
           task={editor.task}
+          initialBotId={editor.initialBotId}
           onClose={closeEditor}
         />
       ) : null}
@@ -790,6 +816,14 @@ function ScheduledTaskRow({
   const [busy, setBusy] = useState(false);
   const [deliveriesOpen, setDeliveriesOpen] = useState(false);
   const isWebhook = task.schedule.type === "webhook";
+  const botsQuery = useEnvironmentQuery(
+    task.botId === undefined ? null : serverEnvironment.botsLive({ environmentId, input: {} }),
+    messages,
+  );
+  const bot =
+    task.botId === undefined
+      ? null
+      : (botsQuery.data?.bots.find((entry) => entry.id === task.botId) ?? null);
   const toggle = useAtomCommand(serverEnvironment.setScheduledTaskEnabled, {
     label: "scheduled task enabled",
   });
@@ -842,8 +876,8 @@ function ScheduledTaskRow({
               locale,
             )}{" "}
             ·{" "}
-            {task.blockedByPolicy !== undefined ? (
-              task.blockedByPolicy
+            {task.blockedByPolicy !== undefined || task.blockedByBot !== undefined ? (
+              (task.blockedByPolicy ?? task.blockedByBot)
             ) : !task.enabled ? (
               gt("Paused")
             ) : isWebhook ? (
@@ -856,6 +890,12 @@ function ScheduledTaskRow({
               gt("Not scheduled")
             )}
           </span>
+          {task.botId !== undefined ? (
+            <Badge variant="outline">
+              {bot ? <BotAvatar bot={bot} size={14} className="me-1" /> : null}
+              <span className="max-w-28 truncate">{bot?.name ?? task.botId}</span>
+            </Badge>
+          ) : null}
           {task.lastRunStatus !== "never" ? (
             <Badge variant={statusVariant(task.lastRunStatus)}>
               {messages(RUN_STATUS_LABELS[task.lastRunStatus])}
@@ -1251,10 +1291,12 @@ function WebhookDeliveryMode({ environmentId }: { readonly environmentId: Enviro
 function ScheduledTaskEditorDialog({
   initialEnvironmentId,
   task,
+  initialBotId,
   onClose,
 }: {
   readonly initialEnvironmentId: EnvironmentId;
   readonly task: ScheduledTask | null;
+  readonly initialBotId?: BotId | undefined;
   readonly onClose: () => void;
 }) {
   const [saving, setSaving] = useState(false);
@@ -1272,6 +1314,7 @@ function ScheduledTaskEditorDialog({
         <ScheduledTaskEditorForm
           initialEnvironmentId={initialEnvironmentId}
           task={task}
+          initialBotId={initialBotId}
           saving={saving}
           onSavingChange={setSaving}
           onClose={onClose}
@@ -1458,12 +1501,14 @@ function ScheduledTaskDestination({
 function ScheduledTaskEditorForm({
   initialEnvironmentId,
   task,
+  initialBotId,
   saving,
   onSavingChange: setSaving,
   onClose,
 }: {
   readonly initialEnvironmentId: EnvironmentId;
   readonly task: ScheduledTask | null;
+  readonly initialBotId?: BotId | undefined;
   readonly saving: boolean;
   readonly onSavingChange: (saving: boolean) => void;
   readonly onClose: () => void;
@@ -1514,6 +1559,23 @@ function ScheduledTaskEditorForm({
           projectId: defaultScheduledTaskProjectId(scopedProjects, scope),
         },
   );
+  const botsQuery = useEnvironmentQuery(
+    connected ? serverEnvironment.botsLive({ environmentId, input: {} }) : null,
+    messages,
+  );
+  const bots = botsQuery.data?.bots ?? [];
+  // A `botId` deep link opens a new task with the bot's run settings once its list loads.
+  const [initialBotApplied, setInitialBotApplied] = useState(false);
+  if (
+    initialBotId !== undefined &&
+    !initialBotApplied &&
+    task === null &&
+    botsQuery.data !== null
+  ) {
+    setInitialBotApplied(true);
+    const presetBot = bots.find((bot) => bot.id === initialBotId);
+    if (presetBot !== undefined) setDraft((current) => applyBotToDraft(current, presetBot));
+  }
   // Pinned first. The chosen project stays listed after it is archived.
   const projects = scopedProjects
     .filter(
@@ -1678,6 +1740,8 @@ function ScheduledTaskEditorForm({
       projectId: selectedProjectId as ProjectId,
       threadId: draft.threadId ? (draft.threadId as ThreadId) : null,
       ...(draft.threadId === "" && draft.savedThreadId !== "" ? { unbindThread: true } : {}),
+      ...(draft.botId ? { botId: draft.botId as BotId } : {}),
+      ...(draft.botId === "" && draft.savedBotId !== "" ? { unbindBot: true } : {}),
       ...(offersThreadModes ? { threadMode: draft.threadMode } : {}),
       workspaceStrategy,
       modelSelection: selection,
@@ -1828,6 +1892,44 @@ function ScheduledTaskEditorForm({
                 : undefined
             }
           />
+
+          {bots.length > 0 || draft.botId !== "" ? (
+            <Field label={gt("Bot")} htmlFor="scheduled-task-bot">
+              <Select
+                value={draft.botId === "" ? "none" : draft.botId}
+                onValueChange={(value) => {
+                  if (value === "none" || value === undefined || value === null) {
+                    setDraft((current) => ({ ...current, botId: "" }));
+                    return;
+                  }
+                  const picked = bots.find((bot) => bot.id === value);
+                  if (picked === undefined) return;
+                  setDraft((current) => applyBotToDraft(current, picked));
+                }}
+              >
+                <SelectTrigger size="sm" id="scheduled-task-bot">
+                  <SelectValue>
+                    {draft.botId === ""
+                      ? messages(msg("None"))
+                      : (bots.find((bot) => bot.id === draft.botId)?.name ?? draft.botId)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectPopup>
+                  <SelectItem value="none" label={messages(msg("None"))}>
+                    <T>None</T>
+                  </SelectItem>
+                  {bots.map((bot) => (
+                    <SelectItem key={bot.id} value={bot.id} label={bot.name}>
+                      <span className="flex items-center gap-1.5">
+                        <BotAvatar bot={bot} size={14} />
+                        <span className="truncate">{bot.name}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            </Field>
+          ) : null}
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label={gt("Project")} htmlFor="scheduled-task-project">

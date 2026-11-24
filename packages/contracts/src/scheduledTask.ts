@@ -10,6 +10,7 @@ import {
   ThreadId,
   TrimmedNonEmptyString,
 } from "./baseSchemas.ts";
+import { BotId } from "./bot.ts";
 import { ModelSelection } from "./modelSelection.ts";
 import {
   OrchestrationV2Actor,
@@ -261,8 +262,12 @@ export const ScheduledTask = Schema.Struct({
   lastRunError: Schema.NullOr(Schema.String),
   runCount: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
   webhook: Schema.optional(ScheduledTaskWebhookEndpoint),
+  /** The bot whose profile this task runs under, if it is a bot automation. */
+  botId: Schema.optional(BotId),
   /** Why the task cannot run regardless of `enabled`, such as a managed policy refusing webhooks. */
   blockedByPolicy: Schema.optionalKey(Schema.String),
+  /** Why the task cannot run because of its bot, such as the bot being disabled or deleted. */
+  blockedByBot: Schema.optionalKey(Schema.String),
 });
 export type ScheduledTask = typeof ScheduledTask.Type;
 
@@ -294,6 +299,10 @@ export const ScheduledTaskUpsertInput = Schema.Struct({
   unbindThread: Schema.optional(Schema.Boolean),
   /** Omitted: keep the stored mode, or derive it from `threadId` for a new or rebound task. */
   threadMode: Schema.optional(ScheduledTaskThreadMode),
+  /** Omitted: keep the stored bot binding. */
+  botId: Schema.optional(BotId),
+  /** True with no `botId`: the user cleared the bot binding, so runs are ordinary task runs. */
+  unbindBot: Schema.optional(Schema.Boolean),
   workspaceStrategy: OrchestrationV2ThreadLaunchWorkspaceStrategy,
   modelSelection: ModelSelection,
   runtimeMode: RuntimeMode,

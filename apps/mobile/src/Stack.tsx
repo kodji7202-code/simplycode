@@ -118,6 +118,10 @@ import {
   SettingsEnvironmentSourceControlRouteScreen,
 } from "./features/settings/SettingsServerControlsRouteScreen";
 import {
+  SettingsBotsRouteScreen,
+  SettingsBotRouteScreen,
+} from "./features/bots/SettingsBotsRouteScreen";
+import {
   SettingsScheduledTasksRouteScreen,
   SettingsScheduledTaskNewRouteScreen,
   SettingsScheduledTaskEditRouteScreen,
@@ -194,6 +198,8 @@ const ROUTE_TITLES: Readonly<Record<string, string>> = {
   SettingsKeyboard: msg("Keyboard"),
   SettingsVoice: msg("Voice"),
   SettingsFollowUp: msg("Chat", { $context: "noun, settings page title" }),
+  SettingsBots: msg("Bots"),
+  SettingsBot: msg("Bot"),
   SettingsScheduledTasks: msg("Scheduled tasks"),
   SettingsScheduledTaskNew: msg("New scheduled task"),
   SettingsScheduledTaskEdit: msg("Edit scheduled task"),
@@ -367,6 +373,16 @@ const SETTINGS_SCREENS = {
   SettingsFollowUp: createNativeStackScreen({
     screen: SettingsFollowUpRouteScreen,
     linking: "settings/follow-ups",
+    options: settingsPage(),
+  }),
+  SettingsBots: createNativeStackScreen({
+    screen: SettingsBotsRouteScreen,
+    linking: "settings/bots",
+    options: settingsPage(),
+  }),
+  SettingsBot: createNativeStackScreen({
+    screen: SettingsBotRouteScreen,
+    linking: { path: "settings/bots/:environmentId/:botId?" },
     options: settingsPage(),
   }),
   SettingsScheduledTasks: createNativeStackScreen({

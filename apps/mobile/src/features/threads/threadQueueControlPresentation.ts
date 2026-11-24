@@ -1,6 +1,7 @@
 import type { EnvironmentId, RunId, ThreadId } from "@t3tools/contracts";
 import { msg } from "gt-react-native";
 import { assistantCitationsToPlainText } from "@t3tools/shared/assistantCitations";
+import { parseBotPrompt } from "@t3tools/shared/botPrompt";
 import {
   isAttachmentOnlyBootstrapPrompt,
   replaceComposerContextReferences,
@@ -45,7 +46,10 @@ export function resolveThreadQueueRowControls(input: {
       ? ""
       : assistantCitationsToPlainText(
           composerFileLinksToPlainText(
-            replaceComposerContextReferences(input.text, (reference) => reference.label),
+            replaceComposerContextReferences(
+              parseBotPrompt(input.text)?.prompt ?? input.text,
+              (reference) => reference.label,
+            ),
           ),
         ).trim(),
     isEditing,

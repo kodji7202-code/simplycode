@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
+  type Bot,
+  BotId,
   DEFAULT_SERVER_SETTINGS,
   type ServerConfig,
   ProviderDriverKind,
@@ -9,6 +11,7 @@ import {
   type ScheduledTask,
 } from "@t3tools/contracts";
 import {
+  applyBotToDraft,
   createDraft,
   editDraft,
   scheduledTaskDefaultModel,
@@ -243,5 +246,49 @@ describe("scheduled task worktree base", () => {
       editDraft({ ...rootTask, workspaceStrategy: { type: "worktree", baseRef: "release" } })
         .baseRef,
     ).toBe("release");
+  });
+});
+
+describe("applyBotToDraft", () => {
+  const bot = {
+    id: BotId.make("release-bot"),
+    name: "Release bot",
+    enabled: true,
+    pinned: false,
+    projectId: ProjectId.make("bot-project"),
+    workspaceStrategy: {
+      type: "worktree",
+      baseRef: "release",
+      startFromOrigin: false,
+    },
+    modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4-codex" },
+    approvalMode: "auto-safe",
+    interactionMode: "plan",
+    limits: {},
+    soulBytes: 10,
+    threadTag: "bot:release-bot",
+    createdAt: "2026-09-17T00:00:00.000Z",
+    updatedAt: "2026-09-17T00:00:00.000Z",
+  } satisfies Bot;
+
+  it("prefills the bot fields without touching schedule or prompt", () => {
+    const draft = {
+      ...createDraft(ProjectId.make("other"), null),
+      title: "Nightly triage",
+      prompt: "Triage issues",
+    };
+    const applied = applyBotToDraft(draft, bot);
+    expect(applied.botId).toBe(bot.id);
+    expect(applied.projectId).toBe(bot.projectId);
+    expect(applied.modelSelection).toEqual(bot.modelSelection);
+    expect(applied.modelSelectionIsExplicit).toBe(true);
+    expect(applied.runtimeMode).toBe("auto");
+    expect(applied.interactionMode).toBe("plan");
+    expect(applied.workspace).toBe("worktree");
+    expect(applied.baseRef).toBe("release");
+    expect(applied.startFromOrigin).toBe(false);
+    expect(applied.title).toBe("Nightly triage");
+    expect(applied.prompt).toBe("Triage issues");
+    expect(applied.threadId).toBeNull();
   });
 });

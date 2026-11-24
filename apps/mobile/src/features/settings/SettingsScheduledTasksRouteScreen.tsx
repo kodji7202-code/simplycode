@@ -78,6 +78,7 @@ import { SettingsScreen } from "./components/SettingsScreen";
 import { SettingsSection } from "./components/SettingsSection";
 import { useSettingsEnvironmentFilter, type SettingsTarget } from "./settings-environment-filter";
 import {
+  applyBotToDraft,
   changeDraftProject,
   editDraft,
   parseIntervalMinutes,
@@ -737,6 +738,7 @@ function TaskForm({
   const tasks = useEnvironmentQuery(
     serverEnvironment.scheduledTasksLive({ environmentId, input: {} }),
   );
+  const bots = useEnvironmentQuery(serverEnvironment.botsLive({ environmentId, input: {} }));
   // Pinned first. The chosen project stays listed after it is archived.
   const projects = useProjects()
     .filter(
@@ -885,6 +887,11 @@ function TaskForm({
       enabled: draft.enabled,
       threadId: draft.threadId,
       ...(draft.threadId === null && draft.task?.threadId != null ? { unbindThread: true } : {}),
+      ...(draft.botId !== null
+        ? { botId: draft.botId }
+        : draft.task?.botId != null
+          ? { unbindBot: true }
+          : {}),
       ...(offersThreadModes ? { threadMode: draft.threadMode } : {}),
       workspaceStrategy:
         draft.workspace === "root"
@@ -899,7 +906,7 @@ function TaskForm({
       // Tasks have no mode picker; a mode above the administrator's ceiling is refused.
       runtimeMode:
         clampManagedRuntimeMode(config?.managedPolicy, draft.runtimeMode) ?? draft.runtimeMode,
-      interactionMode: draft.task?.interactionMode ?? "default",
+      interactionMode: draft.interactionMode,
       creationSource: draft.task?.creationSource ?? "mobile",
     };
     submissionPending.current = true;
@@ -975,8 +982,43 @@ function TaskForm({
         </SettingsSection>
 
         <SettingsSection title={gt("Context", { $context: "section heading: project and model" })}>
+          {(bots.data?.bots.length ?? 0) > 0 || draft.botId !== null ? (
+            <SelectRow
+              label={gt("Bot")}
+              value={
+                draft.botId === null
+                  ? gt("None")
+                  : (bots.data?.bots.find((bot) => bot.id === draft.botId)?.name ?? draft.botId)
+              }
+              actions={
+                saving || dictationPending
+                  ? []
+                  : [
+                      {
+                        id: "none",
+                        title: gt("None"),
+                        state: draft.botId === null ? ("on" as const) : undefined,
+                      },
+                      ...(bots.data?.bots ?? []).map((bot) => ({
+                        id: bot.id,
+                        title: bot.name,
+                        state: bot.id === draft.botId ? ("on" as const) : undefined,
+                      })),
+                    ]
+              }
+              onSelect={(id) => {
+                if (id === "none") {
+                  setDraft((current) => ({ ...current, botId: null }));
+                  return;
+                }
+                const bot = bots.data?.bots.find((entry) => entry.id === id);
+                if (bot) setDraft((current) => applyBotToDraft(current, bot));
+              }}
+            />
+          ) : null}
           <SelectRow
             label={gt("Project")}
+            borderTop={(bots.data?.bots.length ?? 0) > 0 || draft.botId !== null}
             value={
               projects.find((project) => project.id === draft.projectId)?.title ??
               (projects.length ? gt("Choose project") : gt("No projects available"))
@@ -1608,6 +1650,8 @@ function EnvironmentTasks({
   const tasks = useEnvironmentQuery(
     serverEnvironment.scheduledTasksLive({ environmentId, input: {} }),
   );
+  const bots = useEnvironmentQuery(serverEnvironment.botsLive({ environmentId, input: {} }));
+  const botById = new Map((bots.data?.bots ?? []).map((bot) => [bot.id, bot]));
   const visibleTasks = tasks.data?.tasks.filter(
     (task) => projectIds === null || projectIds.includes(task.projectId),
   );
@@ -1707,9 +1751,14 @@ function EnvironmentTasks({
                       })
                     : describeSchedule(task, tasks.data?.timeZone, m, locale)}
               </Text>
-              {task.blockedByPolicy ? (
+              {task.botId !== null && task.botId !== undefined && botById.has(task.botId) ? (
+                <Text className="text-sm text-foreground-muted" numberOfLines={1}>
+                  {gt("Bot: {name}", { name: botById.get(task.botId)?.name ?? task.botId })}
+                </Text>
+              ) : null}
+              {task.blockedByPolicy || task.blockedByBot ? (
                 <Text className="text-sm text-foreground-muted" numberOfLines={2}>
-                  {task.blockedByPolicy}
+                  {task.blockedByPolicy ?? task.blockedByBot}
                 </Text>
               ) : null}
               {task.lastRunError ? (

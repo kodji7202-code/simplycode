@@ -1662,6 +1662,14 @@ export function createServerEnvironmentAtoms<R, E>(
       label: "environment-data:server:scheduled-tasks:live",
       tag: WS_METHODS.scheduledTasksSubscribe,
     }),
+    botsLive: createEnvironmentRpcSubscriptionAtomFamily(runtime, {
+      label: "environment-data:server:bots:live",
+      tag: WS_METHODS.botsSubscribe,
+    }),
+    bot: createEnvironmentRpcQueryAtomFamily(runtime, {
+      label: "environment-data:server:bots:get",
+      tag: WS_METHODS.botsGet,
+    }),
     // A cold transcript scan is measured in seconds, so keep the result around
     // long enough that switching windows or re-rendering does not rescan. With
     // nothing to show yet, the server's last scan answers first, then a plain
@@ -1954,6 +1962,30 @@ export function createServerEnvironmentAtoms<R, E>(
       tag: WS_METHODS.scheduledTasksRotateWebhookToken,
       scheduler: configScheduler,
       concurrency: configConcurrency,
+    }),
+    upsertBot: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:bots:upsert",
+      tag: WS_METHODS.botsUpsert,
+      scheduler: configScheduler,
+      concurrency: configConcurrency,
+    }),
+    setBotEnabled: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:bots:set-enabled",
+      tag: WS_METHODS.botsSetEnabled,
+      scheduler: configScheduler,
+      concurrency: configConcurrency,
+    }),
+    deleteBot: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:bots:delete",
+      tag: WS_METHODS.botsDelete,
+      scheduler: configScheduler,
+      concurrency: configConcurrency,
+    }),
+    // Deliberately not on the config lane, same as runScheduledTaskNow: run-now
+    // blocks until the run is dispatched and must not stall bot edits behind it.
+    runBotNow: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:bots:run-now",
+      tag: WS_METHODS.botsRunNow,
     }),
     answerWorkflowQuestion: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:workflows:answer",
