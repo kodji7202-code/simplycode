@@ -261,7 +261,7 @@ const stageWebClient = Effect.fn("stageWebClient")(function* (source: string, ta
   }
 });
 
-/** Node links libatomic.so.1, which Ubuntu server and container images lack, so t3 carries its own. */
+/** Node links libatomic.so.1, which Ubuntu server and container images lack, so simplycode carries its own. */
 const bundleLinuxLibatomic = Effect.fn("bundleLinuxLibatomic")(function* (input: {
   readonly repoRoot: string;
   readonly contentDir: string;
@@ -408,7 +408,7 @@ const requireAccepted = Effect.fn("requireAccepted")(function* (
       status: submission.status ?? "without a status",
     });
   }
-  yield* Effect.log(`[cli-archive] Notarized t3 (${submission.id}).`);
+  yield* Effect.log(`[cli-archive] Notarized simplycode (${submission.id}).`);
 });
 
 /** Apple Silicon requires signed binaries; notarization's hardened runtime also requires every native addon signed. */
@@ -476,7 +476,7 @@ export const signMacArchiveContents = Effect.fn("signMacArchiveContents")(functi
   // The ticket lives with Apple, not in the archive, so the archive bytes are final before approval.
   yield* fs.writeFileString(deferred, submission.id);
   yield* Effect.log(
-    `[cli-archive] Submitted t3 for notarization (${submission.id}). Run await-notarization before publishing.`,
+    `[cli-archive] Submitted simplycode for notarization (${submission.id}). Run await-notarization before publishing.`,
   );
 });
 
@@ -596,7 +596,7 @@ const buildCliArchive = Effect.fn("buildCliArchive")(function* (input: {
   const path = yield* Path.Path;
   const repoRoot = yield* RepoRoot;
   const serverDir = path.join(repoRoot, "apps/server");
-  const executableName = input.platform === "win" ? "t3.exe" : "t3";
+  const executableName = input.platform === "win" ? "t3.exe" : "t3"; /* rebrand-keep */
   // tsdown suffixes cross-built executables; prefer the exact target over the plain host build.
   const targetKey = `${input.platform === "mac" ? "darwin" : input.platform}-${input.arch}`;
   const targetExecutable = path.join(
@@ -621,7 +621,10 @@ const buildCliArchive = Effect.fn("buildCliArchive")(function* (input: {
     builtExecutable,
     `Run \`node apps/server/scripts/cli.ts build-exe${targetKey === hostKey ? "" : ` --target ${targetKey}`}\` first.`,
   );
-  yield* requireInput(path.join(webClient, "index.html"), "Run `vp run --filter t3 build` first.");
+  yield* requireInput(
+    path.join(webClient, "index.html"),
+    "Run `vp run --filter simplycode build` first.",
+  );
   yield* requireInput(
     resourceMonitorDir,
     "Build the resource monitor or pass --resource-monitor-dir.",
@@ -734,7 +737,7 @@ const command = Command.make(
   },
   (input) => buildCliArchive(input).pipe(Effect.scoped),
 ).pipe(
-  Command.withDescription("Package the t3 single-executable into a per-platform archive."),
+  Command.withDescription("Package the simplycode single-executable into a per-platform archive."),
   Command.withSubcommands([
     Command.make(
       "await-notarization",

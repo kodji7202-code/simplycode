@@ -18,19 +18,19 @@ import {
 
 describe("normalizeGitRemoteUrl", () => {
   it("canonicalizes equivalent GitHub remotes across protocol variants", () => {
-    expect(normalizeGitRemoteUrl("git@github.com:T3Tools/T3Code.git")).toBe(
+    expect(normalizeGitRemoteUrl("git@github.com:T3Tools/SimplyCode.git")).toBe(
       "github.com/t3tools/t3code",
     );
-    expect(normalizeGitRemoteUrl("https://github.com/T3Tools/T3Code.git")).toBe(
+    expect(normalizeGitRemoteUrl("https://github.com/T3Tools/SimplyCode.git")).toBe(
       "github.com/t3tools/t3code",
     );
-    expect(normalizeGitRemoteUrl("ssh://git@github.com/T3Tools/T3Code")).toBe(
+    expect(normalizeGitRemoteUrl("ssh://git@github.com/T3Tools/SimplyCode")).toBe(
       "github.com/t3tools/t3code",
     );
-    expect(normalizeGitRemoteUrl("https://github.com/T3Tools/T3Code.git?view=compact")).toBe(
+    expect(normalizeGitRemoteUrl("https://github.com/T3Tools/SimplyCode.git?view=compact")).toBe(
       "github.com/t3tools/t3code",
     );
-    expect(normalizeGitRemoteUrl("https://github.com/T3Tools/T3Code.git#section")).toBe(
+    expect(normalizeGitRemoteUrl("https://github.com/T3Tools/SimplyCode.git#section")).toBe(
       "github.com/t3tools/t3code",
     );
     expect(normalizeGitRemoteUrl("https://code.example.test/team/%C3%84pp.git")).toBe(
@@ -52,10 +52,10 @@ describe("normalizeGitRemoteUrl", () => {
   });
 
   it("preserves nested group paths for providers like GitLab", () => {
-    expect(normalizeGitRemoteUrl("git@gitlab.com:T3Tools/platform/T3Code.git")).toBe(
+    expect(normalizeGitRemoteUrl("git@gitlab.com:T3Tools/platform/SimplyCode.git")).toBe(
       "gitlab.com/t3tools/platform/t3code",
     );
-    expect(normalizeGitRemoteUrl("https://gitlab.com/T3Tools/platform/T3Code.git")).toBe(
+    expect(normalizeGitRemoteUrl("https://gitlab.com/T3Tools/platform/SimplyCode.git")).toBe(
       "gitlab.com/t3tools/platform/t3code",
     );
   });
@@ -169,12 +169,14 @@ describe("parseOriginUrlFromGitConfig", () => {
       '[remote "upstream"]',
       "\turl = https://github.com/other/repo.git",
       '[remote "origin"]',
-      "\turl = git@github.com:pingdotgg/t3code.git",
+      "\turl = git@github.com:kodji7202-code/simplycode.git",
       "\tfetch = +refs/heads/*:refs/remotes/origin/*",
       '[branch "main"]',
       "\tremote = origin",
     ].join("\n");
-    expect(parseOriginUrlFromGitConfig(config)).toBe("git@github.com:pingdotgg/t3code.git");
+    expect(parseOriginUrlFromGitConfig(config)).toBe(
+      "git@github.com:kodji7202-code/simplycode.git",
+    );
   });
 
   it("strips inline comments and quotes from the url value", () => {
@@ -277,7 +279,7 @@ describe("isTemporaryWorktreeBranch", () => {
     expect(isTemporaryWorktreeBranch("t3code/f4ae4e0e-f971-4d48-c4f2-9cf0aa54ab12")).toBe(false);
   });
 
-  it("matches the flat fallback used when a plain t3 branch exists", () => {
+  it("matches the flat fallback used when a plain simplycode branch exists", () => {
     const flat = flattenTemporaryWorktreeBranchName(`${WORKTREE_BRANCH_PREFIX}/deadbeef`);
     expect(flat).toBe(`${WORKTREE_BRANCH_PREFIX}-deadbeef`);
     expect(isTemporaryWorktreeBranch(flat)).toBe(true);
