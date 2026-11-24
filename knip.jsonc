@@ -43,11 +43,14 @@
         "setup-worktree.ts",
         "sign-macos.ts",
         "prepare-server-compile-cache.cjs",
+        // The rebrand codemod and one-time icon generator run directly by path.
+        "rebrand.ts",
+        "generate-simplycode-icons.ts",
         "smoke-desktop-app.ts",
         "verify-windows-desktop-artifact.ts",
       ],
       "ignoreDependencies": ["esbuild"],
-      // The `t3` npm package's files: copied into the package, never imported.
+      // The `simplycode` npm package's files: copied into the package, never imported.
       // knip-schemas.test.ts writes a throwaway project to .knip-test-*, which a
       // knip run beside it in check:changed must not report.
       "ignore": ["npm-launcher/**", ".knip-test-*/**"],
