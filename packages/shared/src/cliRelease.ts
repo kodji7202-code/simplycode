@@ -3,7 +3,7 @@ import * as Schema from "effect/Schema";
 
 import { compareSemverVersions } from "./semver.ts";
 
-const CLI_RELEASE_REPOSITORY = "pingdotgg/t3code";
+const CLI_RELEASE_REPOSITORY = "kodji7202-code/simplycode";
 export const CLI_RELEASES_PAGE_URL = `https://github.com/${CLI_RELEASE_REPOSITORY}/releases`;
 export const CLI_RELEASE_CHECKSUMS_FILE = "SHA256SUMS";
 export const CLI_RELEASE_BASE_URL_ENV = "T3CODE_RELEASE_BASE_URL";
@@ -158,7 +158,7 @@ const NpmReleaseMigrationManifest = Schema.Struct({
 });
 const decodeNpmReleaseMigrationManifest = Schema.decodeUnknownOption(NpmReleaseMigrationManifest);
 
-/** Highest database migration a release's server knows, from its npm `t3` manifest. */
+/** Highest database migration a release's server knows, from its npm `simplycode` manifest. */
 export function npmReleaseDatabaseMigration(manifest: unknown): number | undefined {
   return Option.getOrUndefined(decodeNpmReleaseMigrationManifest(manifest))?.t3code
     .databaseMigration;
