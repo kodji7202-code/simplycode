@@ -410,9 +410,9 @@ describe("pullRequestProjectChoices", () => {
   const project = (id: string, environmentId: EnvironmentId) => ({
     id: ProjectId.make(id),
     environmentId,
-    title: "t3code",
+    title: "simplycode",
     workspaceRoot: `/work/${id}`,
-    repositoryIdentity: { canonicalKey: "github.com/pingdotgg/t3code" },
+    repositoryIdentity: { canonicalKey: "github.com/kodji7202-code/simplycode" },
   });
   const projects = [project("main", laptop), project("worktree", laptop), project("main", desktop)];
   const choices = (
@@ -435,7 +435,7 @@ describe("pullRequestProjectChoices", () => {
       { id: "main", environmentId: laptop, title: "t3code · laptop" },
     ]);
     expect(choices((environmentId) => environmentId === desktop)).toEqual([
-      { id: "main", environmentId: desktop, title: "t3code" },
+      { id: "main", environmentId: desktop, title: "simplycode" },
     ]);
   });
 
@@ -446,7 +446,7 @@ describe("pullRequestProjectChoices", () => {
       { id: "worktree", environmentId: laptop, title: "t3code · laptop" },
     ]);
     expect(choices(() => false, scope)).toEqual([
-      { id: "worktree", environmentId: laptop, title: "t3code" },
+      { id: "worktree", environmentId: laptop, title: "simplycode" },
     ]);
   });
 });

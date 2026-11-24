@@ -41,7 +41,8 @@ const runCliIn = (cwd: string, args: ReadonlyArray<string>) =>
     (previous) => Effect.sync(() => process.chdir(previous)),
   );
 
-const makeBaseDir = () => NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "t3code-theme-cli-"));
+const makeBaseDir = () =>
+  NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "simplycode-theme-cli-"));
 
 const settingsPathFor = (baseDir: string) => NodePath.join(baseDir, "userdata", "settings.json");
 
@@ -63,7 +64,7 @@ const writeSettings = (baseDir: string, settings: Record<string, unknown>) => {
   NodeFS.writeFileSync(settingsPathFor(baseDir), `${JSON.stringify(settings, null, 2)}\n`);
 };
 
-describe("t3 theme", () => {
+describe("simplycode theme", () => {
   it.effect("preserves settings it does not recognise", () =>
     Effect.gen(function* () {
       const baseDir = makeBaseDir();
@@ -98,7 +99,7 @@ describe("t3 theme", () => {
   it.effect("sets the theme of a dev server running in the default home", () =>
     Effect.gen(function* () {
       const home = makeBaseDir();
-      const devStateDir = NodePath.join(home, ".t3", "dev");
+      const devStateDir = NodePath.join(home, ".simplycode", "dev");
       NodeFS.mkdirSync(devStateDir, { recursive: true });
       NodeFS.writeFileSync(
         NodePath.join(devStateDir, "server-runtime.json"),
@@ -119,7 +120,7 @@ describe("t3 theme", () => {
       );
 
       assert.equal(
-        NodeFS.existsSync(NodePath.join(home, ".t3", "userdata", "settings.json")),
+        NodeFS.existsSync(NodePath.join(home, ".simplycode", "userdata", "settings.json")),
         false,
       );
       if (result._tag === "Success") {

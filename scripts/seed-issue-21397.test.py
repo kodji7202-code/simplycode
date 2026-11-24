@@ -48,7 +48,7 @@ class SeederTest(unittest.TestCase):
         self.tmp = pathlib.Path(temp.name)
         self.fake_home = self.tmp / 'user'
         (self.fake_home / '.t3/userdata').mkdir(parents=True)
-        self.source_home = self.tmp / 'worktree/.t3/userdata'
+        self.source_home = self.tmp / 'worktree/.simplycode/userdata'
         self.source_home.mkdir(parents=True)
         self.source = self.source_home / 'statev2.sqlite'
         db = sqlite3.connect(self.source)
@@ -130,14 +130,14 @@ class SeederTest(unittest.TestCase):
         dangling = self.tmp / 'dangling'
         dangling.symlink_to(self.tmp / 'missing')
         live_link = self.tmp / 'live-link'
-        live_link.symlink_to(self.fake_home / '.t3')
+        live_link.symlink_to(self.fake_home / '.simplycode')
         cases = {
             'existing directory': existing_dir,
             'existing file': existing_file,
             'symlink to directory': link_to_dir,
             'dangling symlink': dangling,
             'source home': self.source_home.parent,
-            'live home': self.fake_home / '.t3',
+            'live home': self.fake_home / '.simplycode',
             'inside live home': self.fake_home / '.t3/fixture',
             'through symlink into live home': live_link / 'fixture',
         }

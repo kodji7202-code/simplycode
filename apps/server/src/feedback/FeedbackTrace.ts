@@ -37,8 +37,8 @@ const toolName = (
   if (item.type === "command_execution") return "shell";
   if (item.type !== "dynamic_tool") return item.type;
   const name = item.toolName ?? "";
-  const t3 = resolveT3ToolName(name, t3Tools);
-  if (t3 !== undefined) return t3;
+  const simplycode = resolveT3ToolName(name, t3Tools);
+  if (simplycode !== undefined) return simplycode;
   return namesBuiltIns &&
     item.toolSource?.kind !== "integration" &&
     !/^mcp/iu.test(name) &&

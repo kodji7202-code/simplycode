@@ -208,7 +208,7 @@ export const makeCursorAuth = Effect.fn("makeCursorAuth")(function* (options: Cu
             openBrowser: false,
             store: pendingStore,
             signal,
-            apiKeyName: `T3 Code - ${options.displayName}`,
+            apiKeyName: `SimplyCode - ${options.displayName}`,
             onLoginUrl: (authorizationUrl) => {
               if (active === flow) Queue.offerUnsafe(urls, authorizationUrl);
             },
@@ -325,7 +325,7 @@ export const makeCursorAuth = Effect.fn("makeCursorAuth")(function* (options: Cu
 
   const controller: ProviderAuthController = {
     credentialBinding: options.credentialBinding ?? {
-      owner: "t3",
+      owner: "simplycode",
       key: `cursor:${options.instanceId}`,
     },
     isChangingCredentials: Effect.sync(() => operation !== "idle"),
@@ -473,7 +473,7 @@ export const makeCursorAuth = Effect.fn("makeCursorAuth")(function* (options: Cu
         Stream.map((current) => {
           const state = {
             ...current.state,
-            credentialOwner: "t3" as const,
+            credentialOwner: "simplycode" as const,
             methods: [
               {
                 id: "browser",

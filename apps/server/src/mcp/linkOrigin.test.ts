@@ -139,7 +139,7 @@ const layerTools = Layer.mergeAll(
           id === projectId
             ? Option.some({
                 id,
-                title: "t3code",
+                title: "simplycode",
                 workspaceRoot: "/p/t3code",
                 defaultModelSelection: null,
                 scripts: [],
@@ -189,7 +189,7 @@ const layerTools = Layer.mergeAll(
       cloneRepository: (input) =>
         Effect.succeed({
           cwd: input.destinationPath,
-          remoteUrl: "https://github.com/pingdotgg/t3code.git",
+          remoteUrl: "https://github.com/kodji7202-code/simplycode.git",
           repository: null,
         }),
     }),
@@ -223,7 +223,7 @@ const clientScope = (
   environmentId: EnvironmentId.make("environment:box"),
   requestNamespace: `client:${sessionId}`,
   thread: undefined,
-  client: { sessionId, label: `T3 Code · ${sessionId}`, access, linked },
+  client: { sessionId, label: `SimplyCode · ${sessionId}`, access, linked },
   capabilities: new Set(["orchestration", "worktree", "pull-requests"]),
   issuedAt: 0,
 });
@@ -296,7 +296,7 @@ it.layer(Layer.provideMerge(layerTools, layerOrchestration))("work a link starts
       const shell = yield* projections.getThreadShell(launched);
       assert.deepEqual(shell?.linkOrigin, {
         sessionId: "laptop",
-        label: "T3 Code · laptop",
+        label: "SimplyCode · laptop",
         access: "auto",
       });
 
@@ -405,7 +405,7 @@ it.layer(Layer.provideMerge(layerTools, layerOrchestration))("work a link starts
       const launched = yield* launch(trusted, "Started from the desk");
       assert.deepEqual((yield* projections.getThreadShell(launched))?.linkOrigin, {
         sessionId: "trusted",
-        label: "T3 Code · trusted",
+        label: "SimplyCode · trusted",
         access: "full-access",
       });
 
@@ -417,7 +417,7 @@ it.layer(Layer.provideMerge(layerTools, layerOrchestration))("work a link starts
       assert.equal(renamed.isError, false, JSON.stringify(renamed.content));
       for (const [name, args] of [
         ["t3_project_update", { projectId, title: "The desk's now" }],
-        ["t3_project_create", { title: "t3code", workspaceRoot: "/p/t3code" }],
+        ["t3_project_create", { title: "simplycode", workspaceRoot: "/p/t3code" }],
       ] as const) {
         const changed = yield* call(trusted, name, args);
         assert.equal(changed.isError, false, `${name}: ${JSON.stringify(changed.content)}`);

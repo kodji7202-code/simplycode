@@ -902,7 +902,7 @@ type ProjectionWindow = Omit<
 };
 
 export class ProjectionStoreV2 extends Context.Service<ProjectionStoreV2, ProjectionStoreV2Shape>()(
-  "t3/orchestration-v2/ProjectionStore/ProjectionStoreV2",
+  "simplycode/orchestration-v2/ProjectionStore/ProjectionStoreV2",
 ) {}
 
 // The provider batch owns the writer, so no other write can change these rows before it commits.
@@ -913,7 +913,7 @@ export interface ProviderBatchProjection {
 }
 export class ProviderBatchProjectionState extends Context.Reference<
   ProviderBatchProjection | undefined
->("t3/orchestration-v2/ProjectionStore/ProviderBatchProjectionState", {
+>("simplycode/orchestration-v2/ProjectionStore/ProviderBatchProjectionState", {
   defaultValue: () => undefined,
 }) {}
 
@@ -1862,7 +1862,7 @@ export function threadShellFromProjection(
         (left, right) =>
           DateTime.toEpochMillis(right.updatedAt) - DateTime.toEpochMillis(left.updatedAt),
       )[0] ?? null;
-  // T3 Code's own idle compactions stay out of the shell unless they fail, so thread lists,
+  // SimplyCode's own idle compactions stay out of the shell unless they fail, so thread lists,
   // notifications and the relay keep presenting the user's last turn.
   const runs = projection.runs.filter((run) => !isSilentRunForShell(run, projection));
   const latestRun =

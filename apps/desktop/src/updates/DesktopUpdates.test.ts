@@ -42,15 +42,15 @@ const semver = requireFromUpdater("semver") as { parse: (version: string) => Run
 
 const releaseTitle = (version: string) =>
   version.includes("-nightly.")
-    ? `T3 Code Nightly ${version} (0123456789ab)`
-    : `T3 Code v${version}`;
+    ? `SimplyCode Nightly ${version} (0123456789ab)`
+    : `SimplyCode v${version}`;
 
 const releaseFeed = (...versions: ReadonlyArray<string>) =>
   parseXml(
     `<feed xmlns="http://www.w3.org/2005/Atom">${versions
       .map(
         (version) =>
-          `<entry><link rel="alternate" type="text/html" href="https://github.com/pingdotgg/t3code/releases/tag/v${version}"/><title>${releaseTitle(version)}</title><content type="html">&lt;ul&gt;&lt;li&gt;${version} change&lt;/li&gt;&lt;/ul&gt;</content></entry>`,
+          `<entry><link rel="alternate" type="text/html" href="https://github.com/kodji7202-code/simplycode/releases/tag/v${version}"/><title>${releaseTitle(version)}</title><content type="html">&lt;ul&gt;&lt;li&gt;${version} change&lt;/li&gt;&lt;/ul&gt;</content></entry>`,
       )
       .join("")}</feed>`,
   );
@@ -1371,7 +1371,7 @@ describe("describeUpdateErrorCause", () => {
 });
 
 describe("DesktopUpdates under a managed policy", () => {
-  const message = "Example Corp manages T3 Code updates.";
+  const message = "Example Corp manages SimplyCode updates.";
   const managed = (
     policy: Partial<DesktopUpdatePolicy.UpdatePolicy>,
   ): DesktopUpdatePolicy.UpdatePolicy => ({

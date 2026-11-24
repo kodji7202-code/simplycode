@@ -177,7 +177,7 @@ describe("gitHubApiHostForRemote", () => {
       "git@[2001:db8::1]:team/repo.git",
     ]) {
       const remotes = [
-        "origin\tgit@github.com:pingdotgg/t3code.git (fetch)",
+        "origin\tgit@github.com:kodji7202-code/simplycode.git (fetch)",
         `backup\t${url} (fetch)`,
       ].join("\n");
       assert.deepStrictEqual(

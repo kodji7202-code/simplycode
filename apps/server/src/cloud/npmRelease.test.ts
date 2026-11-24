@@ -81,7 +81,7 @@ it.effect.each([
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({
       command: expect.stringMatching(/[/\\]npm(?:\.cmd)?$/i),
-      args: ["view", "--global", "--json", `t3@${fixture.spec}`, "version", "t3code"],
+      args: ["view", "--global", "--json", `simplycode@${fixture.spec}`, "version", "t3code"], // rebrand-keep
       maxOutputBytes: 256 * 1024,
     });
     yield* TestClock.adjust("1 minute");
@@ -153,9 +153,9 @@ it.effect("falls back to public npm only when npm is not installed", () =>
     yield* TestClock.adjust("15 seconds");
     expect(Result.isFailure(yield* Fiber.join(stalled))).toBe(true);
     expect(urls).toEqual([
-      "https://registry.npmjs.org/t3/nightly",
-      "https://registry.npmjs.org/t3/9.9.9",
-      "https://registry.npmjs.org/t3/latest",
+      "https://registry.npmjs.org/simplycode/nightly",
+      "https://registry.npmjs.org/simplycode/9.9.9",
+      "https://registry.npmjs.org/simplycode/latest",
     ]);
   }),
 );

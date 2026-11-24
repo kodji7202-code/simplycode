@@ -213,7 +213,7 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
       const cwd = path.join(baseDir, "project");
       const result = yield* resolveManualWebLaunch(baseDir, cwd);
       assert(Result.isFailure(result));
-      expect(result.failure).toContain("A T3 Code server is already running");
+      expect(result.failure).toContain("A SimplyCode server is already running");
       expect(result.failure).toContain(`pid ${child.pid}`);
       expect(yield* fs.exists(cwd)).toBe(false);
     }),
@@ -282,7 +282,7 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
       assert(child.pid !== undefined);
       for (const source of ["flag", "T3CODE_HOME", "default"] as const) {
         const home = yield* fs.makeTempDirectoryScoped({ prefix: "t3-cli-preflight-pair-" });
-        const baseDir = source === "default" ? path.join(home, ".t3") : home;
+        const baseDir = source === "default" ? path.join(home, ".simplycode") : home;
         const stateDir = path.join(baseDir, "userdata");
         yield* fs.makeDirectory(stateDir, { recursive: true });
         yield* fs.writeFileString(
@@ -833,7 +833,7 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
             ConfigProvider.layer(
               ConfigProvider.fromEnv({
                 env: {
-                  T3CODE_OTLP_HEADERS: "authorization=Bearer abc==, x-tenant=t3",
+                  T3CODE_OTLP_HEADERS: "authorization=Bearer abc==, x-tenant=simplycode",
                   T3CODE_OTLP_TRACES_URL: "http://collector.internal:4318",
                 },
               }),
@@ -845,7 +845,7 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
 
       expect(resolved.otlpTracesExport.headers).toEqual({
         authorization: "Bearer abc==",
-        "x-tenant": "t3",
+        "x-tenant": "simplycode",
       });
       expect(resolved.otlpTracesUrl).toBe("http://collector.internal:4318");
     }),
@@ -900,13 +900,13 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
         50_123,
       );
       expect(selected).toEqual([
-        [3773, undefined],
-        [3773, "100.64.0.7"],
+        [4773, undefined],
+        [4773, "100.64.0.7"],
       ]);
       expect(yield* resolvePort({ port: Option.some(8788) })).toBe(8788);
       expect(
         yield* resolvePort({ mode: Option.some("desktop" as const), port: Option.none() }),
-      ).toBe(3773);
+      ).toBe(4773);
       expect(selected).toHaveLength(2);
     }),
   );
@@ -1079,7 +1079,7 @@ it.layer(NodeServices.layer)("cli config resolution", (it) => {
         privateNetworkOnly: true,
       });
       // Without the launcher's IPC channel the context was inherited, e.g. by
-      // `t3 serve` started from an agent inside the service.
+      // `simplycode serve` started from an agent inside the service.
       expect(yield* resolveHost({ connected: false })).toEqual({
         host: undefined,
         privateNetworkOnly: undefined,

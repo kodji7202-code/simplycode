@@ -67,7 +67,7 @@ const row = (fields: Record<string, unknown>) => ({
   createdAt: "2026-07-01T00:00:00Z",
   updatedAt: "2026-07-02T00:00:00Z",
   mergedAt: null,
-  repository: { nameWithOwner: "pingdotgg/t3code" },
+  repository: { nameWithOwner: "kodji7202-code/simplycode" },
   reviewRequests: { nodes: [] },
   labels: { nodes: [] },
   commits: { nodes: [] },
@@ -1114,7 +1114,7 @@ describe("review thread decoding", () => {
             id: "PRRT_all_hidden",
             path: "apps/web/src/main.tsx",
             comments: {
-              nodes: [{ id: "t3", createdAt: "2026-07-01T00:00:00Z", isMinimized: true }],
+              nodes: [{ id: "simplycode", createdAt: "2026-07-01T00:00:00Z", isMinimized: true }],
             },
           },
         ]),

@@ -22,7 +22,7 @@ const handlersWith = (workflows: Partial<Workflows.Workflows["Service"]>) =>
           environmentId: EnvironmentId.make("environment:workflow"),
           requestNamespace: "client:workflow",
           thread: undefined,
-          client: { sessionId: "session-1", label: "t3 CLI", access: "full-access" },
+          client: { sessionId: "session-1", label: "simplycode CLI", access: "full-access" },
           capabilities: new Set(["orchestration" as const]),
           issuedAt: 0,
         }),

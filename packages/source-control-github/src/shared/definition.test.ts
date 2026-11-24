@@ -7,11 +7,11 @@ const parse = (url: string) => definition.parseChangeRequestUrl(new URL(url));
 
 describe("GitHub change request URLs", () => {
   it("reads a pull request on any host, lower-casing host and repository", () => {
-    expect(parse("https://github.com/T3Tools/T3Code/pull/123/files?w=1#diff")).toEqual({
+    expect(parse("https://github.com/T3Tools/SimplyCode/pull/123/files?w=1#diff")).toEqual({
       host: "github.com",
-      repository: "t3tools/t3code",
+      repository: "t3tools/simplycode",
       number: 123,
-      repositoryUrl: "https://github.com/T3Tools/T3Code",
+      repositoryUrl: "https://github.com/T3Tools/SimplyCode",
     });
     expect(parse("https://GHE.Example.com:8443/acme/web/pull/42/")).toEqual({
       host: "ghe.example.com",
@@ -85,13 +85,15 @@ describe("GitHub change request URLs", () => {
   it("turns GitHub's shared issue route into a pull request candidate", () => {
     const candidate = (url: string) =>
       definition.changeRequestUrlFromReferenceAutolink(new URL(url));
-    expect(candidate("https://github.com/pingdotgg/t3code/issues/8600#issuecomment-1")).toBe(
-      "https://github.com/pingdotgg/t3code/pull/8600#issuecomment-1",
-    );
+    expect(
+      candidate("https://github.com/kodji7202-code/simplycode/issues/8600#issuecomment-1"),
+    ).toBe("https://github.com/kodji7202-code/simplycode/pull/8600#issuecomment-1");
     expect(candidate("https://code.github.example.com/acme/web/issues/42")).toBe(
       "https://code.github.example.com/acme/web/pull/42",
     );
-    expect(candidate("https://github.com/pingdotgg/t3code/issues/not-a-number")).toBeNull();
+    expect(
+      candidate("https://github.com/kodji7202-code/simplycode/issues/not-a-number"),
+    ).toBeNull();
     expect(candidate("https://code.example.test/acme/web/issues/42")).toBeNull();
   });
 });

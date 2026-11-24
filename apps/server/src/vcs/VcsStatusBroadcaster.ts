@@ -172,7 +172,7 @@ interface ActiveRemotePoller {
 
 export class VcsAutoPullPolicy extends Context.Reference<{
   readonly isEnabled: (cwd: string) => Effect.Effect<boolean, never>;
-}>("t3/vcs/VcsAutoPullPolicy", {
+}>("simplycode/vcs/VcsAutoPullPolicy", {
   defaultValue: () => ({ isEnabled: () => Effect.succeed(false) }),
 }) {}
 
@@ -244,7 +244,7 @@ export class VcsStatusBroadcaster extends Context.Service<
       input: VcsStatusSubscriptionInput,
     ) => Stream.Stream<VcsStatusStreamEvent, GitManagerServiceError>;
   }
->()("t3/vcs/VcsStatusBroadcaster") {}
+>()("simplycode/vcs/VcsStatusBroadcaster") {}
 
 function fingerprintStatusPart(status: unknown): string {
   return JSON.stringify(status);
@@ -1099,7 +1099,7 @@ export const make = Effect.gen(function* () {
       ),
   );
 
-  // A checkout outside T3 Code, such as `git switch` in the terminal, calls no refresh RPC.
+  // A checkout outside SimplyCode, such as `git switch` in the terminal, calls no refresh RPC.
   // Rereading remote too, without a fetch, sends the new branch with its own PR and counts.
   const publishCheckedOutRef = Effect.fn("VcsStatusBroadcaster.publishCheckedOutRef")(function* (
     cwd: string,

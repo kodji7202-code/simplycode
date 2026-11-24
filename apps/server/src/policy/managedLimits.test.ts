@@ -330,8 +330,10 @@ it.effect(
             },
           },
           Services: {
-            "svc:t3": {
-              Web: { "t3:443": { Handlers: { "/t3": { Proxy: "http://127.0.0.1:3773" } } } },
+            "svc:simplycode": {
+              Web: {
+                "simplycode:443": { Handlers: { "/t3": { Proxy: "http://127.0.0.1:3773" } } },
+              },
             },
           },
         }),
@@ -343,7 +345,7 @@ it.effect(
       assert.include(owned.message, 'stop the "tailscale serve" command that runs it');
       assert.include(
         owned.message,
-        '"tailscale serve --service=svc:t3 --https=443 --set-path=/t3 off"',
+        '"tailscale serve --service=svc:simplycode --https=443 --set-path=/t3 off"',
       );
       // An answer that cannot be read might hide a mapping, so the server does not start.
       const dialFailure = (reason: string) =>

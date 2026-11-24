@@ -180,7 +180,7 @@ export class TaskFolders extends Context.Service<
       readonly recreate: (checkout: TaskFolderCheckout) => Effect.Effect<void, E>;
     }) => Effect.Effect<void, TaskFolderError | E>;
   }
->()("t3/workspace/TaskFolders") {}
+>()("simplycode/workspace/TaskFolders") {}
 
 const isTaskFolderError = Schema.is(TaskFolderError);
 

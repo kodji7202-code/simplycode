@@ -188,7 +188,7 @@ export class ProjectService extends Context.Service<
       readonly projectIds?: ReadonlyArray<ProjectId>;
     }) => Effect.Effect<ReadonlyArray<OrchestrationProjectShell>, ProjectOperationError>;
   }
->()("t3/project/ProjectService") {}
+>()("simplycode/project/ProjectService") {}
 
 const FOLDER_SYNC_INTERVAL_MS = 30_000;
 

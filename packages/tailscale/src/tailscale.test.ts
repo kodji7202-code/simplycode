@@ -195,7 +195,7 @@ describe("tailscale", () => {
         },
       },
       Services: {
-        "svc:t3": {
+        "svc:simplycode": {
           Web: {
             "t3.tailnet.ts.net:443": { Handlers: { "/": { Proxy: "http://127.0.0.1:3773" } } },
           },
@@ -230,7 +230,7 @@ describe("tailscale", () => {
         host: "box.tailnet.ts.net",
         ...(ambiguous === undefined ? {} : { ambiguous }),
       })),
-      { servePort: 443, mount: "/", host: "t3.tailnet.ts.net", owner: "svc:t3" },
+      { servePort: 443, mount: "/", host: "t3.tailnet.ts.net", owner: "svc:simplycode" },
       { servePort: 9000, ambiguous: "localhost", owner: "foreground" },
     ]);
     assert.deepEqual(
@@ -261,7 +261,7 @@ describe("tailscale", () => {
         "box.tailnet.ts.net:10002": { Handlers: { "/": { Text: "hi" } } },
       },
       Services: {
-        "svc:t3": {
+        "svc:simplycode": {
           Web: { "t3.tailnet.ts.net:10000": { Handlers: { "/": { Proxy: "4003" } } } },
         },
       },

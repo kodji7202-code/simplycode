@@ -290,7 +290,7 @@ describe("applyShellStreamEvent", () => {
 describe("reuseUnchangedThreadShells", () => {
   const link: ThreadPullRequestLink = {
     host: "github.com",
-    repository: "pingdotgg/t3code",
+    repository: "kodji7202-code/simplycode",
     number: 3,
     url: "https://github.com/pingdotgg/t3code/pull/3",
     source: "agent",

@@ -173,7 +173,9 @@ class TerminalProcessSignalError extends Schema.TaggedError<TerminalProcessSigna
 
 export class TerminalCwdRecovery extends Context.Reference<
   (error: TerminalCwdNotFoundError) => Effect.Effect<void, TerminalCwdNotFoundError>
->("t3/terminal/TerminalCwdRecovery", { defaultValue: () => (error) => Effect.fail(error) }) {}
+>("simplycode/terminal/TerminalCwdRecovery", {
+  defaultValue: () => (error) => Effect.fail(error),
+}) {}
 
 export class TerminalManager extends Context.Service<
   TerminalManager,
@@ -254,7 +256,7 @@ export class TerminalManager extends Context.Service<
       listener: (event: TerminalMetadataStreamEvent) => Effect.Effect<void>,
     ) => Effect.Effect<() => void>;
   }
->()("t3/terminal/Manager/TerminalManager") {}
+>()("simplycode/terminal/Manager/TerminalManager") {}
 
 interface TerminalSubprocessInspectResult {
   readonly hasRunningSubprocess: boolean;
@@ -1662,8 +1664,8 @@ function createTerminalSpawnEnv(
     spawnEnv[key] = value;
   }
   // The server inherits its launcher's identity (e.g. Apple_Terminal); shells
-  // and tools inside the integrated terminal should see T3 Code instead.
-  spawnEnv.TERM_PROGRAM = "t3code";
+  // and tools inside the integrated terminal should see SimplyCode instead.
+  spawnEnv.TERM_PROGRAM = "simplycode";
   spawnEnv.TERM_PROGRAM_VERSION = packageJson.version;
   if (runtimeEnv) {
     for (const [key, value] of Object.entries(runtimeEnv)) {

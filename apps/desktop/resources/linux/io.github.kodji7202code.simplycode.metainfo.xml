@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.kodji7202code.simplycode</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>SimplyCode</name>
+  <summary>Desktop GUI for coding agents</summary>
+  <developer id="io.github.kodji7202code">
+    <name>SimplyCode contributors</name>
+  </developer>
+  <description>
+    <p>
+      SimplyCode is an open-source desktop app for coding agents. Work with your
+      existing agent subscriptions, review code changes, and run commands in
+      your projects.
+    </p>
+    <p>
+      Connect from desktop, web, or mobile to continue working remotely.
+    </p>
+    <p>
+      SimplyCode is an unofficial fork of T3 Code and is not affiliated with
+      T3 Tools, Inc.
+    </p>
+  </description>
+  <launchable type="desktop-id">simplycode.desktop</launchable>
+  <icon type="stock">simplycode</icon>
+  <provides>
+    <binary>simplycode</binary>
+  </provides>
+  <categories>
+    <category>Development</category>
+  </categories>
+  <url type="homepage">https://github.com/kodji7202-code/simplycode</url>
+  <url type="bugtracker">https://github.com/kodji7202-code/simplycode/issues</url>
+  <url type="vcs-browser">https://github.com/kodji7202-code/simplycode</url>
+</component>

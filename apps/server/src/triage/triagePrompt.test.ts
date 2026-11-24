@@ -31,33 +31,33 @@ it("launch prompt stays a single argv-safe line naming the prompt file", () => {
 it("context file labels the CLI version as the CLI's, not the user's build", () => {
   const context = buildTriageContext({
     ...contextInput,
-    entry: { kind: "cli", cliVersion: "0.0.42", launchedAs: "npx t3 triage" },
+    entry: { kind: "cli", cliVersion: "0.0.42", launchedAs: "npx simplycode triage" },
     server: "running (pid 42, http://127.0.0.1:3773, version 0.0.43-nightly.20260923.2173)",
   });
   assert.notInclude(context, "Installed version");
   assert.notInclude(context, "Release tag");
   assert.include(context, "- Triage CLI version: 0.0.42 (");
   assert.include(context, "version 0.0.43-nightly.20260923.2173");
-  assert.notInclude(context, "runs inside T3 Code");
+  assert.notInclude(context, "runs inside SimplyCode");
 });
 
 it("in-app context warns the agent off its own server and points at the clone in progress", () => {
   const context = buildTriageContext({
     ...contextInput,
-    entry: { kind: "app", client: "T3 Code Desktop version 0.1.1 on macos" },
+    entry: { kind: "app", client: "SimplyCode Desktop version 0.1.1 on macos" },
     server: "running (pid 42, version 0.1.1); this session runs inside it",
     sourceClone: {
       _tag: "cloning",
-      directory: "/home/u/.t3/source/abc123",
+      directory: "/home/u/.simplycode/source/abc123",
       ref: "v0.1.1",
       commit: "abc123",
       serverVersion: "0.1.1",
     },
   });
   assert.notInclude(context, "Triage CLI version");
-  assert.include(context, "- Started from: T3 Code Desktop version 0.1.1 on macos (");
-  assert.include(context, "## This session runs inside T3 Code");
-  assert.include(context, "/home/u/.t3/source/abc123  (v0.1.1, commit abc123)");
+  assert.include(context, "- Started from: SimplyCode Desktop version 0.1.1 on macos (");
+  assert.include(context, "## This session runs inside SimplyCode");
+  assert.include(context, "/home/u/.simplycode/source/abc123  (v0.1.1, commit abc123)");
   assert.include(context, "Wait for it instead of\ncloning again.");
 });
 
@@ -66,18 +66,18 @@ const contextInput = {
   os: "linux x64 (7.2.0)",
   nodeVersion: "v26.8.2",
   paths: {
-    stateDir: "/home/u/.t3/userdata",
-    dbPath: "/home/u/.t3/userdata/state.sqlite",
-    settingsPath: "/home/u/.t3/userdata/settings.json",
-    logsDir: "/home/u/.t3/userdata/logs",
-    serviceLogPath: "/home/u/.t3/userdata/logs/boot-service.log",
-    desktopBackendLogGlob: "/home/u/.t3/userdata/logs/server-child*.log*",
-    relayClientLogPath: "/home/u/.t3/userdata/logs/relay-client.ndjson",
-    serverTracePath: "/home/u/.t3/userdata/logs/server.trace.ndjson",
-    providerEventLogPath: "/home/u/.t3/userdata/logs/provider/events.log",
-    terminalLogsDir: "/home/u/.t3/userdata/logs/terminals",
-    providerStatusCacheDir: "/home/u/.t3/caches",
-    secretsDir: "/home/u/.t3/userdata/secrets",
-    sourceCacheDir: "/home/u/.t3/source",
+    stateDir: "/home/u/.simplycode/userdata",
+    dbPath: "/home/u/.simplycode/userdata/state.sqlite",
+    settingsPath: "/home/u/.simplycode/userdata/settings.json",
+    logsDir: "/home/u/.simplycode/userdata/logs",
+    serviceLogPath: "/home/u/.simplycode/userdata/logs/boot-service.log",
+    desktopBackendLogGlob: "/home/u/.simplycode/userdata/logs/server-child*.log*",
+    relayClientLogPath: "/home/u/.simplycode/userdata/logs/relay-client.ndjson",
+    serverTracePath: "/home/u/.simplycode/userdata/logs/server.trace.ndjson",
+    providerEventLogPath: "/home/u/.simplycode/userdata/logs/provider/events.log",
+    terminalLogsDir: "/home/u/.simplycode/userdata/logs/terminals",
+    providerStatusCacheDir: "/home/u/.simplycode/caches",
+    secretsDir: "/home/u/.simplycode/userdata/secrets",
+    sourceCacheDir: "/home/u/.simplycode/source",
   },
 } satisfies Omit<TriageContextInput, "entry" | "server">;

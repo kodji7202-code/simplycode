@@ -285,7 +285,7 @@ export function getProviderOptionStatedValue(
 }
 
 /** The variant choice that sends no variant; distinct from any variant name a provider defines. */
-export const DEFAULT_VARIANT_CHOICE_ID = "t3:default";
+export const DEFAULT_VARIANT_CHOICE_ID = "simplycode:default";
 
 export function getProviderOptionCurrentValue(
   descriptor: ProviderOptionDescriptor | null | undefined,

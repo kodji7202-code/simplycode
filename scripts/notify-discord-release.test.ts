@@ -21,15 +21,15 @@ import {
 const latestAnnouncement = {
   target: "latest",
   roleId: "222222222222222222",
-  releaseName: "T3 Code v1.2.3",
+  releaseName: "SimplyCode v1.2.3",
   version: "1.2.3",
   tag: "v1.2.3",
-  releaseUrl: new URL("https://github.com/pingdotgg/t3code/releases/tag/v1.2.3"),
+  releaseUrl: new URL("https://github.com/kodji7202-code/simplycode/releases/tag/v1.2.3"),
   timestamp: "2026-05-01T01:41:00.000Z",
 } as const;
 const nightlyAnnouncement = { ...latestAnnouncement, target: "prerelease" } as const;
 const webhookUrl = new URL("https://discord.com/api/webhooks/123456/test-secret-token");
-const intro = "A new T3 Code prerelease is available for nightly testers.";
+const intro = "A new SimplyCode prerelease is available for nightly testers.";
 const notes = `## What's Changed\n* Fix remote reconnection by @contributor in https://github.com/pingdotgg/t3code/pull/10\n* Improve thread search in https://github.com/pingdotgg/t3code/pull/11\n\n**Full Changelog**: https://github.com/pingdotgg/t3code/compare/v1.2.2...v1.2.3`;
 const formattedNotes = `## What's Changed\n* [Fix remote reconnection](https://github.com/pingdotgg/t3code/pull/10) by [@contributor](https://github.com/contributor)\n* [Improve thread search](https://github.com/pingdotgg/t3code/pull/11)\n\n[Full Changelog](https://github.com/pingdotgg/t3code/compare/v1.2.2...v1.2.3)`;
 const runCli = Command.runWith(notifyDiscordReleaseCommand, { version: "0.0.0" });
@@ -368,7 +368,7 @@ it.layer(NodeServices.layer)("Discord release CLI and workflow", (it) => {
         "needs.preflight.outputs.release_name": latestAnnouncement.releaseName,
         "needs.preflight.outputs.version": latestAnnouncement.version,
         "needs.preflight.outputs.tag": latestAnnouncement.tag,
-        "github.repository": "pingdotgg/t3code",
+        "github.repository": "kodji7202-code/simplycode",
       };
       const announce = workflowRun(workflow, "Announce prerelease on Discord").replace(
         /\$\{\{ (.*?) \}\}/g,

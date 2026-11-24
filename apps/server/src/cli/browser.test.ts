@@ -16,7 +16,7 @@ import * as PreviewBrowserHost from "../preview/PreviewBrowserHost.ts";
 import { browserCommand } from "./browser.ts";
 
 const USERNS_RESTRICTION = "/proc/sys/kernel/apparmor_restrict_unprivileged_userns";
-const BROWSER_ROOT = "/home/me/.t3/tools/chrome-headless-shell";
+const BROWSER_ROOT = "/home/me/.simplycode/tools/chrome-headless-shell";
 const BROWSER = `${BROWSER_ROOT}/linux64/154/chrome-headless-shell`;
 
 const notFound = (method: string, path: string) =>
@@ -128,7 +128,7 @@ it.effect.each([
     written: CUSTOMIZED_PROFILE,
     said: "Reloaded the AppArmor profile",
   },
-])("t3 browser setup as root $label", (input) =>
+])("simplycode browser setup as root $label", (input) =>
   Effect.gen(function* () {
     const result = yield* runSetupAsRoot({ profile: input.profile });
     expect(result.loads).toEqual([LOAD]);

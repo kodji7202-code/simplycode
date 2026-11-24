@@ -38,7 +38,7 @@ describe("ExecutionEnvironmentDescriptor", () => {
     for (const installation of [
       { kind: "future-manager" },
       { kind: "npm-global" },
-      { kind: "t3-launcher", launcher: "t3" },
+      { kind: "t3-launcher", launcher: "simplycode" },
     ]) {
       expect(
         decodeDescriptor({

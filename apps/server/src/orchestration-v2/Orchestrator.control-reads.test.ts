@@ -1218,7 +1218,7 @@ it.effect("keeps delegated child pull-request links independent of the parent", 
     const projectId = ProjectId.make("project:parent-pr");
     const parentPullRequest = {
       projectId,
-      repository: "pingdotgg/t3code",
+      repository: "kodji7202-code/simplycode",
       number: 123,
       url: "https://github.com/pingdotgg/t3code/pull/123",
     };

@@ -2129,7 +2129,7 @@ const machineLoad = Effect.gen(function* () {
 );
 
 /** Comm names of the processes that compete with a measured server on a developer's machine. */
-const COMPETING = /^(node|node-MainThread|t3|claude|codex|vite|pnpm)/;
+const COMPETING = /^(node|node-MainThread|simplycode|claude|codex|vite|pnpm)/;
 
 /**
  * CPU seconds of every node, T3, claude or codex process outside this script's own tree, keyed by

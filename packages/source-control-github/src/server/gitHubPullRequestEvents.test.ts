@@ -11,7 +11,7 @@ import * as GitHubPullRequestEvents from "./gitHubPullRequestEvents.ts";
 import { GitHubApiNotFoundError, GitHubApiResponseError } from "./GitHubRequestPolicy.ts";
 import * as GitHubRest from "./GitHubRest.ts";
 
-const target = { host: "github.com", repository: "pingdotgg/t3code", number: 15 };
+const target = { host: "github.com", repository: "kodji7202-code/simplycode", number: 15 };
 
 const sse = (...frames: ReadonlyArray<readonly [string, string]>) =>
   frames.map(([event, data]) => `event: ${event}\ndata: ${data}\n\n`).join("");

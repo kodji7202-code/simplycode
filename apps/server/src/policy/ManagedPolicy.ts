@@ -41,13 +41,13 @@ export class ManagedPolicy extends Context.Service<
     /** What clients are told; absent when no policy applies. */
     readonly summary: ManagedPolicySummary | undefined;
   }
->()("t3/policy/ManagedPolicy") {}
+>()("simplycode/policy/ManagedPolicy") {}
 
 type LimitsSummary = NonNullable<ManagedPolicySummary["limits"]>;
 
 const encodeDocumentJson = Schema.encodeEffect(Schema.fromJsonString(ManagedPolicyDocument));
 
-/** What `t3 policy show` compares to tell whether a running server loaded the installed policy. */
+/** What `simplycode policy show` compares to tell whether a running server loaded the installed policy. */
 export const loadedPolicy = Effect.fn("ManagedPolicy.loadedPolicy")(function* (
   policy: Pick<ManagedPolicy["Service"], "path" | "document">,
 ) {

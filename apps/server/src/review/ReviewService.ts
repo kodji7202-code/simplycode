@@ -41,7 +41,7 @@ export class ReviewService extends Context.Service<
       input: ReviewDiffFileContentsInput,
     ) => Effect.Effect<ReviewDiffFileContentsResult, ReviewDiffPreviewError>;
   }
->()("t3/review/ReviewService") {}
+>()("simplycode/review/ReviewService") {}
 
 /** @public */
 export const make = Effect.gen(function* () {

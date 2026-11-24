@@ -51,9 +51,12 @@ const SIGN_IN_MESSAGE = "Sign in with Google to use Antigravity.";
 const AUTH_UNCHECKED_MESSAGE =
   "Antigravity is installed. Google account access is not checked yet.";
 // Set while a finished quota read republishes, so that health check does not read again.
-const PublishingUsage = Context.Reference<boolean>("t3/provider/AntigravityPublishingUsage", {
-  defaultValue: () => false,
-});
+const PublishingUsage = Context.Reference<boolean>(
+  "simplycode/provider/AntigravityPublishingUsage",
+  {
+    defaultValue: () => false,
+  },
+);
 
 type SessionSetupResult = Pick<
   AcpSessionRuntime.AcpSessionRuntimeStartResult["sessionSetupResult"],
@@ -220,7 +223,7 @@ export const makeAntigravityProvider = Effect.fn("makeAntigravityProvider")(func
         auth: { status: "unknown", ...(options.auth ? { type: options.auth.type } : {}) },
         message: settings.enabled
           ? "Checking Antigravity availability."
-          : "Antigravity is disabled in T3 Code settings.",
+          : "Antigravity is disabled in SimplyCode settings.",
       },
     }),
     setup: { canAuthenticate: true, canInstall: true },

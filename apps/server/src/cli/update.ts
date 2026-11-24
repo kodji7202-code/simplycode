@@ -89,15 +89,17 @@ export const resolveNewestVersion = Effect.fn("cli.update.resolve_newest")(funct
     const body = yield* httpClient.execute(authenticatedRequest).pipe(
       Effect.flatMap(HttpClientResponse.filterStatusOk),
       Effect.flatMap((response) => response.text),
-      Effect.mapError(() => new CliUpdateError({ reason: "Could not list t3 releases." })),
+      Effect.mapError(() => new CliUpdateError({ reason: "Could not list simplycode releases." })),
       Effect.timeoutOrElse({
         duration: RELEASE_INDEX_TIMEOUT,
-        orElse: () => Effect.fail(new CliUpdateError({ reason: "Timed out listing t3 releases." })),
+        orElse: () =>
+          Effect.fail(new CliUpdateError({ reason: "Timed out listing simplycode releases." })),
       }),
     );
     const releases = yield* decodeReleaseIndex(body).pipe(
       Effect.mapError(
-        () => new CliUpdateError({ reason: "The t3 release index had an unexpected shape." }),
+        () =>
+          new CliUpdateError({ reason: "The simplycode release index had an unexpected shape." }),
       ),
     );
     const version = newestCliReleaseVersion(releases, channel);
@@ -167,7 +169,10 @@ export const repointLauncher = Effect.fn("cli.update.repoint_launcher")(function
   const remember = (launcher: string) =>
     recordPinnedRuntimeLauncher({ baseDir: input.baseDir, launcher }).pipe(
       Effect.mapError(
-        () => new CliUpdateError({ reason: `Could not record the t3 launcher at ${launcher}.` }),
+        () =>
+          new CliUpdateError({
+            reason: `Could not record the simplycode launcher at ${launcher}.`,
+          }),
       ),
     );
 
@@ -178,13 +183,14 @@ export const repointLauncher = Effect.fn("cli.update.repoint_launcher")(function
     const quoted = Option.isSome(current) ? windowsShimTarget(current.value) : undefined;
     if (quoted === undefined || !ownsTarget(quoted)) return Option.none<string>();
     yield* remember(shimPath);
-    yield* fs
-      .writeFileString(shimPath, `@echo off\r\n"${input.targetEntryPath}" %*`)
-      .pipe(
-        Effect.mapError(
-          () => new CliUpdateError({ reason: `Could not rewrite the t3 launcher at ${shimPath}.` }),
-        ),
-      );
+    yield* fs.writeFileString(shimPath, `@echo off\r\n"${input.targetEntryPath}" %*`).pipe(
+      Effect.mapError(
+        () =>
+          new CliUpdateError({
+            reason: `Could not rewrite the simplycode launcher at ${shimPath}.`,
+          }),
+      ),
+    );
     return Option.some(shimPath);
   }
 
@@ -198,7 +204,10 @@ export const repointLauncher = Effect.fn("cli.update.repoint_launcher")(function
   }).pipe(
     Effect.mapError(
       (cause) =>
-        new CliUpdateError({ reason: `Could not repoint the t3 launcher at ${launcher}.`, cause }),
+        new CliUpdateError({
+          reason: `Could not repoint the simplycode launcher at ${launcher}.`,
+          cause,
+        }),
     ),
   );
   return Option.some(launcher);
@@ -218,7 +227,7 @@ export const findWindowsShim = Effect.fn("cli.update.find_windows_shim")(functio
   ]
     .filter((entry) => entry.trim().length > 0)
     .map((directory) => ({
-      shimPath: path.join(directory, "t3.cmd"),
+      shimPath: path.join(directory, "simplycode.cmd"),
       parseTarget: windowsShimTarget,
     }));
   if (versionsDir !== undefined) {
@@ -226,7 +235,7 @@ export const findWindowsShim = Effect.fn("cli.update.find_windows_shim")(functio
       .readFileString(path.join(path.dirname(versionsDir), "launchers"))
       .pipe(Effect.orElseSucceed(() => ""));
     for (const shimPath of recorded.split(/\r?\n/)) {
-      if (path.isAbsolute(shimPath) && path.basename(shimPath).toLowerCase() === "t3.cmd") {
+      if (path.isAbsolute(shimPath) && path.basename(shimPath).toLowerCase() === "simplycode.cmd") {
         candidates.push({ shimPath, parseTarget: generatedWindowsShimTarget });
       }
     }
@@ -249,7 +258,7 @@ const updateFlags = {
   ...projectLocationFlags,
   channel: Flag.Literals("channel", CLI_RELEASE_CHANNELS).pipe(
     Flag.withDescription(
-      "Release channel to follow. Defaults to the channel this t3 was published on.",
+      "Release channel to follow. Defaults to the channel this simplycode was published on.",
     ),
     Flag.optional,
   ),
@@ -278,7 +287,7 @@ export const updateCommand = Command.make("update", {
   version: versionArgument,
 }).pipe(
   Command.withDescription(
-    "Download a newer t3 and switch this machine to it, including the background service when one is installed.",
+    "Download a newer simplycode and switch this machine to it, including the background service when one is installed.",
   ),
   Command.withHandler((flags) =>
     Effect.gen(function* () {
@@ -327,7 +336,7 @@ const belongsToBootService = Effect.fn("cli.update.belongs_to_boot_service")(fun
   const runner = yield* ProcessRunner.ProcessRunner;
   if (platform === "linux") {
     const cgroup = yield* fs.readFileString(`/proc/${pid}/cgroup`).pipe(Effect.option);
-    return Option.isSome(cgroup) && cgroup.value.includes("/t3code.service");
+    return Option.isSome(cgroup) && cgroup.value.includes("/simplycode.service");
   }
   if (platform === "darwin") {
     const parent = yield* runner
@@ -382,7 +391,7 @@ export const runUpdate = Effect.fn("cli.update.run")(function* (input: {
   }
   if (input.requestedVersion !== undefined && !isExactServiceVersion(input.requestedVersion)) {
     return yield* new CliUpdateError({
-      reason: `'${input.requestedVersion}' is not an exact t3 version.`,
+      reason: `'${input.requestedVersion}' is not an exact simplycode version.`,
     });
   }
   const progress = createUpdateProgress();
@@ -400,10 +409,10 @@ export const runUpdate = Effect.fn("cli.update.run")(function* (input: {
   if (targetChannel === "preview" && currentChannel !== "preview") {
     yield* Console.log(
       [
-        `t3@${targetVersion} is a preview build.`,
+        `simplycode@${targetVersion} is a preview build.`,
         "  Preview builds are cut by maintainers from unreleased branches to exercise the release",
         "  pipeline. They can be broken, receive no fixes, and are never offered as updates; you",
-        `  will have to switch back to ${currentChannel} yourself with \`t3 update --channel ${currentChannel} --allow-downgrade\`.`,
+        `  will have to switch back to ${currentChannel} yourself with \`simplycode update --channel ${currentChannel} --allow-downgrade\`.`,
       ].join("\n"),
     );
     if (!(process.stdin.isTTY && process.stdout.isTTY)) {
@@ -444,14 +453,14 @@ export const runUpdate = Effect.fn("cli.update.run")(function* (input: {
   if (executableCurrent && serviceCurrent) {
     yield* Console.log(
       serviceVersion !== undefined
-        ? `t3 and its background service are already on ${targetVersion} (${targetChannel}).`
-        : `t3 is already on ${targetVersion} (${targetChannel}).`,
+        ? `simplycode and its background service are already on ${targetVersion} (${targetChannel}).`
+        : `simplycode is already on ${targetVersion} (${targetChannel}).`,
     );
     return;
   }
   if (!input.allowDowngrade && compareExactServiceVersions(targetVersion, newestInstalled) < 0) {
     return yield* new CliUpdateError({
-      reason: `t3@${targetVersion} is older than the installed ${newestInstalled}. Pass --allow-downgrade to install it anyway.`,
+      reason: `simplycode@${targetVersion} is older than the installed ${newestInstalled}. Pass --allow-downgrade to install it anyway.`,
     });
   }
 
@@ -468,8 +477,8 @@ export const runUpdate = Effect.fn("cli.update.run")(function* (input: {
       : executableCurrent
         ? `Updating the background service ${serviceVersion ?? "(unknown version)"} -> ${targetVersion} (${targetChannel}).`
         : alreadyOnDisk
-          ? "Switching T3 Code"
-          : "Updating T3 Code",
+          ? "Switching SimplyCode"
+          : "Updating SimplyCode",
     executableCurrent
       ? ""
       : `${currentVersion} → ${targetVersion}${targetChannel === "stable" ? "" : ` (${targetChannel})`}`,
@@ -490,7 +499,7 @@ export const runUpdate = Effect.fn("cli.update.run")(function* (input: {
       ).pipe(Effect.catchTags({ QuitError: () => Effect.succeed(false) }));
     } else {
       yield* Console.log(
-        "  Not a terminal, so the service keeps running its current version. Rerun with --yes to restart it now, or run `t3 service restart` later.",
+        "  Not a terminal, so the service keeps running its current version. Rerun with --yes to restart it now, or run `simplycode service restart` later.",
       );
     }
   }
@@ -527,7 +536,7 @@ export const runUpdate = Effect.fn("cli.update.run")(function* (input: {
                 ? error
                 : new PinnedRuntimePreflightBlockedError({
                     version: targetVersion,
-                    reason: `t3@${targetVersion} could not confirm it supports this database (its check exited with code ${error.exitCode}), so t3 did not switch to it.`,
+                    reason: `simplycode@${targetVersion} could not confirm it supports this database (its check exited with code ${error.exitCode}), so simplycode did not switch to it.`,
                   }),
             ),
         }),
@@ -543,8 +552,8 @@ export const runUpdate = Effect.fn("cli.update.run")(function* (input: {
         new CliUpdateError({
           reason:
             mirror === undefined
-              ? `No release archive was published for t3@${targetVersion}.`
-              : `${mirror.organization}'s update mirror has no t3@${targetVersion} for this machine.`,
+              ? `No release archive was published for simplycode@${targetVersion}.`
+              : `${mirror.organization}'s update mirror has no simplycode@${targetVersion} for this machine.`,
         }),
       ),
     ),
@@ -580,7 +589,7 @@ export const runUpdate = Effect.fn("cli.update.run")(function* (input: {
       Effect.mapError(
         (error) =>
           new CliUpdateError({
-            reason: `t3@${targetVersion} is installed but the background service could not be ${restartService ? "updated" : "pointed at it"}: ${error.message}`,
+            reason: `simplycode@${targetVersion} is installed but the background service could not be ${restartService ? "updated" : "pointed at it"}: ${error.message}`,
           }),
       ),
     );
@@ -599,9 +608,9 @@ export const runUpdate = Effect.fn("cli.update.run")(function* (input: {
     });
   }
 
-  progress.success(`Installed T3 Code ${targetVersion}`);
+  progress.success(`Installed SimplyCode ${targetVersion}`);
   if (Option.isSome(repointed)) {
-    yield* Console.log("  Run t3 to get started.\n");
+    yield* Console.log("  Run simplycode to get started.\n");
   } else {
     yield* Console.log(`  Run ${runtime.entryPath}\n`);
   }
@@ -622,7 +631,7 @@ export const runUpdate = Effect.fn("cli.update.run")(function* (input: {
           ? `the version before ${serviceVersion}`
           : serviceVersion;
     yield* Console.log(
-      `  Background service still running ${running}. Run \`t3 service restart\` when you are ready to switch it to ${targetVersion}.`,
+      `  Background service still running ${running}. Run \`simplycode service restart\` when you are ready to switch it to ${targetVersion}.`,
     );
   } else if (status.installed && !servesThisHome) {
     yield* Console.log(

@@ -139,9 +139,9 @@ describe("Azure DevOps repository keys", () => {
 
   it("gives a repository the same key over SSH as over HTTPS", () => {
     for (const remote of [
-      "git@ssh.dev.azure.com:v3/T3Tools/Platform/T3Code",
-      "ssh://git@ssh.dev.azure.com:22/v3/T3Tools/Platform/T3Code",
-      "https://T3Tools@dev.azure.com/T3Tools/Platform/_git/T3Code",
+      "git@ssh.dev.azure.com:v3/T3Tools/Platform/SimplyCode",
+      "ssh://git@ssh.dev.azure.com:22/v3/T3Tools/Platform/SimplyCode",
+      "https://T3Tools@dev.azure.com/T3Tools/Platform/_git/SimplyCode",
     ]) {
       expect(registry.repositoryKeyFromRemote(remote), remote).toBe(
         "dev.azure.com/t3tools/platform/_git/t3code",
@@ -210,8 +210,8 @@ describe("Azure DevOps repository keys", () => {
 
   it("keeps the organization in the host for the legacy visualstudio.com remotes", () => {
     for (const remote of [
-      "T3Tools@vs-ssh.visualstudio.com:v3/T3Tools/Platform/T3Code",
-      "https://T3Tools.visualstudio.com/Platform/_git/T3Code",
+      "T3Tools@vs-ssh.visualstudio.com:v3/T3Tools/Platform/SimplyCode",
+      "https://T3Tools.visualstudio.com/Platform/_git/SimplyCode",
     ]) {
       expect(registry.repositoryKeyFromRemote(remote), remote).toBe(
         "t3tools.visualstudio.com/platform/_git/t3code",
