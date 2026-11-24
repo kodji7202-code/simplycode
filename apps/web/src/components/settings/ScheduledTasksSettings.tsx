@@ -1297,7 +1297,7 @@ function ScheduledTaskEditorDialog({
 }: {
   readonly initialEnvironmentId: EnvironmentId;
   readonly task: ScheduledTask | null;
-  readonly initialBotId?: BotId;
+  readonly initialBotId?: BotId | undefined;
   readonly onClose: () => void;
 }) {
   const [saving, setSaving] = useState(false);
@@ -1509,7 +1509,7 @@ function ScheduledTaskEditorForm({
 }: {
   readonly initialEnvironmentId: EnvironmentId;
   readonly task: ScheduledTask | null;
-  readonly initialBotId?: BotId;
+  readonly initialBotId?: BotId | undefined;
   readonly saving: boolean;
   readonly onSavingChange: (saving: boolean) => void;
   readonly onClose: () => void;
@@ -1909,7 +1909,11 @@ function ScheduledTaskEditorForm({
                 }}
               >
                 <SelectTrigger size="sm" id="scheduled-task-bot">
-                  <SelectValue />
+                  <SelectValue>
+                    {draft.botId === ""
+                      ? messages(msg("None"))
+                      : (bots.find((bot) => bot.id === draft.botId)?.name ?? draft.botId)}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectPopup>
                   <SelectItem value="none" label={messages(msg("None"))}>

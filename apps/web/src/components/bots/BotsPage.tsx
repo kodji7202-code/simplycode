@@ -91,9 +91,15 @@ function BotRow(props: {
     );
   };
 
+  const requireOperate = () => {
+    if (canOperate && readEnvironmentScope(environmentId, AuthOrchestrationOperateScope))
+      return true;
+    reportFailure(gt("Not permitted"), gt("This session cannot change orchestration settings."));
+    return false;
+  };
+
   const toggle = async () => {
-    if (busy !== null || !readEnvironmentScope(environmentId, AuthOrchestrationOperateScope))
-      return;
+    if (busy !== null || !requireOperate()) return;
     setBusy("toggle");
     const result = await setEnabled({
       environmentId,
@@ -106,8 +112,7 @@ function BotRow(props: {
   };
 
   const remove = async () => {
-    if (busy !== null || !readEnvironmentScope(environmentId, AuthOrchestrationOperateScope))
-      return;
+    if (busy !== null || !requireOperate()) return;
     const message = `${gt('Delete "{name}"?', { name: bot.name })}\n${
       automationCount === 0
         ? gt("This cannot be undone.")
@@ -128,12 +133,8 @@ function BotRow(props: {
 
   const run = async () => {
     const text = prompt.trim();
-    if (
-      busy !== null ||
-      !text ||
-      !readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)
-    )
-      return;
+    if (busy !== null || !text) return;
+    if (!requireOperate()) return;
     setBusy("run");
     const result = await runNow({
       environmentId,
@@ -223,11 +224,7 @@ function BotRow(props: {
                       disabled={busyTaskId !== null || !canOperate}
                       aria-label={gt("Enable {title}", { title: task.title })}
                       onCheckedChange={() => {
-                        if (
-                          busyTaskId !== null ||
-                          !readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)
-                        )
-                          return;
+                        if (busyTaskId !== null || !requireOperate()) return;
                         setBusyTaskId(task.id);
                         void setTaskEnabled({
                           environmentId,
@@ -333,6 +330,7 @@ function BotRow(props: {
 export function BotsPage() {
   const search = useSearch({ from: "/_chat/bots" });
   const navigate = useNavigate();
+  const gt = useGT();
   const messages = useMessages();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const connectedIds = useConnectedEnvironmentIds();
@@ -370,7 +368,7 @@ export function BotsPage() {
     <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none">
       <div className="scrollbar-gutter-both flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
         <WorkspacePageHeader>
-          <WorkspaceBreadcrumb>
+          <WorkspaceBreadcrumb ariaLabel={gt("Bots breadcrumb")}>
             <WorkspaceBreadcrumbItem>
               <WorkspaceBreadcrumbText>
                 <T>Bots</T>
@@ -392,7 +390,10 @@ export function BotsPage() {
                 }
               >
                 <SelectTrigger className="w-56">
-                  <SelectValue />
+                  <SelectValue>
+                    {connected.find((environment) => environment.environmentId === environmentId)
+                      ?.label ?? environmentId}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectPopup>
                   {connected.map((environment) => (

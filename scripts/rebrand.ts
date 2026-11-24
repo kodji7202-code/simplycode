@@ -817,6 +817,52 @@ const FILE_EDITS: ReadonlyArray<{
       ],
     ],
   },
+  {
+    // Upstream brands the sidebar as the "T3" mark plus a "Code" text tail;
+    // the fork's wordmark already reads "SimplyCode", so the tail and the stale
+    // accessible name go.
+    file: "apps/web/src/components/sidebar/SidebarChrome.tsx",
+    edits: [
+      [
+        `function SidebarBrandMark({ onBackdrop }: { onBackdrop: boolean }) {
+  return (
+    <span className="inline-flex min-w-0 items-baseline gap-1 text-sm font-medium tracking-tight">
+      <T3Wordmark aria-label="T3" className="h-[1cap] w-auto shrink-0" />
+      <span
+        className={cn(
+          "truncate [text-box:trim-both_cap_alphabetic] supports-[text-box:trim-both_cap_alphabetic]:py-1",
+          onBackdrop ? "text-white/70" : "text-muted-foreground",
+        )}
+      >
+        {/* oxlint-disable-next-line t3code/no-untranslated-copy -- product wordmark */}
+        {"Code"}
+      </span>
+    </span>
+  );
+}`,
+        `function SidebarBrandMark() {
+  return <T3Wordmark aria-label="SimplyCode" className="h-[1cap] w-auto shrink-0" />;
+}`,
+      ],
+      ["<SidebarBrandMark onBackdrop={onBackdrop} />", "<SidebarBrandMark />"],
+      // The offscreen width probe renders the same mark with a fixed prop.
+      ["<SidebarBrandMark onBackdrop={false} />", "<SidebarBrandMark />"],
+    ],
+  },
+  {
+    // Upstream tails the "T3" mark with a "Code" text span; the fork's
+    // wordmark already reads "SimplyCode". The wrapper's aria-label rebrands
+    // via the text rules, so only the tail is removed here.
+    file: "apps/web/src/components/ui/standalone-page.tsx",
+    edits: [
+      [
+        `          {/* oxlint-disable-next-line t3code/no-untranslated-copy -- product wordmark */}
+          <span className="text-lg font-medium tracking-tight">Code</span>
+`,
+        "",
+      ],
+    ],
+  },
 ];
 
 // Whole-file rewrites and moves (content is regenerated verbatim every run).

@@ -54,6 +54,7 @@ import {
   draftToBotUpsertInput,
   EMPTY_BOT_DRAFT,
   soulByteLength,
+  WORKSPACE_MODE_LABELS,
   WORKSPACE_MODES,
   type BotDraft,
 } from "./botPage.logic";
@@ -96,8 +97,9 @@ export function BotEditorDialog(props: {
   // The soul only exists in bots.get; fill the draft once it arrives.
   const [soulSeeded, setSoulSeeded] = useState(false);
   if (editing && !soulSeeded && detail.data !== null) {
+    const { soul } = detail.data;
     setSoulSeeded(true);
-    setDraft((current) => ({ ...current, soul: detail.data.soul }));
+    setDraft((current) => ({ ...current, soul }));
   }
   const [saving, setSaving] = useState(false);
   const submissionPending = useRef(false);
@@ -161,12 +163,14 @@ export function BotEditorDialog(props: {
   };
 
   const submit = async () => {
-    if (
-      !readEnvironmentScope(environmentId, AuthOrchestrationOperateScope) ||
-      submissionPending.current ||
-      saving
-    )
+    if (submissionPending.current || saving) return;
+    if (!canOperate || !readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) {
+      reportFailure(
+        gt("Could not save bot"),
+        gt("This session cannot change orchestration settings."),
+      );
       return;
+    }
     if (soulBytes > BOT_SOUL_MAX_BYTES) {
       reportFailure(
         gt("Soul is too long"),
@@ -175,7 +179,9 @@ export function BotEditorDialog(props: {
       return;
     }
     const input = draftToBotUpsertInput(
-      { ...draft, projectId: selectedProjectId },
+      // The pickers resolve display defaults (model, project) that only live
+      // outside the draft until the user changes them.
+      { ...draft, projectId: selectedProjectId, modelSelection: activeSelection },
       worktreeBaseRef,
     );
     if (input === null || !projects.some((project) => project.id === selectedProjectId)) {
@@ -184,10 +190,14 @@ export function BotEditorDialog(props: {
     }
     submissionPending.current = true;
     setSaving(true);
-    const result = await upsertBot({ environmentId, input });
+    const result = await upsertBot({ environmentId, input }).catch((error: unknown) => {
+      reportFailure(gt("Could not save bot"), error);
+      return null;
+    });
     setSaving(false);
+    submissionPending.current = false;
+    if (result === null) return;
     if (result._tag === "Failure") {
-      submissionPending.current = false;
       if (!isAtomCommandInterrupted(result)) {
         reportFailure(gt("Could not save bot"), squashAtomCommandFailure(result));
       }
@@ -252,7 +262,9 @@ export function BotEditorDialog(props: {
               }
             >
               <SelectTrigger id="bot-project" className="w-full">
-                <SelectValue />
+                <SelectValue placeholder={gt("Select a project")}>
+                  {selectedProject?.title}
+                </SelectValue>
               </SelectTrigger>
               <SelectPopup>
                 {projects.map((project) => (
@@ -275,12 +287,12 @@ export function BotEditorDialog(props: {
               }
             >
               <SelectTrigger id="bot-workspace" className="w-full">
-                <SelectValue />
+                <SelectValue>{m(WORKSPACE_MODE_LABELS[draft.workspaceMode])}</SelectValue>
               </SelectTrigger>
               <SelectPopup>
                 {WORKSPACE_MODES.map((mode) => (
                   <SelectItem key={mode} value={mode}>
-                    {mode === "root" ? gt("Project folder") : gt("New worktree")}
+                    {m(WORKSPACE_MODE_LABELS[mode])}
                   </SelectItem>
                 ))}
               </SelectPopup>
@@ -340,7 +352,10 @@ export function BotEditorDialog(props: {
               }
             >
               <SelectTrigger id="bot-approval" className="w-full">
-                <SelectValue />
+                <SelectValue>
+                  {m(APPROVAL_MODE_TITLES[draft.approvalMode])} ·{" "}
+                  {m(APPROVAL_MODE_RUNTIME_LABELS[draft.approvalMode])}
+                </SelectValue>
               </SelectTrigger>
               <SelectPopup>
                 {BOT_APPROVAL_MODES.map((mode) => (

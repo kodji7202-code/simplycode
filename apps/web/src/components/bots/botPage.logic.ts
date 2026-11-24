@@ -32,6 +32,11 @@ export const APPROVAL_MODE_RUNTIME_LABELS = {
 export const WORKSPACE_MODES = ["root", "worktree"] as const;
 export type BotWorkspaceMode = (typeof WORKSPACE_MODES)[number];
 
+export const WORKSPACE_MODE_LABELS = {
+  root: msg("Project folder"),
+  worktree: msg("New worktree"),
+} as const;
+
 export interface BotDraft {
   readonly editingId: Bot["id"] | null;
   readonly name: string;

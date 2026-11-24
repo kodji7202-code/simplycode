@@ -48,6 +48,25 @@ describe("botToDraft", () => {
     expect(draftToBotUpsertInput({ ...EMPTY_BOT_DRAFT, name: "x" }, "main")).toBeNull();
   });
 
+  it("accepts a new bot once the resolved display defaults fill the draft", () => {
+    // A fresh draft keeps modelSelection null; the submit path must pass the
+    // picker's resolved default, or the upsert silently returns null.
+    const draft = {
+      ...EMPTY_BOT_DRAFT,
+      name: "Night Watch",
+      projectId: "project-1",
+      modelSelection: { instanceId: "codex-1", model: "gpt-5" } as Bot["modelSelection"],
+    };
+    expect(draftToBotUpsertInput(draft, "main")).toMatchObject({
+      name: "Night Watch",
+      projectId: "project-1",
+      modelSelection: { instanceId: "codex-1", model: "gpt-5" },
+      workspaceStrategy: { type: "root" },
+      approvalMode: "ask",
+      enabled: true,
+    });
+  });
+
   it("builds a worktree strategy with the resolved base ref", () => {
     const draft = {
       ...botToDraft(bot, ""),
@@ -83,7 +102,7 @@ describe("botAutomationCount", () => {
       { botId: "other" },
       { botId: "night-watch" },
       {},
-    ] as ReadonlyArray<ScheduledTask>;
+    ] as unknown as ReadonlyArray<ScheduledTask>;
     expect(botAutomationCount(tasks, "night-watch" as Bot["id"])).toBe(2);
   });
 });
