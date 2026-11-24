@@ -1,14 +1,14 @@
 {
-  "name": "t3",
+  "name": "simplycode",
   "version": "0.1.11",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pingdotgg/t3code",
+    "url": "https://github.com/kodji7202-code/simplycode",
     "directory": "apps/server"
   },
   "bin": {
-    "t3": "./dist/bin.mjs"
+    "simplycode": "./dist/bin.mjs"
   },
   "files": [
     "dist"

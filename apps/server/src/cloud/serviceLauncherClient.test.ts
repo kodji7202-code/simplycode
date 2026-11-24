@@ -65,8 +65,9 @@ it.effect.each([3, SERVICE_LAUNCHER_PROTOCOL])(
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-trial-" });
-      const baseDir = path.join(root, ".t3");
-      const exe = (version: string) => path.join(baseDir, "runtime/versions", version, "t3");
+      const baseDir = path.join(root, ".simplycode");
+      const exe = (version: string) =>
+        path.join(baseDir, "runtime/versions", version, "simplycode");
       const installed = path.join(root, ".local/bin/t3");
       for (const file of [exe("1.0.0"), exe("1.1.0")]) {
         yield* fs.makeDirectory(path.dirname(file), { recursive: true });
@@ -248,8 +249,9 @@ it.layer(NodeServices.layer)("self-update launchers", (it) => {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-update-" });
-        const baseDir = path.join(root, ".t3");
-        const exe = (version: string) => path.join(baseDir, "runtime/versions", version, "t3");
+        const baseDir = path.join(root, ".simplycode");
+        const exe = (version: string) =>
+          path.join(baseDir, "runtime/versions", version, "simplycode");
         const installed = path.join(root, "custom/bin/t3");
         const onPath = path.join(root, "bin/t3");
         for (const file of [exe("1.0.0"), exe("1.5.0"), exe("2.0.0")]) {
@@ -280,8 +282,9 @@ it.layer(NodeServices.layer)("self-update launchers", (it) => {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-update-" });
-      const baseDir = path.join(root, ".t3");
-      const exe = (version: string) => path.join(baseDir, "runtime/versions", version, "t3");
+      const baseDir = path.join(root, ".simplycode");
+      const exe = (version: string) =>
+        path.join(baseDir, "runtime/versions", version, "simplycode");
       const installed = path.join(root, ".local/bin/t3");
       const onPath = path.join(root, "bin/t3");
       for (const file of [exe("1.0.0"), exe("2.0.0")]) {
@@ -334,7 +337,7 @@ it.layer(NodeServices.layer)("self-update launchers", (it) => {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-update-" });
-      const baseDir = path.join(root, ".t3");
+      const baseDir = path.join(root, ".simplycode");
       const installed = path.join(root, ".local/bin/t3");
       const onPath = path.join(root, "bin/t3");
       const foreign = path.join(root, "other-home/runtime/versions/1.0.0/t3");
@@ -359,7 +362,7 @@ it.layer(NodeServices.layer)("self-update launchers", (it) => {
   );
 
   it.effect.each([
-    // The working-directory t3 is checked by its execute bits, which Windows hosts do not set.
+    // The working-directory simplycode is checked by its execute bits, which Windows hosts do not set.
     ...(HostProcess.Platform.defaultValue() === "win32"
       ? []
       : [
@@ -372,10 +375,11 @@ it.layer(NodeServices.layer)("self-update launchers", (it) => {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-update-" });
-      const baseDir = path.join(root, ".t3");
-      const exe = (version: string) => path.join(baseDir, "runtime/versions", version, "t3");
+      const baseDir = path.join(root, ".simplycode");
+      const exe = (version: string) =>
+        path.join(baseDir, "runtime/versions", version, "simplycode");
       const cwd = path.join(root, "work");
-      const inCwd = path.join(cwd, "t3");
+      const inCwd = path.join(cwd, "simplycode");
       for (const file of [exe("1.0.0"), exe("2.0.0")]) {
         yield* fs.makeDirectory(path.dirname(file), { recursive: true });
         yield* fs.writeFileString(file, "", { mode: 0o755 });
@@ -400,21 +404,22 @@ it.layer(NodeServices.layer)("self-update launchers", (it) => {
     }).pipe(Effect.provideService(HostProcess.Platform, "linux")),
   );
 
-  it.effect("passes over a working-directory t3 the shell cannot run", () =>
+  it.effect("passes over a working-directory simplycode the shell cannot run", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-update-" });
-      const baseDir = path.join(root, ".t3");
-      const exe = (version: string) => path.join(baseDir, "runtime/versions", version, "t3");
+      const baseDir = path.join(root, ".simplycode");
+      const exe = (version: string) =>
+        path.join(baseDir, "runtime/versions", version, "simplycode");
       const cwd = path.join(root, "work");
       const onPath = path.join(root, "bin/t3");
       for (const file of [exe("1.0.0"), exe("2.0.0")]) {
         yield* fs.makeDirectory(path.dirname(file), { recursive: true });
         yield* fs.writeFileString(file, "", { mode: 0o755 });
       }
-      // A directory named t3 in the working directory, which the shell skips.
-      yield* fs.makeDirectory(path.join(cwd, "t3"), { recursive: true });
+      // A directory named simplycode in the working directory, which the shell skips.
+      yield* fs.makeDirectory(path.join(cwd, "simplycode"), { recursive: true });
       yield* fs.makeDirectory(path.dirname(onPath), { recursive: true });
       yield* fs.symlink(exe("1.0.0"), onPath);
 

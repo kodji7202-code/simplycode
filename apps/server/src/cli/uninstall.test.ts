@@ -88,73 +88,76 @@ it.live("reports failure when the Windows cleanup shell cannot start", () =>
   }).pipe(Effect.scoped, Effect.provide(Layer.mergeAll(NodeServices.layer, NetService.layer))),
 );
 
-it.layer(Layer.mergeAll(NodeServices.layer, NetService.layer))("t3 uninstall command", (it) => {
-  it.effect.each([
-    {
-      label: "names another home's service it leaves installed",
-      otherFromRead: 1,
-      removed: [],
-      output: "--base-dir '/home/me/.t3'",
-    },
-    {
-      label: "leaves a service that serves another home by the time it is removed",
-      otherFromRead: 2,
-      removed: [],
-      output: "Left the background service: it now serves another T3 home.",
-    },
-  ])("$label", (input) =>
-    Effect.gen(function* () {
-      const fs = yield* FileSystem.FileSystem;
-      const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-uninstall-cli-test-" });
-      const uninstalls: Array<true> = [];
-      let reads = 0;
-      vi.spyOn(BootService, "layer").mockReturnValue(
-        Layer.succeed(
-          BootService.BootService,
-          BootService.BootService.of({
-            status: Effect.sync(() => ({
-              supported: true,
-              installed: true,
-              current: true,
-              installedBaseDir: "/home/me/.t3",
-              ...(++reads >= input.otherFromRead ? { otherBaseDir: "/home/me/.t3" } : {}),
-              unitPath: "/home/me/.config/systemd/user/t3code.service",
-              logPath: "/home/me/.t3/userdata/logs/boot-service.log",
-            })),
-            withStopped: (operation) => operation,
-            restart: Effect.die("unexpected restart"),
-            install: () => Effect.die("unexpected install"),
-            uninstall: Effect.sync(() => {
-              uninstalls.push(true);
-              return true;
+it.layer(Layer.mergeAll(NodeServices.layer, NetService.layer))(
+  "simplycode uninstall command",
+  (it) => {
+    it.effect.each([
+      {
+        label: "names another home's service it leaves installed",
+        otherFromRead: 1,
+        removed: [],
+        output: "--base-dir '/home/me/.t3'",
+      },
+      {
+        label: "leaves a service that serves another home by the time it is removed",
+        otherFromRead: 2,
+        removed: [],
+        output: "Left the background service: it now serves another T3 home.",
+      },
+    ])("$label", (input) =>
+      Effect.gen(function* () {
+        const fs = yield* FileSystem.FileSystem;
+        const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-uninstall-cli-test-" });
+        const uninstalls: Array<true> = [];
+        let reads = 0;
+        vi.spyOn(BootService, "layer").mockReturnValue(
+          Layer.succeed(
+            BootService.BootService,
+            BootService.BootService.of({
+              status: Effect.sync(() => ({
+                supported: true,
+                installed: true,
+                current: true,
+                installedBaseDir: "/home/me/.t3",
+                ...(++reads >= input.otherFromRead ? { otherBaseDir: "/home/me/.t3" } : {}),
+                unitPath: "/home/me/.config/systemd/user/t3code.service",
+                logPath: "/home/me/.simplycode/userdata/logs/boot-service.log",
+              })),
+              withStopped: (operation) => operation,
+              restart: Effect.die("unexpected restart"),
+              install: () => Effect.die("unexpected install"),
+              uninstall: Effect.sync(() => {
+                uninstalls.push(true);
+                return true;
+              }),
             }),
-          }),
-        ),
-      );
-
-      const output = yield* Command.runWith(uninstallCommand, { version: packageJson.version })([
-        "--base-dir",
-        baseDir,
-        "--yes",
-      ]).pipe(
-        Effect.andThen(TestConsole.logLines),
-        Effect.map((lines) => lines.join("\n")),
-        Effect.provideService(HostProcess.Environment, {}),
-        Effect.provideService(HostProcess.IsExecutable, false),
-        Effect.provide(
-          Layer.mergeAll(
-            ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })),
-            Layer.fresh(TestConsole.layer),
           ),
-        ),
-      );
-      assert.deepStrictEqual(uninstalls, input.removed);
-      assert.include(output, input.output);
-    }),
-  );
-});
+        );
 
-it.layer(NodeServices.layer)("t3 uninstall launcher", (it) => {
+        const output = yield* Command.runWith(uninstallCommand, { version: packageJson.version })([
+          "--base-dir",
+          baseDir,
+          "--yes",
+        ]).pipe(
+          Effect.andThen(TestConsole.logLines),
+          Effect.map((lines) => lines.join("\n")),
+          Effect.provideService(HostProcess.Environment, {}),
+          Effect.provideService(HostProcess.IsExecutable, false),
+          Effect.provide(
+            Layer.mergeAll(
+              ConfigProvider.layer(ConfigProvider.fromEnv({ env: {} })),
+              Layer.fresh(TestConsole.layer),
+            ),
+          ),
+        );
+        assert.deepStrictEqual(uninstalls, input.removed);
+        assert.include(output, input.output);
+      }),
+    );
+  },
+);
+
+it.layer(NodeServices.layer)("simplycode uninstall launcher", (it) => {
   it.effect("claims only a launcher that points into this home's runtime tree", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
@@ -184,7 +187,7 @@ it.layer(NodeServices.layer)("t3 uninstall launcher", (it) => {
       assert.isUndefined(yield* findOwnedLauncher({ launchedAs: undefined, versionsDir }));
       // A script launcher execs by absolute path, so argv0 names the executable.
       const scriptDir = path.join(root, "script-bin");
-      const script = path.join(scriptDir, "t3");
+      const script = path.join(scriptDir, "simplycode");
       yield* fs.makeDirectory(scriptDir);
       yield* fs.writeFileString(script, posixLauncherScript(exe), { mode: 0o755 });
       assert.equal(
@@ -198,7 +201,7 @@ it.layer(NodeServices.layer)("t3 uninstall launcher", (it) => {
 
       // On Windows, only the shim exactly as written is ours; a user's wrapper stays.
       const shimDir = path.join(root, "win-bin");
-      const shim = path.join(shimDir, "t3.cmd");
+      const shim = path.join(shimDir, "simplycode.cmd");
       yield* fs.makeDirectory(shimDir);
       const windowsOwner = (contents: string) =>
         fs
@@ -277,13 +280,13 @@ it.layer(NodeServices.layer)("t3 uninstall launcher", (it) => {
 });
 
 it.live.runIf(HostProcess.Platform.defaultValue() === "win32")(
-  "t3 uninstall has cmd.exe remove the runtime directory, preserving spaces and literal environment-variable syntax",
+  "simplycode uninstall has cmd.exe remove the runtime directory, preserving spaces and literal environment-variable syntax",
   () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-uninstall-" });
-      const runtimeDir = path.join(root, "t3 home %COMSPEC% !COMSPEC! & data", "runtime");
+      const runtimeDir = path.join(root, "simplycode home %COMSPEC% !COMSPEC! & data", "runtime");
       yield* fs.makeDirectory(path.join(runtimeDir, "versions", "1.0.0"), { recursive: true });
       yield* fs.writeFileString(path.join(runtimeDir, "versions", "1.0.0", "t3.exe"), "");
 

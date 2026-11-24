@@ -1,4 +1,4 @@
-const DEFAULT_MARKETING_SITE_URL = "https://t3.codes";
+const DEFAULT_MARKETING_SITE_URL = "https://github.com/kodji7202-code/simplycode";
 
 function resolveMarketingSiteUrl(override: string | undefined): URL {
   try {

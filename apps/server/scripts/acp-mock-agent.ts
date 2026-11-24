@@ -1384,11 +1384,11 @@ const program = Effect.gen(function* () {
             rawOutput: {
               action: {
                 type: "search",
-                query: "t3 code",
+                query: "simplycode code",
                 sources: [
-                  { type: "url", url: "https://t3.codes" },
-                  { type: "url", url: "https://t3.codes" },
-                  { type: "url", url: "https://github.com/pingdotgg/t3code" },
+                  { type: "url", url: "https://github.com/kodji7202-code/simplycode" },
+                  { type: "url", url: "https://github.com/kodji7202-code/simplycode" },
+                  { type: "url", url: "https://github.com/kodji7202-code/simplycode" },
                 ],
               },
               id: "grok-web-search",
@@ -1398,15 +1398,18 @@ const program = Effect.gen(function* () {
           {
             sessionUpdate: "tool_call_update",
             toolCallId: "grok-web-fetch",
-            title: "Fetch: https://t3.codes",
+            title: "Fetch: https://github.com/kodji7202-code/simplycode",
             kind: "fetch",
             status: "completed",
-            rawInput: { variant: "WebFetch", url: "https://t3.codes" },
+            rawInput: { variant: "WebFetch", url: "https://github.com/kodji7202-code/simplycode" },
             rawOutput: {
               type: "WebFetch",
-              Content: { url: "https://t3.codes", content: "T3 Code page" },
+              Content: {
+                url: "https://github.com/kodji7202-code/simplycode",
+                content: "SimplyCode page",
+              },
             },
-            content: [{ type: "content", content: { type: "text", text: "T3 Code page" } }],
+            content: [{ type: "content", content: { type: "text", text: "SimplyCode page" } }],
           },
           {
             sessionUpdate: "tool_call_update",
@@ -1889,7 +1892,7 @@ const program = Effect.gen(function* () {
             status: "completed",
             rawOutput: {
               exitCode: 0,
-              stdout: '{ "name": "t3" }',
+              stdout: '{ "name": "simplycode" }',
               stderr: "",
             },
           },

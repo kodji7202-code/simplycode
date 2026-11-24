@@ -68,7 +68,7 @@ it.live("loads the CLI with its cache settings only when the command needs it", 
     const launcherHelp = yield* run({ T3CODE_HOME: "" }, ["__service-launcher", "--help"]);
     expect(launcherHelp.exitCode).toBe(0);
     expect(launcherHelp.stderr).toContain("LOADED_CLI_MAIN");
-    expect(launcherHelp.stdout).toContain("t3 __service-launcher [flags]");
+    expect(launcherHelp.stdout).toContain("simplycode __service-launcher [flags]");
     const launcherFlags = yield* run({ T3CODE_HOME: "" }, [
       "__service-launcher",
       "--log-level",
@@ -81,7 +81,7 @@ it.live("loads the CLI with its cache settings only when the command needs it", 
     yield* fs.makeDirectory(`${cacheDir}/v24.0.0-x64-legacy-1000`, { recursive: true });
     yield* fs.writeFileString(`${cacheDir}/v24.0.0-x64-legacy-1000/0123abcd`, "stale");
     yield* fs.makeDirectory(`${cacheDir}/server`, { recursive: true });
-    const appImage = yield* run({ APPIMAGE: `${root}/T3Code.AppImage` });
+    const appImage = yield* run({ APPIMAGE: `${root}/SimplyCode.AppImage` });
     expect(appImage.exitCode).toBe(0);
     expect(appImage.stderr).toContain("CACHE=disabled");
     expect((yield* fs.readDirectory(cacheDir)).toSorted()).toEqual(["server"]);
