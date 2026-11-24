@@ -283,7 +283,7 @@ describe("scoped settings writes", () => {
     const unsupported = [
       {
         label: server.label,
-        message: "This environment does not support this setting. Update T3 Code on it.",
+        message: "This environment does not support this setting. Update SimplyCode on it.",
       },
     ];
 
@@ -765,7 +765,7 @@ describe("scoped settings mixed values", () => {
 describe("project overrides at environment scope", () => {
   const laptop = EnvironmentId.make("laptop");
   const fleet = ProjectId.make("fleet");
-  const t3 = ProjectId.make("t3");
+  const simplycode = ProjectId.make("simplycode");
   const environment = (
     environmentId: EnvironmentId,
     overrides: ServerSettings["projectSettingsOverrides"],
@@ -784,12 +784,12 @@ describe("project overrides at environment scope", () => {
       [
         environment(laptop, {
           [fleet]: { defaultAutoPull: true, defaultThreadEnvMode: "local" },
-          [t3]: { defaultAutoPull: true },
+          [simplycode]: { defaultAutoPull: true },
         }),
       ],
       [
         { environmentId: laptop, projectId: fleet },
-        { environmentId: laptop, projectId: t3 },
+        { environmentId: laptop, projectId: simplycode },
       ],
       ["defaultAutoPull"],
     );
@@ -799,7 +799,10 @@ describe("project overrides at environment scope", () => {
         label: laptop,
         previous: expect.anything(),
         patch: {
-          projectSettingsOverrides: { [fleet]: { defaultThreadEnvMode: "local" }, [t3]: null },
+          projectSettingsOverrides: {
+            [fleet]: { defaultThreadEnvMode: "local" },
+            [simplycode]: null,
+          },
         },
       },
     ]);
