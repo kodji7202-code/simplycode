@@ -21,7 +21,7 @@ const status = {
   supported: true,
   installed: true,
   current: true,
-  unitPath: "/home/me/.config/systemd/user/t3code.service",
+  unitPath: "/home/me/.config/systemd/user/simplycode.service",
   logPath: "/home/me/.simplycode/userdata/logs/boot-service.log",
 } as const;
 
@@ -202,7 +202,8 @@ it.layer(Layer.mergeAll(NodeServices.layer, NetService.layer))("service commands
           Layer.succeed(BootService.BootService, service),
         );
         const node = "/home/me/.nvm/versions/node/v26.8.2/bin/node";
-        const script = "/home/me/.nvm/versions/node/v26.8.2/lib/node_modules/t3/dist/bin.mjs";
+        const script =
+          "/home/me/.nvm/versions/node/v26.8.2/lib/node_modules/simplycode/dist/bin.mjs";
 
         const output = yield* Command.runWith(serviceCommand, { version: packageJson.version })([
           command,

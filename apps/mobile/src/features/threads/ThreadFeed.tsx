@@ -2385,7 +2385,7 @@ function renderFeedEntry(
           className={cn("items-end", props.userMessageGrouping.groupedWithNext ? "mb-1" : "mb-2")}
           {...(enterAnimated ? { entering: FadeInDown.duration(220) } : {})}
         >
-          {presentation.attribution === "simplycode" ? (
+          {presentation.attribution === "t3code" /* rebrand-keep */ ? (
             <Text className="mb-1 pr-1 font-t3-medium text-2xs text-foreground-muted opacity-60">
               {m(msg("Sent by SimplyCode"))}
             </Text>

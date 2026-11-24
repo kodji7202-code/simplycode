@@ -208,7 +208,7 @@ it.layer(NodeServices.layer)("simplycode update launcher", (it) => {
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-update-" });
       const oldExe = path.join(root, "runtime/versions/1.0.0/t3");
       const newExe = path.join(root, "runtime/versions/2.0.0/t3");
-      const launcher = path.join(root, "bin/t3");
+      const launcher = path.join(root, "bin/simplycode");
       for (const file of [oldExe, newExe]) {
         yield* fs.makeDirectory(path.dirname(file), { recursive: true });
         yield* fs.writeFileString(file, "");
@@ -268,14 +268,14 @@ it.layer(NodeServices.layer)("simplycode update launcher", (it) => {
         // A quote and a space in the home path exercise the script's quoting.
         const home = path.join(root, "it's home");
         const entry = (version: string) =>
-          path.join(home, "runtime/versions", version, "simplycode");
+          path.join(home, "runtime/versions", version, "t3" /* rebrand-keep */);
         for (const version of ["1.0.0", "2.0.0"]) {
           yield* fs.makeDirectory(path.dirname(entry(version)), { recursive: true });
           yield* fs.writeFileString(entry(version), '#!/bin/sh\nprintf \'[%s]\\n\' "$0" "$@"\n', {
             mode: 0o755,
           });
         }
-        const launcher = path.join(root, "bin/t3");
+        const launcher = path.join(root, "bin/simplycode");
         const alias = path.join(root, "alias/t3");
         yield* fs.makeDirectory(path.dirname(launcher), { recursive: true });
         yield* fs.makeDirectory(path.dirname(alias), { recursive: true });
@@ -487,7 +487,7 @@ it.layer(NodeServices.layer)("simplycode update launcher", (it) => {
       const foreign = path.join(root, "foreign/t3");
       const elsewhere = path.join(root, "elsewhere/t3");
       const otherHome = path.join(root, "other/runtime/versions/1.0.0/t3");
-      const otherLauncher = path.join(root, "other/bin/t3");
+      const otherLauncher = path.join(root, "other/bin/simplycode");
       for (const file of [newExe, copy, elsewhere, otherHome]) {
         yield* fs.makeDirectory(path.dirname(file), { recursive: true });
         yield* fs.writeFileString(file, "");
@@ -516,7 +516,7 @@ it.layer(NodeServices.layer)("simplycode update launcher", (it) => {
       const path = yield* Path.Path;
       const delimiter = (yield* HostProcess.Platform) === "win32" ? ";" : ":";
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-update-" });
-      const launcher = path.join(root, "bin/t3");
+      const launcher = path.join(root, "bin/simplycode");
       yield* fs.makeDirectory(path.dirname(launcher), { recursive: true });
       yield* fs.writeFileString(launcher, "", { mode: 0o755 });
 
@@ -528,7 +528,7 @@ it.layer(NodeServices.layer)("simplycode update launcher", (it) => {
         Effect.provideService(HostProcess.WorkingDirectory, root),
       );
       const relative = yield* resolveLauncherPath.pipe(
-        Effect.provideService(HostProcess.InvokedAs, "./bin/t3"),
+        Effect.provideService(HostProcess.InvokedAs, "./bin/simplycode"),
         Effect.provideService(HostProcess.Environment, { PATH: "" }),
         Effect.provideService(HostProcess.WorkingDirectory, root),
       );
@@ -575,7 +575,7 @@ it.layer(NodeServices.layer)("simplycode update with a background service", (it)
       yield* fs.makeDirectory(runtime.versionDir, { recursive: true });
       yield* fs.writeFileString(runtime.entryPath, "");
       yield* fs.writeFileString(runtime.sentinelPath, `${version}\n`);
-      const unitPath = path.join(baseDir, "t3code.service");
+      const unitPath = path.join(baseDir, "simplycode.service");
       const logPath = path.join(baseDir, "boot-service.log");
       // An earlier `simplycode update` pointed the service at this version without restarting it.
       const service = Layer.mock(BootService.BootService, {
@@ -715,7 +715,7 @@ it.layer(NodeServices.layer)("simplycode update checks the database before switc
           supported: true,
           installed: false,
           current: false,
-          unitPath: path.join(baseDir, "t3code.service"),
+          unitPath: path.join(baseDir, "simplycode.service"),
           logPath: path.join(baseDir, "boot-service.log"),
         }),
       });

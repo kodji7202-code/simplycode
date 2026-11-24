@@ -80,8 +80,8 @@ or use a package manager:
 | Windows (Scoop)    | `scoop install extras/t3code`                                |
 | macOS              | `brew install --cask t3-code`                                |
 | Debian, Ubuntu     | `sudo apt install ./SimplyCode-*.deb`                        |
-| Arch Linux         | `yay -S t3code-bin`                                          |
-| Arch Linux nightly | `yay -S t3code-nightly-bin`                                  |
+| Arch Linux         | `yay -S simplycode-bin`                                      |
+| Arch Linux nightly | `yay -S simplycode-nightly-bin`                              |
 | Nix                | `nix profile add github:NixOS/nixpkgs/nixos-unstable#t3code` |
 
 ### Linux
@@ -111,7 +111,7 @@ in-app updater.
 
 SimplyCode is maintained in [nixpkgs](https://github.com/NixOS/nixpkgs/tree/nixos-unstable/pkgs/by-name/t3/t3code).
 The command above installs from `nixos-unstable` and requires Nix 2.30 or later with
-`nix-command` and `flakes` enabled. Launch the desktop app with `t3code-desktop`;
+`nix-command` and `flakes` enabled. Launch the desktop app with `simplycode-desktop`;
 the package also includes the `simplycode` command.
 
 On NixOS, you can instead add the package to your system configuration, using
@@ -170,7 +170,7 @@ folder paths, so in the web app use **Add project** instead.
 ## Mobile app
 
 Install SimplyCode from the
-[App Store](https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824) or
+[App Store](https://github.com/kodji7202-code/simplycode/releases) or
 [Google Play](https://play.google.com/store/apps/details?id=io.github.kodji7202code.simplycode).
 The phone connects to a server on another machine. Follow
 [remote access](./remote-access.md) to link it through T3 Connect or a pairing URL.

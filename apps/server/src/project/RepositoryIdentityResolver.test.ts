@@ -461,7 +461,7 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       });
 
       yield* git(cwd, ["init"]);
-      yield* git(cwd, ["remote", "add", "origin", "git@github.com:julius/t3code-fork.git"]);
+      yield* git(cwd, ["remote", "add", "origin", "git@github.com:julius/simplycode-fork.git"]);
       yield* git(cwd, ["remote", "add", "upstream", "git@github.com:T3Tools/t3code.git"]);
 
       const resolver = yield* RepositoryIdentityResolver.RepositoryIdentityResolver;
@@ -470,9 +470,9 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       expect(identity?.canonicalKey).toBe("github.com/t3tools/t3code");
       expect(identity?.displayName).toBe("T3Tools/t3code");
       expect(identity?.origin).toEqual({
-        canonicalKey: "github.com/julius/t3code-fork",
-        remoteUrl: "git@github.com:julius/t3code-fork.git",
-        displayName: "julius/t3code-fork",
+        canonicalKey: "github.com/julius/simplycode-fork",
+        remoteUrl: "git@github.com:julius/simplycode-fork.git",
+        displayName: "julius/simplycode-fork",
       });
     }).pipe(Effect.provide(RepositoryIdentityResolver.layer)),
   );
@@ -485,14 +485,14 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       });
 
       yield* git(cwd, ["init"]);
-      yield* git(cwd, ["remote", "add", "origin", "git@github.com:julius/t3code-fork.git"]);
+      yield* git(cwd, ["remote", "add", "origin", "git@github.com:julius/simplycode-fork.git"]);
       yield* git(cwd, ["remote", "add", "upstream", "git@github.com:T3Tools/t3code.git"]);
       yield* git(cwd, ["config", "remote.origin.gh-resolved", "base"]);
 
       const resolver = yield* RepositoryIdentityResolver.RepositoryIdentityResolver;
       const identity = yield* resolver.resolve(cwd);
 
-      expect(identity?.canonicalKey).toBe("github.com/julius/t3code-fork");
+      expect(identity?.canonicalKey).toBe("github.com/julius/simplycode-fork");
       expect(identity?.locator.remoteName).toBe("origin");
     }).pipe(Effect.provide(RepositoryIdentityResolver.layer)),
   );
@@ -507,7 +507,7 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       const resolveFresh = () => resolver.resolve(cwd, { refresh: true });
 
       yield* git(cwd, ["init"]);
-      yield* git(cwd, ["remote", "add", "fork", "https://github.com/julius/t3code-fork.git"]);
+      yield* git(cwd, ["remote", "add", "fork", "https://github.com/julius/simplycode-fork.git"]);
       yield* git(cwd, ["remote", "add", "main", "https://github.com/T3Tools/t3code.git"]);
       yield* git(cwd, ["remote", "add", "upstream", "https://github.com/other/t3code.git"]);
       yield* git(cwd, ["config", "remote.fork.gh-resolved", "t3tools/t3code"]);
@@ -549,7 +549,7 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       });
 
       yield* git(cwd, ["init"]);
-      yield* git(cwd, ["remote", "add", "origin", "git@github.com:julius/t3code-fork.git"]);
+      yield* git(cwd, ["remote", "add", "origin", "git@github.com:julius/simplycode-fork.git"]);
       yield* git(cwd, ["remote", "add", "upstream", "git@github.com:T3Tools/t3code.git"]);
       yield* git(cwd, ["config", "remote.origin.gh-resolved", "base"]);
       yield* git(other, ["init"]);
@@ -561,7 +561,7 @@ it.layer(NodeServices.layer)("RepositoryIdentityResolverLive", (it) => {
       const resolver = yield* RepositoryIdentityResolver.RepositoryIdentityResolver;
       const identity = yield* resolver.resolve(cwd);
 
-      expect(identity?.canonicalKey).toBe("github.com/julius/t3code-fork");
+      expect(identity?.canonicalKey).toBe("github.com/julius/simplycode-fork");
       expect(identity?.locator.remoteName).toBe("origin");
     }).pipe(Effect.provide(RepositoryIdentityResolver.layer)),
   );

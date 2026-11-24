@@ -52,7 +52,7 @@ export function runServicePreflight(input: {
       reason: [
         `The installed service launcher speaks protocol ${launcherProtocol}, but simplycode@${version} requires protocol ${SERVICE_LAUNCHER_PROTOCOL}.`,
         `On the server machine, install this exact CLI: \`curl -fsSL https://raw.githubusercontent.com/kodji7202-code/simplycode/main/scripts/install.sh | T3CODE_VERSION=${version} sh\`.`,
-        `Check that \`simplycode --version\` prints ${version} and that \`which -a simplycode\` lists no older simplycode (such as an npm or nvm install) first, then run \`~/.local/bin/t3 service install\` (the installer's default path).`,
+        `Check that \`simplycode --version\` prints ${version} and that \`which -a simplycode\` lists no older simplycode (such as an npm or nvm install) first, then run \`~/.local/bin/simplycode service install\` (the installer's default path).`,
         "Updating the desktop app does not update this CLI, and `simplycode service update` only repairs the service with whichever CLI runs it.",
       ].join(" "),
     };

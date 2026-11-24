@@ -496,7 +496,7 @@ it.layer(NodeServices.layer)("pruning runtimes on start", (it) => {
     // Like `process.execPath`, the running runtime is reported by its real path.
     const executablePath =
       input.executable === "own runtime"
-        ? yield* fs.realPath(path.join(versionsDir, packageJson.version, "simplycode"))
+        ? yield* fs.realPath(path.join(versionsDir, packageJson.version, "t3" /* rebrand-keep */))
         : "/usr/local/bin/node";
     const removed = yield* ServerSelfUpdate.pruneRuntimesOnStart({
       baseDir,

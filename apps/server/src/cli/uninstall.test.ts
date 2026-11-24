@@ -120,7 +120,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NetService.layer))(
                 current: true,
                 installedBaseDir: "/home/me/.t3",
                 ...(++reads >= input.otherFromRead ? { otherBaseDir: "/home/me/.t3" } : {}),
-                unitPath: "/home/me/.config/systemd/user/t3code.service",
+                unitPath: "/home/me/.config/systemd/user/simplycode.service",
                 logPath: "/home/me/.simplycode/userdata/logs/boot-service.log",
               })),
               withStopped: (operation) => operation,
@@ -174,8 +174,8 @@ it.layer(NodeServices.layer)("simplycode uninstall launcher", (it) => {
         yield* fs.makeDirectory(path.dirname(file), { recursive: true });
         yield* fs.writeFileString(file, "");
       }
-      const ours = path.join(root, "bin/t3");
-      const theirs = path.join(root, "other/bin/t3");
+      const ours = path.join(root, "bin/simplycode");
+      const theirs = path.join(root, "other/bin/simplycode");
       yield* fs.makeDirectory(path.dirname(ours), { recursive: true });
       yield* fs.makeDirectory(path.dirname(theirs), { recursive: true });
       yield* fs.symlink(exe, ours);
@@ -216,8 +216,8 @@ it.layer(NodeServices.layer)("simplycode uninstall launcher", (it) => {
 
       // npx can run another version than the installed one, so uninstall also reads the
       // recorded launchers: through a symlinked home, and dangling after a prune.
-      const throughAlias = path.join(root, "bin/t3-alias");
-      const pruned = path.join(root, "bin/t3-pruned");
+      const throughAlias = path.join(root, "bin/simplycode-alias");
+      const pruned = path.join(root, "bin/simplycode-pruned");
       const scriptThroughAlias = path.join(scriptDir, "t3-alias");
       const prunedScript = path.join(scriptDir, "t3-pruned");
       yield* fs.symlink(root, path.join(root, "alias"));
@@ -234,7 +234,7 @@ it.layer(NodeServices.layer)("simplycode uninstall launcher", (it) => {
         { mode: 0o755 },
       );
       // Another program inside a version is not a launcher.
-      const sibling = path.join(root, "bin/t3-sibling");
+      const sibling = path.join(root, "bin/simplycode-sibling");
       yield* fs.symlink(path.join(versionsDir, "1.0.0/node"), sibling);
       yield* fs.writeFileString(
         path.join(root, "runtime/launchers"),
@@ -264,7 +264,7 @@ it.layer(NodeServices.layer)("simplycode uninstall launcher", (it) => {
       }
 
       // On Windows only an unedited t3.cmd is ours; a hand-edited wrapper belongs to the user.
-      const cmd = path.join(root, "bin/t3.cmd");
+      const cmd = path.join(root, "bin/simplycode.cmd");
       const edited = path.join(root, "bin/edited.cmd");
       yield* fs.writeFileString(cmd, `@echo off\r\n"${exe}" %*`);
       yield* fs.writeFileString(edited, `@echo off\r\nset "T3CODE_HOME=D:\\other"\r\n"${exe}" %*`);

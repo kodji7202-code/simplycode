@@ -26,7 +26,7 @@ describe.skipIf(HostProcess.Platform.defaultValue() !== "linux")("installer home
     const home = NodePath.join(root, homeName);
     const version = "1.2.3";
     const target = NodePath.join(home, "runtime/versions", version);
-    const launcher = NodePath.join(root, "bin/t3");
+    const launcher = NodePath.join(root, "bin/simplycode");
     try {
       await NodeFSP.mkdir(target, { recursive: true });
       await NodeFSP.writeFile(NodePath.join(target, ".install-complete"), `${version}\n`);
@@ -328,7 +328,7 @@ describe.skipIf(HostProcess.Platform.defaultValue() !== "linux")(
         expect(await NodeFSP.readFile(link, "utf8")).toBe(edited);
 
         await NodeFSP.rm(link);
-        await NodeFSP.symlink(NodePath.join(home, "bin/t3"), link);
+        await NodeFSP.symlink(NodePath.join(home, "bin/simplycode"), link);
         const overDesktop = await installOver({
           script: "install.sh",
           home: `${home}//`,
@@ -530,7 +530,7 @@ describe.skipIf(HostProcess.Platform.defaultValue() !== "linux")("installer chec
               await NodeFSP.readFile(NodePath.join(versions, version, ".install-complete"), "utf8"),
             ).toBe("1.2.3\n");
             expect(
-              NodeChildProcess.execFileSync(NodePath.join(root, "bin/t3"), ["--version"], {
+              NodeChildProcess.execFileSync(NodePath.join(root, "bin/simplycode"), ["--version"], {
                 encoding: "utf8",
               }).trim(),
             ).toBe("simplycode v1.2.3");

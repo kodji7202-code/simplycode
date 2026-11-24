@@ -30,7 +30,7 @@ it.each([1])("blocks legacy launcher protocol %i with exact recovery steps", (la
   expect(reason).toContain(
     "curl -fsSL https://raw.githubusercontent.com/kodji7202-code/simplycode/main/scripts/install.sh | T3CODE_VERSION=9.8.7 sh",
   );
-  expect(reason).toContain("~/.local/bin/t3 service install");
+  expect(reason).toContain("~/.local/bin/simplycode service install");
   expect(reason).toContain("simplycode --version");
   expect(reason).toContain("which -a simplycode");
 });

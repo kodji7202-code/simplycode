@@ -11,7 +11,7 @@ const stores = [
   {
     label: msg("iPhone and iPad"),
     store: "App Store",
-    url: "https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824",
+    url: "https://github.com/kodji7202-code/simplycode/releases",
     Icon: AppleIcon,
   },
   {

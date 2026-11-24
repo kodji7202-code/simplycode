@@ -203,7 +203,7 @@ it.layer(NodeServices.layer)("build-npm-launcher", (it) => {
           );
         }
 
-        const ipcServer = path.join(home, "runtime/versions", VERSION, "simplycode");
+        const ipcServer = path.join(home, "runtime/versions", VERSION, "t3" /* rebrand-keep */);
         yield* fs.writeFileString(
           ipcServer,
           `#!${process.execPath}\nprocess.on("SIGTERM", () => process.exit(23));\nprocess.on("message", (m) => process.send({ reply: m }));\nprocess.send({ args: process.argv.slice(2) });\n`,

@@ -287,7 +287,7 @@ const createManager = (
   Effect.flatMap(Effect.service(FileSystem.FileSystem), (fs) =>
     Effect.gen(function* () {
       const { join } = yield* Path.Path;
-      const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3code-terminal-" });
+      const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "simplycode-terminal-" });
       const logsDir = join(baseDir, "userdata", "logs", "terminals");
       const ptyAdapter = options.ptyAdapter ?? new FakePtyAdapter();
 
@@ -2298,7 +2298,7 @@ it.layer(
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
       const { join } = yield* Path.Path;
-      const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3code-shell-path-" });
+      const root = yield* fs.makeTempDirectoryScoped({ prefix: "simplycode-shell-path-" });
       const bin = join(root, "Jane -Doe Smith", ".local", "bin");
       yield* fs.makeDirectory(bin, { recursive: true });
       yield* fs.writeFileString(join(bin, "fish"), "");

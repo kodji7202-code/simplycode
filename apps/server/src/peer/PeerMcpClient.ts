@@ -160,7 +160,7 @@ const make = Effect.gen(function* () {
           params: {
             protocolVersion: PROTOCOL_VERSION,
             capabilities: {},
-            clientInfo: { name: "t3code-peer", version: "1" },
+            clientInfo: { name: "simplycode-peer", version: "1" },
           },
         },
         limitHeader,

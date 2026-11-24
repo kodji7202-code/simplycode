@@ -156,6 +156,13 @@ const TEXT_RULES: ReadonlyArray<readonly [string, string]> = [
   // Repairs trees corrupted by an earlier rule that dropped the github.com host.
   [`https://${FORK_REPO}/issues`, `${FORK_REPO_URL}/issues`],
   ["noreply@t3.codes", "noreply@simplycode.invalid"],
+  // The fork has no App Store listing; docs point at fork releases instead.
+  [
+    "https://apps.apple.com/us/app/t3-code-remote-claude-more/id6787819824",
+    `${FORK_REPO_URL}/releases`,
+  ],
+  // Repairs trees where an earlier rule left a doubled scheme.
+  ["https://https://", "https://"],
 ];
 
 const REGEX_RULES: ReadonlyArray<{ re: RegExp; to: string; except?: string[] }> = [
@@ -180,6 +187,17 @@ const REGEX_RULES: ReadonlyArray<{ re: RegExp; to: string; except?: string[] }> 
     to: FORK_REPO,
     // Upstream citations inside vendored native modules stay upstream.
     except: ["apps/mobile/modules/"],
+  },
+  // The executable inside runtime/versions/<v>/ keeps the archive-internal
+  // name t3 (the user-facing launcher is `simplycode`). Covers both literal
+  // `versions/<v>/simplycode` and `path.join(..., "versions", <v>, "simplycode")`.
+  {
+    re: /versions([\\/][\w.${}-]+)[\\/]simplycode(?=["'`\s)\\/]|$)/g,
+    to: "versions$1/t3",
+  },
+  {
+    re: /(versionsDir|"versions"|"runtime\/versions")([^()\n]{0,80}?),\s*"simplycode"/g,
+    to: '$1$2, "t3" /* rebrand-keep */',
   },
 ];
 
@@ -239,6 +257,29 @@ const SCOPED_TEXT_RULES: ReadonlyArray<{
       // Multi-line calls: the key sits alone on its own line (whitespace then
       // quote), which only happens for these declarations in this tree.
       ['  "t3/', '  "simplycode/'],
+    ],
+  },
+  {
+    // Service and install identities: the fork's units, tasks, launchers, and
+    // npm package never collide with or manage an official T3 Code install.
+    prefixes: ["apps/server/src/", "docs/user/", "scripts/"],
+    rules: [
+      ["t3code.service", "simplycode.service"],
+      ["t3code-${", "simplycode-${"],
+      ["t3code-<", "simplycode-<"],
+      // Scheduled-task names, task XML files, and internal prefixes follow
+      // the service name so the fork never manages upstream's service.
+      ["t3code-", "simplycode-"],
+      [".local/bin/t3", ".local/bin/simplycode"],
+      ["lib/node_modules/t3", "lib/node_modules/simplycode"],
+      // `bin/` holds the user-facing launcher (simplycode); the archive exe
+      // inside runtime/versions/<v>/ stays t3 and is protected by the slash.
+      ["bin/t3", "bin/simplycode"],
+      ["registry.npmjs.org/t3/", "registry.npmjs.org/simplycode/"],
+      ["npx t3", "npx simplycode"],
+      ["A t3.cmd cannot", "A simplycode.cmd cannot"],
+      ["shadow-dir/t3", "shadow-dir/simplycode"],
+      ["shadow-file/t3", "shadow-file/simplycode"],
     ],
   },
   {
@@ -399,9 +440,146 @@ const FILE_EDITS: ReadonlyArray<{
     ],
   },
   {
-    // The automatic-port selector is offered the fork's default port.
+    // The mobile attribution value is the internal union member "t3code"
+    // (client-runtime and web keep it); the display label stays rebranded.
+    file: "apps/mobile/src/features/threads/ThreadFeed.tsx",
+    edits: [
+      [
+        '{presentation.attribution === "t3code" ? (',
+        '{presentation.attribution === "t3code" /* rebrand-keep */ ? (',
+      ],
+      [
+        '{presentation.attribution === "simplycode" ? (',
+        '{presentation.attribution === "t3code" /* rebrand-keep */ ? (',
+      ],
+    ],
+  },
+  {
+    file: "apps/mobile/src/features/threads/ThreadQueueControl.tsx",
+    edits: [
+      [': attribution === "t3code"\n', ': attribution === "t3code" /* rebrand-keep */\n'],
+      [': attribution === "simplycode"\n', ': attribution === "t3code" /* rebrand-keep */\n'],
+    ],
+  },
+  {
+    // The executable inside runtime/versions/<v>/ keeps the archive-internal
+    // name (t3/t3.exe); only the user-facing launcher is `simplycode`.
+    file: "apps/server/src/cloud/pinnedRuntime.ts",
+    edits: [
+      ['? "t3.exe" : "t3"),', '? "t3.exe" : "t3" /* rebrand-keep */),'],
+      ['? "t3.exe" : "simplycode"),', '? "t3.exe" : "t3" /* rebrand-keep */),'],
+      // isVersionExecutable matches the archive exe name inside versions dirs.
+      [
+        "[\\\\/]t3(?:\\.exe)?$/i.test(relative);\n",
+        "[\\\\/]t3(?:\\.exe)?$/i.test(relative); // rebrand-keep\n",
+      ],
+      [
+        "[\\\\/]simplycode(?:\\.exe)?$/i.test(relative);\n",
+        "[\\\\/]t3(?:\\.exe)?$/i.test(relative); // rebrand-keep\n",
+      ],
+    ],
+  },
+  {
+    file: "apps/server/src/serviceLauncher.ts",
+    edits: [
+      ['? "t3.exe" : "t3";', '? "t3.exe" : "t3" /* rebrand-keep */;'],
+      ['? "t3.exe" : "simplycode";', '? "t3.exe" : "t3" /* rebrand-keep */;'],
+      // The repoint matchers look for the archive exe inside versions dirs.
+      [
+        '  /^(ExecStart=.*?[\\\\/]runtime[\\\\/]versions[\\\\/])([^\\\\/\\s"]+)([\\\\/]t3)(?=["\\s])/m,\n  /(<string>[^<]*?[\\\\/]runtime[\\\\/]versions[\\\\/])([^\\\\/<]+)([\\\\/]t3<\\/string>\\s*<string>__service-launcher<\\/string>)/,\n  /(<Arguments>--headless "[^"<]*?[\\\\/]runtime[\\\\/]versions[\\\\/])([^\\\\/"<]+)([\\\\/]t3\\.exe" "__service-launcher")/,',
+        '  /^(ExecStart=.*?[\\\\/]runtime[\\\\/]versions[\\\\/])([^\\\\/\\s"]+)([\\\\/]t3)(?=["\\s])/m, // rebrand-keep\n  /(<string>[^<]*?[\\\\/]runtime[\\\\/]versions[\\\\/])([^\\\\/<]+)([\\\\/]t3<\\/string>\\s*<string>__service-launcher<\\/string>)/, // rebrand-keep\n  /(<Arguments>--headless "[^"<]*?[\\\\/]runtime[\\\\/]versions[\\\\/])([^\\\\/"<]+)([\\\\/]t3\\.exe" "__service-launcher")/, // rebrand-keep',
+      ],
+      [
+        '  /^(ExecStart=.*?[\\\\/]runtime[\\\\/]versions[\\\\/])([^\\\\/\\s"]+)([\\\\/]simplycode)(?=["\\s])/m,\n  /(<string>[^<]*?[\\\\/]runtime[\\\\/]versions[\\\\/])([^\\\\/<]+)([\\\\/]simplycode<\\/string>\\s*<string>__service-launcher<\\/string>)/,\n  /(<Arguments>--headless "[^"<]*?[\\\\/]runtime[\\\\/]versions[\\\\/])([^\\\\/"<]+)([\\\\/]simplycode\\.exe" "__service-launcher")/,',
+        '  /^(ExecStart=.*?[\\\\/]runtime[\\\\/]versions[\\\\/])([^\\\\/\\s"]+)([\\\\/]t3)(?=["\\s])/m, // rebrand-keep\n  /(<string>[^<]*?[\\\\/]runtime[\\\\/]versions[\\\\/])([^\\\\/<]+)([\\\\/]t3<\\/string>\\s*<string>__service-launcher<\\/string>)/, // rebrand-keep\n  /(<Arguments>--headless "[^"<]*?[\\\\/]runtime[\\\\/]versions[\\\\/])([^\\\\/"<]+)([\\\\/]t3\\.exe" "__service-launcher")/, // rebrand-keep',
+      ],
+    ],
+  },
+  {
+    // The launcher record holds the launcher's own name (simplycode).
+    file: "apps/server/src/cli/install.test.ts",
+    edits: [
+      [
+        'fs.realPath(path.join(root, "bin"))}/t3\\n',
+        'fs.realPath(path.join(root, "bin"))}/simplycode\\n',
+      ],
+    ],
+  },
+  {
+    // PR/issue-link fixtures refer to the fork's own repo: the seeded URLs
+    // and repository fields must spell the same repo or dedup breaks.
+    file: "apps/server/src/orchestration-v2/runtimeLayer.test.ts",
+    edits: [
+      ["github.com/pingdotgg/t3code/pull/", `github.com/${FORK_REPO}/pull/`],
+      ['repository: "Pingdotgg/T3code"', 'repository: "Kodji7202-Code/Simplycode"'],
+      ['scope: "Pingdotgg/T3code"', 'scope: "Kodji7202-Code/Simplycode"'],
+    ],
+  },
+  {
+    // The stub asserts the manifest field name the query asks for: `t3code`.
+    file: "apps/server/src/cloud/npmRelease.test.ts",
+    edits: [
+      [
+        '`simplycode@${fixture.spec}`, "version", "t3code"],\n',
+        '`simplycode@${fixture.spec}`, "version", "t3code"], // rebrand-keep\n',
+      ],
+      [
+        '`simplycode@${fixture.spec}`, "version", "simplycode"],\n',
+        '`simplycode@${fixture.spec}`, "version", "t3code"], // rebrand-keep\n',
+      ],
+      ["// rebrand-keep // rebrand-keep", "// rebrand-keep"],
+    ],
+  },
+  {
+    // The npm manifest field stays `t3code` (the Manifest schema reads it);
+    // only the package spec follows the fork's name.
+    file: "apps/server/src/cloud/npmRelease.ts",
+    edits: [
+      [
+        '`simplycode@${spec}`, "version", "t3code"],\n',
+        '`simplycode@${spec}`, "version", "t3code"], // rebrand-keep\n',
+      ],
+      [
+        '`simplycode@${spec}`, "version", "simplycode"],\n',
+        '`simplycode@${spec}`, "version", "t3code"], // rebrand-keep\n',
+      ],
+      // Repairs lines where an older rule appended the marker repeatedly.
+      ["], // rebrand-keep // rebrand-keep", "], // rebrand-keep"],
+    ],
+  },
+  {
+    // The MCP subject-prefix matcher keeps the upstream `t3[-_]code` names:
+    // the servers still register as t3-code / t3-code-direct (model-facing).
+    file: "apps/server/src/feedback/FeedbackReport.ts",
+    edits: [
+      [
+        "|t3[-_]?code(?:[-_]direct)?[.:/])/iu;\n",
+        "|t3[-_]?code(?:[-_]direct)?[.:/])/iu; // rebrand-keep\n",
+      ],
+      [
+        "|simplycode[-_]?code(?:[-_]direct)?[.:/])/iu;\n",
+        "|t3[-_]?code(?:[-_]direct)?[.:/])/iu; // rebrand-keep\n",
+      ],
+      // Repairs lines where an older rule appended the marker repeatedly.
+      ["// rebrand-keep // rebrand-keep", "// rebrand-keep"],
+    ],
+  },
+  {
+    // npm-global installs of this package live under its own name.
+    file: "apps/server/src/cli/invocation.ts",
+    edits: [
+      ["lib\\/node_modules\\/t3\\/", "lib\\/node_modules\\/simplycode\\/"],
+      ["bin\\/t3\\.mjs", "bin\\/simplycode\\.mjs"],
+      ['"lib/node_modules/t3"', '"lib/node_modules/simplycode"'],
+      ['"bin/t3"', '"bin/simplycode"'],
+    ],
+  },
+  {
+    // The automatic-port selector is offered the fork's default port, and the
+    // desktop-mode resolution falls back to it too.
     file: "apps/server/src/cli/config.test.ts",
     edits: [
+      [".toBe(3773);", ".toBe(4773);"],
       [
         '        [3773, undefined],\n        [3773, "100.64.0.7"],',
         '        [4773, undefined],\n        [4773, "100.64.0.7"],',

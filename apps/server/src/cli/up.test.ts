@@ -61,7 +61,7 @@ const SERVICE = {
   supported: true,
   installed: true,
   current: true,
-  unitPath: "/home/me/.config/systemd/user/t3code.service",
+  unitPath: "/home/me/.config/systemd/user/simplycode.service",
   logPath: "/home/me/.simplycode/userdata/logs/boot-service.log",
 } as const;
 

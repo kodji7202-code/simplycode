@@ -20,7 +20,7 @@ const setup = Effect.gen(function* () {
   const path = yield* Path.Path;
   const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-install-" });
   const runtimeDir = path.join(root, ".t3/runtime");
-  const executable = path.join(runtimeDir, "versions", VERSION, "simplycode");
+  const executable = path.join(runtimeDir, "versions", VERSION, "t3" /* rebrand-keep */);
   yield* fs.makeDirectory(path.dirname(executable), { recursive: true });
   yield* fs.writeFileString(executable, "");
   const npmPackage = path.join(root, ".npm/_npx/abc/node_modules/t3");
@@ -40,7 +40,7 @@ const setup = Effect.gen(function* () {
         PATH: "/usr/bin",
         SHELL: "/bin/zsh",
         T3CODE_INSTALL_BIN_DIR: binDir,
-        T3CODE_NPM_LAUNCHER_PATH: path.join(npmPackage, "bin/t3.mjs"),
+        T3CODE_NPM_LAUNCHER_PATH: path.join(npmPackage, "bin/simplycode.mjs"),
         ...env,
       }),
     );
@@ -73,7 +73,10 @@ it.layer(NodeServices.layer)("simplycode install", (it) => {
       const alias = path.join(root, "alias");
       yield* fs.symlink(path.join(root, ".simplycode"), alias);
       yield* fs.remove(link);
-      yield* fs.symlink(path.join(alias, "runtime/versions", VERSION, "simplycode"), link);
+      yield* fs.symlink(
+        path.join(alias, "runtime/versions", VERSION, "t3" /* rebrand-keep */),
+        link,
+      );
       const onPath = yield* provide(installCli(), { PATH: `/usr/bin:${path.join(root, "bin")}/` });
       assert.isTrue(onPath.onPath);
       // Another simplycode earlier on PATH still runs first, so `simplycode` would not run this one.
@@ -94,7 +97,7 @@ it.layer(NodeServices.layer)("simplycode install", (it) => {
       assert.isTrue(directory.onPath);
       assert.isUndefined(directory.shadowedBy);
       const recorded = yield* fs.readFileString(path.join(runtimeDir, "launchers"));
-      assert.equal(recorded, `\n${yield* fs.realPath(path.join(root, "bin"))}/t3\n`);
+      assert.equal(recorded, `\n${yield* fs.realPath(path.join(root, "bin"))}/simplycode\n`);
 
       yield* fs.remove(link);
       yield* fs.writeFileString(link, "#!/bin/sh\n");
@@ -109,7 +112,7 @@ it.layer(NodeServices.layer)("simplycode install", (it) => {
       assert.include(sibling.message, "Another simplycode is already at");
       // This home's desktop launcher is replaced, as install.sh does.
       yield* fs.remove(link);
-      yield* fs.symlink(path.join(root, ".t3/bin/t3"), link);
+      yield* fs.symlink(path.join(root, ".t3/bin/simplycode"), link);
       yield* provide(installCli());
       assert.equal(yield* fs.readFileString(link), posixLauncherScript(executable));
 

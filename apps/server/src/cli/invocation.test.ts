@@ -51,7 +51,7 @@ it.layer(NodeServices.layer)("root CLI commands", (it) => {
       expect(
         yield* rootCommand({
           node: "/home/theo/.local/node/bin/node",
-          entry: "/home/theo/.local/lib/node_modules/t3/dist/bin.mjs",
+          entry: "/home/theo/.local/lib/node_modules/simplycode/dist/bin.mjs",
           path: yield* pathWithT3,
         }),
       ).toBe('sudo env "PATH=$PATH" simplycode browser setup');
@@ -64,7 +64,7 @@ it.layer(NodeServices.layer)("root CLI commands", (it) => {
       expect(
         yield* rootCommand({
           node: "/home/theo/.local/node/bin/node",
-          entry: "/home/theo/.local/lib/node_modules/t3/dist/bin.mjs",
+          entry: "/home/theo/.local/lib/node_modules/simplycode/dist/bin.mjs",
           path: yield* pathWithT3,
           args,
         }),
@@ -123,15 +123,15 @@ it.layer(NodeServices.layer)("root CLI commands", (it) => {
 
       // A global npm launcher runs the downloaded executable; PATH's `simplycode` is that launcher.
       const prefix = path.join(home, "npm");
-      const npmLauncher = path.join(prefix, "lib/node_modules/t3/bin/t3.mjs");
+      const npmLauncher = path.join(prefix, "lib/node_modules/simplycode/bin/simplycode.mjs");
       yield* fs.makeDirectory(path.dirname(npmLauncher), { recursive: true });
       yield* fs.makeDirectory(path.join(prefix, "bin"));
       yield* fs.writeFileString(npmLauncher, "", { mode: 0o755 });
       yield* fs.writeFileString(
-        path.join(prefix, "lib/node_modules/t3/package.json"),
+        path.join(prefix, "lib/node_modules/simplycode/package.json"),
         `{"name":"simplycode","version":"${packageJson.version}"}`,
       );
-      yield* fs.symlink(npmLauncher, path.join(prefix, "bin/t3"));
+      yield* fs.symlink(npmLauncher, path.join(prefix, "bin/simplycode"));
       expect(
         yield* rootCommand({
           node: "/home/theo/.simplycode/runtime/versions/1.0.0/t3",
@@ -205,7 +205,7 @@ it.layer(NodeServices.layer)("host CLI commands", (it) => {
             Effect.provideService(HostProcess.ExecutablePath, "/usr/bin/node"),
             Effect.provideService(HostProcess.Arguments, [
               "/usr/bin/node",
-              "/opt/t3/lib/node_modules/t3/dist/bin.mjs",
+              "/opt/t3/lib/node_modules/simplycode/dist/bin.mjs",
             ]),
             Effect.provideService(HostProcess.IsExecutable, false),
             Effect.provideService(HostProcess.Platform, "linux"),
@@ -238,7 +238,7 @@ it.layer(NodeServices.layer)("manual server installation ownership", (it) => {
       yield* fs.writeFileString(executable, "");
       for (const [relative, kind] of [
         ["npm/_npx/hash/node_modules/t3/dist/bin.mjs", "npx"],
-        ["npm/_npx/hash/node_modules/t3/bin/t3.mjs", "npx"],
+        ["npm/_npx/hash/node_modules/t3/bin/simplycode.mjs", "npx"],
         ["pnpm/dlx/hash/node_modules/t3/dist/bin.mjs", "pnpm-dlx"],
         [".bun/install/cache/t3/dist/bin.mjs", "bunx"],
       ] as const) {
@@ -247,7 +247,7 @@ it.layer(NodeServices.layer)("manual server installation ownership", (it) => {
         yield* fs.writeFileString(entry, "");
         yield* fs.writeFileString(
           path.join(path.dirname(entry), "../package.json"),
-          `{"name":"simplycode","version":"${packageJson.version}","bin":{"simplycode":"./bin/t3.mjs"}}`,
+          `{"name":"simplycode","version":"${packageJson.version}","bin":{"simplycode":"./bin/simplycode.mjs"}}`,
         );
         const launchedBy = entry.endsWith("t3.mjs");
         const installation = yield* resolveServerInstallation.pipe(
@@ -270,9 +270,9 @@ it.layer(NodeServices.layer)("manual server installation ownership", (it) => {
       const path = yield* Path.Path;
       const root = yield* fs.makeTempDirectoryScoped();
       const prefix = path.join(root, "bunx-tools");
-      const packageRoot = path.join(prefix, "lib/node_modules/t3");
+      const packageRoot = path.join(prefix, "lib/node_modules/simplycode");
       const entry = path.join(packageRoot, "dist/bin.mjs");
-      const globalBin = path.join(prefix, "bin/t3");
+      const globalBin = path.join(prefix, "bin/simplycode");
       yield* fs.makeDirectory(path.dirname(entry), { recursive: true });
       yield* fs.makeDirectory(path.dirname(globalBin), { recursive: true });
       yield* fs.writeFileString(entry, "");
@@ -301,15 +301,15 @@ it.layer(NodeServices.layer)("manual server installation ownership", (it) => {
       const path = yield* Path.Path;
       const root = yield* fs.makeTempDirectoryScoped();
       const prefix = path.join(root, "bunx-tools");
-      const packageRoot = path.join(prefix, "lib/node_modules/t3");
-      const launcher = path.join(packageRoot, "bin/t3.mjs");
+      const packageRoot = path.join(prefix, "lib/node_modules/simplycode");
+      const launcher = path.join(packageRoot, "bin/simplycode.mjs");
       const executable = path.join(root, ".t3/runtime/versions/1.0.0/t3");
       yield* fs.makeDirectory(path.dirname(launcher), { recursive: true });
       yield* fs.makeDirectory(path.dirname(executable), { recursive: true });
       yield* fs.makeDirectory(path.join(prefix, "bin"));
       yield* fs.writeFileString(launcher, "");
       yield* fs.writeFileString(executable, "");
-      yield* fs.symlink(launcher, path.join(prefix, "bin/t3"));
+      yield* fs.symlink(launcher, path.join(prefix, "bin/simplycode"));
       const resolve = resolveServerInstallation.pipe(
         Effect.provideService(HostProcess.ExecutablePath, executable),
         Effect.provideService(HostProcess.Arguments, [executable, executable]),
@@ -323,7 +323,7 @@ it.layer(NodeServices.layer)("manual server installation ownership", (it) => {
       ] as const) {
         yield* fs.writeFileString(
           path.join(packageRoot, "package.json"),
-          `{"name":"simplycode","version":"${version}","bin":{"simplycode":"./bin/t3.mjs"}}`,
+          `{"name":"simplycode","version":"${version}","bin":{"simplycode":"./bin/simplycode.mjs"}}`,
         );
         expect(yield* resolve).toEqual(expected);
       }
@@ -337,8 +337,8 @@ it.layer(NodeServices.layer)("manual server installation ownership", (it) => {
       const root = yield* fs.realPath(yield* fs.makeTempDirectoryScoped());
       // The install script's launcher names ~/.simplycode, which here links to a home elsewhere.
       const executable = path.join(root, "data/t3/runtime/versions/1.0.0/t3");
-      const launcher = path.join(root, "bin/t3");
-      const copy = path.join(root, "bin/t3-copy");
+      const launcher = path.join(root, "bin/simplycode");
+      const copy = path.join(root, "bin/simplycode-copy");
       yield* fs.makeDirectory(path.dirname(executable), { recursive: true });
       yield* fs.makeDirectory(path.dirname(launcher), { recursive: true });
       yield* fs.writeFileString(executable, "", { mode: 0o755 });
@@ -346,9 +346,9 @@ it.layer(NodeServices.layer)("manual server installation ownership", (it) => {
       yield* fs.symlink(path.join(root, "data/t3"), path.join(root, ".simplycode"));
       yield* fs.symlink(path.join(root, ".t3/runtime/versions/1.0.0/t3"), launcher);
       // Earlier PATH entries hold a directory and a non-executable file named t3.
-      yield* fs.makeDirectory(path.join(root, "shadow-dir/t3"), { recursive: true });
+      yield* fs.makeDirectory(path.join(root, "shadow-dir/simplycode"), { recursive: true });
       yield* fs.makeDirectory(path.join(root, "shadow-file"));
-      yield* fs.writeFileString(path.join(root, "shadow-file/t3"), "");
+      yield* fs.writeFileString(path.join(root, "shadow-file/simplycode"), "");
       const resolve = (invokedAs: string, PATH = "shadow-dir:shadow-file:bin") =>
         resolveServerInstallation.pipe(
           Effect.provideService(HostProcess.ExecutablePath, executable),

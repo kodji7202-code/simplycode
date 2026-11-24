@@ -776,7 +776,7 @@ const createTrace2Monitor = Effect.fnUntraced(function* (
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const traceFilePath = yield* fs.makeTempFileScoped({
-    prefix: `t3code-git-trace2-${process.pid}-`,
+    prefix: `simplycode-git-trace2-${process.pid}-`,
     suffix: ".json",
   });
   const hookStartByChildKey = new Map<string, { hookName: string; startedAtMs: number }>();
@@ -1577,7 +1577,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     // named like Git's own quarantine so `git gc` prunes one a crash left. A dry run downloads
     // without moving refs, which must not point at objects the repository does not hold yet.
     const isolatedFetch = Effect.acquireUseRelease(
-      fileSystem.makeTempDirectory({ directory: objectsPath, prefix: "tmp_objdir-t3code-" }),
+      fileSystem.makeTempDirectory({ directory: objectsPath, prefix: "tmp_objdir-simplycode-" }),
       Effect.fnUntraced(function* (privateObjects) {
         const objectDirectories = yield* runGitStdout(
           "GitVcsDriver.fetchRemoteForStatus.alternates",
@@ -3413,7 +3413,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
           const physicalCwd = yield* fileSystem.realPath(cwd);
           const indexPath = path.resolve(physicalCwd, indexValue.trim());
           const directory = yield* fileSystem.makeTempDirectoryScoped({
-            prefix: "t3code-commit-index-",
+            prefix: "simplycode-commit-index-",
           });
           const tempIndexPath = path.join(directory, "index");
           // Staging writes blobs; put them in the temp directory so a draft leaves nothing behind.
@@ -4281,7 +4281,7 @@ export const makeGitVcsDriverCore = Effect.fn("makeGitVcsDriverCore")(function* 
     const omitted = pathsToAdd.length < candidates.length;
     if (pathsToAdd.length === 0 || (omitted && !allowPartial)) return { env: undefined, omitted };
 
-    const prefix = `t3code-review-index-${process.pid}-`;
+    const prefix = `simplycode-review-index-${process.pid}-`;
     // The pathspec excludes every other entry, so an index holding only the added paths diffs
     // the same as a copy of the real one. Git reads the missing file as an empty index.
     const tempIndexPath = isolated

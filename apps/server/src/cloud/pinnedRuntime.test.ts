@@ -695,12 +695,12 @@ it.layer(NodeServices.layer)("prunePinnedRuntimes", (it) => {
       yield* fs.makeDirectory(customBinDir);
       // Chained: the launcher reaches its runtime through a second link.
       yield* fs.symlink(
-        path.join(versionsDir, "1.2.0", "simplycode"),
+        path.join(versionsDir, "1.2.0", "t3" /* rebrand-keep */),
         path.join(baseDir, "alias-t3"),
       );
       yield* fs.symlink(path.join(baseDir, "alias-t3"), path.join(binDir, "simplycode"));
       yield* fs.symlink(
-        path.join(versionsDir, "1.2.5", "simplycode"),
+        path.join(versionsDir, "1.2.5", "t3" /* rebrand-keep */),
         path.join(customBinDir, "simplycode"),
       );
       yield* fs.writeFileString(
@@ -720,12 +720,12 @@ it.layer(NodeServices.layer)("prunePinnedRuntimes", (it) => {
         baseDir,
         keep: ["2.0.0"],
         references: [
-          `ExecStart=${path.join(versionsDir, "1.3.5", "simplycode")} __service-launcher`,
+          `ExecStart=${path.join(versionsDir, "1.3.5", "t3" /* rebrand-keep */)} __service-launcher`,
         ],
       }).pipe(
         Effect.provideService(
           ProcessRunner.ProcessRunner,
-          lsofRunner(`p42\nftxt\nn${path.join(versionsDir, "1.3.0", "simplycode")}\n`),
+          lsofRunner(`p42\nftxt\nn${path.join(versionsDir, "1.3.0", "t3" /* rebrand-keep */)}\n`),
         ),
         Effect.provideService(HostProcess.Platform, "darwin"),
         Effect.provideService(HostProcess.Environment, { T3CODE_INSTALL_BIN_DIR: binDir }),
@@ -819,7 +819,7 @@ it.layer(NodeServices.layer)("prunePinnedRuntimes", (it) => {
       const binDir = path.join(baseDir, "bin");
       yield* fs.makeDirectory(binDir);
       yield* fs.symlink(
-        path.join(versionsDir, "1.1.0", "simplycode"),
+        path.join(versionsDir, "1.1.0", "t3" /* rebrand-keep */),
         path.join(binDir, "simplycode"),
       );
       const ownDir = path.join(versionsDir, "1.0.0");
@@ -869,7 +869,7 @@ it.layer(NodeServices.layer)("prunePinnedRuntimes", (it) => {
         const binDir = path.join(versionsDir, "bin");
         yield* fs.makeDirectory(binDir);
         yield* fs.symlink(
-          path.join(versionsDir, "1.0.0", "simplycode"),
+          path.join(versionsDir, "1.0.0", "t3" /* rebrand-keep */),
           path.join(binDir, "simplycode"),
         );
         yield* fs.writeFileString(
@@ -907,7 +907,7 @@ it.layer(NodeServices.layer)("prunePinnedRuntimes", (it) => {
       const binDir = path.join(baseDir, "custom-bin");
       yield* fs.makeDirectory(binDir);
       yield* fs.symlink(
-        path.join(versionsDir, "1.0.0", "simplycode"),
+        path.join(versionsDir, "1.0.0", "t3" /* rebrand-keep */),
         path.join(binDir, "simplycode"),
       );
       const launchersFile = path.join(baseDir, "runtime", "launchers");
@@ -939,7 +939,7 @@ it.layer(NodeServices.layer)("prunePinnedRuntimes", (it) => {
       const removed = yield* prune({});
 
       assert.deepEqual(removed, []);
-      assert.isTrue(yield* fs.exists(path.join(versionsDir, "1.0.0", "simplycode")));
+      assert.isTrue(yield* fs.exists(path.join(versionsDir, "1.0.0", "t3" /* rebrand-keep */)));
     }),
   );
 
@@ -1001,7 +1001,7 @@ it.layer(NodeServices.layer)("prunePinnedRuntimes", (it) => {
         const fs = yield* FileSystem.FileSystem;
         const path = yield* Path.Path;
         const { baseDir, versionsDir } = yield* setup(["1.0.0", "1.1.0"]);
-        const entry = path.join(versionsDir, "1.0.0", "simplycode");
+        const entry = path.join(versionsDir, "1.0.0", "t3" /* rebrand-keep */);
         // Multicall coreutils (Ubuntu's uutils) refuse to run renamed, so copy Node instead.
         yield* fs.copyFile(process.execPath, entry);
         yield* fs.chmod(entry, 0o755);
@@ -1060,7 +1060,7 @@ it.layer(NodeServices.layer)("launcher lookup on PATH", (it) => {
       const path = yield* Path.Path;
       const root = yield* fs.makeTempDirectoryScoped({ prefix: "t3-launcher-path-" });
       const versionsDir = path.join(root, ".simplycode", "runtime", "versions");
-      const executable = path.join(versionsDir, "1.0.0", "simplycode");
+      const executable = path.join(versionsDir, "1.0.0", "t3" /* rebrand-keep */);
       yield* fs.makeDirectory(path.dirname(executable), { recursive: true });
       yield* fs.writeFileString(executable, "", { mode: 0o755 });
       const bin = path.join(root, "bin");

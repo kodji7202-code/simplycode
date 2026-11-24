@@ -377,7 +377,7 @@ function resolvePullRequestWorktreeLocalBranchName(
   if (isCreatable(preferred)) {
     return preferred;
   }
-  const flat = `t3code-pr-${pullRequest.number}-${suffix.replaceAll("/", "-")}`;
+  const flat = `simplycode-pr-${pullRequest.number}-${suffix.replaceAll("/", "-")}`;
   for (let attempt = 1; ; attempt++) {
     const candidate = attempt === 1 ? flat : `${flat}-${attempt}`;
     if (isCreatable(candidate)) {
@@ -2815,7 +2815,7 @@ export const make = Effect.gen(function* () {
     });
     const bodyFile = path.join(
       tempDir,
-      `t3code-pr-body-${process.pid}-${yield* randomUUIDv4(cwd)}.md`,
+      `simplycode-pr-body-${process.pid}-${yield* randomUUIDv4(cwd)}.md`,
     );
     yield* fileSystem.writeFileString(bodyFile, generated.body).pipe(
       Effect.mapError(
@@ -3023,7 +3023,7 @@ export const make = Effect.gen(function* () {
     }
     const bodyFile = path.join(
       tempDir,
-      `t3code-pr-body-${process.pid}-${yield* randomUUIDv4(cwd)}.md`,
+      `simplycode-pr-body-${process.pid}-${yield* randomUUIDv4(cwd)}.md`,
     );
     yield* fileSystem
       .writeFileString(bodyFile, input.body)

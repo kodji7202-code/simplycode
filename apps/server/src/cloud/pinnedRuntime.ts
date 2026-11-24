@@ -61,7 +61,7 @@ export function pinnedRuntimePaths(
   const versionDir = path.join(pinnedRuntimeVersionsDir(path, baseDir), version);
   return {
     versionDir,
-    entryPath: path.join(versionDir, platform === "win32" ? "t3.exe" : "simplycode"),
+    entryPath: path.join(versionDir, platform === "win32" ? "t3.exe" : "t3" /* rebrand-keep */),
     sentinelPath: path.join(versionDir, ".install-complete"),
   };
 }
@@ -586,7 +586,7 @@ export function isVersionExecutable(
 ): boolean {
   const relative = path.relative(versionsDir, path.resolve(candidate));
   // On another Windows drive, relative() returns the absolute path, like `D:\t3.exe`.
-  return !path.isAbsolute(relative) && /^(?!\.\.)[^\\/]+[\\/]simplycode(?:\.exe)?$/i.test(relative);
+  return !path.isAbsolute(relative) && /^(?!\.\.)[^\\/]+[\\/]t3(?:\.exe)?$/i.test(relative); // rebrand-keep
 }
 
 /** The executable a `t3.cmd` shim written by the install script or `simplycode update` runs. */
