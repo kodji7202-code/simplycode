@@ -2,6 +2,7 @@ import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
 import {
+  CommandId,
   ForwardCompatibleArray,
   IsoDateTime,
   ProjectId,
@@ -144,6 +145,8 @@ export type BotDeleteResult = typeof BotDeleteResult.Type;
 export const BotRunNowInput = Schema.Struct({
   id: BotId,
   prompt: TrimmedNonEmptyString,
+  /** Replays with the same commandId return the same thread instead of launching again. */
+  commandId: Schema.optional(CommandId),
 });
 export type BotRunNowInput = typeof BotRunNowInput.Type;
 

@@ -331,13 +331,13 @@ export interface ScheduledTaskBotHookShape {
   readonly botExists: (id: BotId) => Effect.Effect<boolean>;
 }
 
-export class ScheduledTaskBotHook extends Context.Reference<ScheduledTaskBotHookShape>()(
+export class ScheduledTaskBotHook extends Context.Reference<ScheduledTaskBotHookShape>(
   "simplycode/scheduledTasks/ScheduledTaskBotHook",
   {
     defaultValue: (): ScheduledTaskBotHookShape => ({
       prompt: (_task, prompt) => Effect.succeed(prompt),
       afterLaunch: () => Effect.void,
-      blocked: () => Effect.succeed(undefined),
+      blocked: () => Effect.undefined,
       botExists: () => Effect.succeed(true),
     }),
   },
@@ -546,7 +546,7 @@ export const layer = Layer.effect(
     const withBotBlock = (task: ScheduledTask) =>
       botHook.blocked(task).pipe(
         Effect.map((reason) => (reason === undefined ? task : { ...task, blockedByBot: reason })),
-        Effect.catch(() => Effect.succeed(task)),
+        Effect.orElseSucceed(() => task),
       );
     const webhookPermits = yield* Ref.make<ReadonlyMap<ScheduledTaskId, Semaphore.Semaphore>>(
       new Map(),

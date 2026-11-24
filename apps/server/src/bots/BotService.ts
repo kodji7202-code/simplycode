@@ -27,6 +27,7 @@ import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Stream from "effect/Stream";
 
 import * as ThreadLaunchService from "../orchestration-v2/ThreadLaunchService.ts";
@@ -49,8 +50,7 @@ function botError(message: string, input?: { botId?: BotId; cause?: unknown }) {
  * build. Built over BotStore and the orchestrator only, never over
  * ScheduledTaskService itself, so the layers cannot cycle.
  */
-export const botHookLayer = Layer.effect(
-  ScheduledTasks.ScheduledTaskBotHook,
+export const botHookLayer = Layer.unwrap(
   Effect.gen(function* () {
     const store = yield* BotStore;
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -97,7 +97,12 @@ export const botHookLayer = Layer.effect(
     const botExists: ScheduledTasks.ScheduledTaskBotHookShape["botExists"] = (id) =>
       store.find(id).pipe(Effect.map((bot) => bot !== undefined));
 
-    return { prompt, afterLaunch, blocked, botExists };
+    return Layer.succeed(ScheduledTasks.ScheduledTaskBotHook, {
+      prompt,
+      afterLaunch,
+      blocked,
+      botExists,
+    });
   }),
 );
 
@@ -127,8 +132,14 @@ export const layer = Layer.effect(
       projectId: Bot["projectId"],
       botId?: BotId,
     ) {
-      const project = yield* projectStore.get(projectId).pipe(Effect.result);
-      if (project._tag === "Failure" || project.success === null) {
+      const project = yield* projectStore
+        .get(projectId)
+        .pipe(
+          Effect.mapError((cause) =>
+            botError("Could not load the project.", botId === undefined ? {} : { botId, cause }),
+          ),
+        );
+      if (Option.isNone(project)) {
         return yield* botError("Project not found.", botId === undefined ? {} : { botId });
       }
     });
@@ -206,9 +217,9 @@ export const layer = Layer.effect(
         const { bot, soul } = yield* store.get(input.id);
         if (!bot.enabled) return yield* botError("Bot is disabled.", { botId: input.id });
         yield* requireProject(bot.projectId, input.id);
-        const commandId = CommandId.make(
-          `bot-run:${input.id}:${DateTime.toEpochMillis(yield* DateTime.now)}`,
-        );
+        const commandId =
+          input.commandId ??
+          CommandId.make(`bot-run:${input.id}:${DateTime.toEpochMillis(yield* DateTime.now)}`);
         const launched = yield* threadLaunch
           .launch({
             commandId,
@@ -249,9 +260,9 @@ export const layer = Layer.effect(
     );
 
     return BotService.of({
-      list: () => store.list(),
+      list: Effect.fn("BotService.list")(() => store.list()),
       subscribeList: () => store.subscribeList(),
-      get: (input) => store.get(input.id),
+      get: Effect.fn("BotService.get")((input) => store.get(input.id)),
       upsert,
       setEnabled,
       delete: deleteBot,

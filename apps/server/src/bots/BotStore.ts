@@ -14,8 +14,10 @@ import {
 } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
+import * as Deferred from "effect/Deferred";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
@@ -41,6 +43,17 @@ const EMPTY: BotState = { bots: new Map(), souls: new Map(), loadErrors: [] };
 const decodeBotId = Schema.decodeUnknownOption(BotId);
 const decodeProfile = Schema.decodeUnknownEffect(BotProfile);
 
+// A profile is a schema-decoded plain object, so these cannot throw on valid
+// data; kept outside Effect generators where JSON must fail typed.
+const parseProfileJson = (raw: string): unknown | undefined => {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+};
+const profileJson = (profile: BotProfile) => `${JSON.stringify(profile, null, 2)}\n`;
+
 function slugifyBotName(name: string): string {
   const slug = name
     .toLowerCase()
@@ -63,6 +76,8 @@ export class BotStore extends Context.Service<
     readonly allocateId: (name: string) => Effect.Effect<BotId>;
     /** The bot's soul text for prompt assembly; empty when absent. */
     readonly soul: (id: BotId) => Effect.Effect<string | undefined>;
+    /** Completes once the folder watcher is registered (or has failed to be). */
+    readonly watchReady: Effect.Effect<void>;
   }
 >()("simplycode/bots/BotStore") {}
 
@@ -98,10 +113,8 @@ export const layer = Layer.effect(
       if (Result.isFailure(raw)) {
         return { folder, message: `${PROFILE_FILE} could not be read.` };
       }
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(raw.success);
-      } catch {
+      const parsed = parseProfileJson(raw.success);
+      if (parsed === undefined) {
         return { folder, message: `${PROFILE_FILE} is not valid JSON.` };
       }
       const profile = yield* decodeProfile(parsed).pipe(
@@ -168,12 +181,15 @@ export const layer = Layer.effect(
     yield* Effect.ignore(fileSystem.makeDirectory(directory, { recursive: true }));
     yield* reload;
 
-    yield* fileSystem.watch(directory).pipe(
+    const watcherReady = yield* Deferred.make<void>();
+    const markWatcherReady = () => Deferred.doneUnsafe(watcherReady, Exit.void);
+    yield* fileSystem.watch(directory, { onReady: markWatcherReady }).pipe(
       Stream.debounce(WATCH_SETTLE),
       Stream.runForEach(() => reload),
       Effect.catchCause((cause) =>
         Effect.logWarning("Bot profiles are not watched for changes", Cause.pretty(cause)),
       ),
+      Effect.ensuring(Effect.sync(markWatcherReady)),
       Effect.forkIn(scope),
     );
 
@@ -213,10 +229,7 @@ export const layer = Layer.effect(
               botError("Could not create the bot folder.", { botId: profile.id, cause }),
             ),
           );
-        yield* writeFileAtomic(
-          profilePath(profile.id),
-          `${JSON.stringify(profile, null, 2)}\n`,
-        ).pipe(
+        yield* writeFileAtomic(profilePath(profile.id), profileJson(profile)).pipe(
           Effect.mapError((cause) =>
             botError("Could not write the bot profile.", { botId: profile.id, cause }),
           ),
@@ -280,6 +293,7 @@ export const layer = Layer.effect(
       remove,
       allocateId,
       soul,
+      watchReady: Deferred.await(watcherReady),
     });
   }),
 );
