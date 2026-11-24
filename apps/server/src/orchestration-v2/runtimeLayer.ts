@@ -34,6 +34,8 @@ import * as EventStore from "./EventStore.ts";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
 import * as LegacyV1ThreadImporter from "./legacy/LegacyV1ThreadImporter.ts";
 import * as Orchestrator from "./Orchestrator.ts";
+import * as BotStore from "../bots/BotStore.ts";
+import * as BotService from "../bots/BotService.ts";
 import * as ProjectionStore from "./ProjectionStore.ts";
 import * as ProjectionMaintenance from "./ProjectionMaintenance.ts";
 import * as ProjectStore from "./ProjectStore.ts";
@@ -336,6 +338,10 @@ const layerSecretRequestsProvided = SecretRequests.layer.pipe(
 const layerFeedbackStoreProvided = FeedbackStore.layer.pipe(
   Layer.provide(layerThreadManagementProvided),
 );
+const layerBotStoreProvided = BotStore.layer;
+const layerBotHookProvided = BotService.botHookLayer.pipe(
+  Layer.provide(Layer.merge(layerBotStoreProvided, layerOrchestratorProvided)),
+);
 const layerScheduledTaskProvided = ScheduledTaskService.layer.pipe(
   Layer.provide(
     Layer.mergeAll(
@@ -343,6 +349,18 @@ const layerScheduledTaskProvided = ScheduledTaskService.layer.pipe(
       layerThreadManagementProvided,
       layerManagedProjectFoldersProvided,
       layerSecretRequestsProvided,
+      layerBotHookProvided,
+    ),
+  ),
+);
+const layerBotServiceProvided = BotService.layer.pipe(
+  Layer.provide(
+    Layer.mergeAll(
+      layerBotStoreProvided,
+      layerScheduledTaskProvided,
+      layerThreadLaunchProvided,
+      layerOrchestratorProvided,
+      ProjectStore.layer,
     ),
   ),
 );
@@ -440,6 +458,7 @@ export const layerProduction = Layer.mergeAll(
   layerManagedProjectFoldersProvided,
   layerThreadLaunchProvided,
   layerScheduledTaskProvided,
+  layerBotServiceProvided,
   layerWorkflowsProvided,
   layerScratchThreadPromotionProvided,
   layerSecretRequestsProvided,

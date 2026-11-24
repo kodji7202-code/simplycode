@@ -7,6 +7,7 @@ import {
   ScheduledTaskError,
   ScheduledTaskId,
   ThreadId,
+  type BotId,
   ScheduledTaskWebhookDeliveryId,
   type ScheduledTaskDeleteInput,
   type ScheduledTaskDeleteResult,
@@ -231,6 +232,7 @@ interface ScheduledTaskRow {
   readonly project_id: string;
   readonly thread_id: string | null;
   readonly thread_mode: string;
+  readonly bot_id: string | null;
   readonly workspace_strategy_json: string;
   readonly model_selection_json: string;
   readonly runtime_mode: string;
@@ -309,6 +311,37 @@ export class ScheduledTaskService extends Context.Service<
     ) => Effect.Effect<WebhookTriggerResult, ScheduledTaskError>;
   }
 >()("simplycode/scheduledTasks/ScheduledTaskService") {}
+
+/**
+ * The fork's bots plug into task runs through this reference. The default is a
+ * no-op so upstream code paths and tests are unchanged; the bots layer provides
+ * the live one where this service's layer is built.
+ */
+export interface ScheduledTaskBotHookShape {
+  /** Wraps the run prompt with the bot's soul for new-thread and fresh-session runs. */
+  readonly prompt: (
+    task: ScheduledTask,
+    prompt: string,
+    context: { readonly freshContext: boolean; readonly launching: boolean },
+  ) => Effect.Effect<string>;
+  /** Runs after a run launched a new thread, such as tagging it `bot:<id>`. */
+  readonly afterLaunch: (task: ScheduledTask, threadId: ThreadId) => Effect.Effect<void>;
+  /** The reason the task cannot run because of its bot, or undefined when it can. */
+  readonly blocked: (task: ScheduledTask) => Effect.Effect<string | undefined>;
+  readonly botExists: (id: BotId) => Effect.Effect<boolean>;
+}
+
+export class ScheduledTaskBotHook extends Context.Reference<ScheduledTaskBotHookShape>()(
+  "simplycode/scheduledTasks/ScheduledTaskBotHook",
+  {
+    defaultValue: (): ScheduledTaskBotHookShape => ({
+      prompt: (_task, prompt) => Effect.succeed(prompt),
+      afterLaunch: () => Effect.void,
+      blocked: () => Effect.succeed(undefined),
+      botExists: () => Effect.succeed(true),
+    }),
+  },
+) {}
 
 function taskError(message: string, input?: { taskId?: ScheduledTaskId; cause?: unknown }) {
   return new ScheduledTaskError({
@@ -422,6 +455,7 @@ const decodeRow = Effect.fnUntraced(
       projectId: row.project_id,
       threadId: row.thread_id,
       threadMode: row.thread_mode,
+      botId: row.bot_id ?? undefined,
       workspaceStrategy,
       modelSelection,
       runtimeMode: row.runtime_mode,
@@ -498,6 +532,7 @@ export const layer = Layer.effect(
     const scheduler = yield* Scheduler.Scheduler;
     const readWebhookOrigin = yield* ScheduledTaskWebhookOrigin;
     const managedPolicy = yield* ManagedPolicy.ManagedPolicy;
+    const botHook = yield* ScheduledTaskBotHook;
     const webhookPolicyOrganization = ManagedPolicy.deniedBy(managedPolicy, "webhookTasks");
     // Existing webhook tasks stay stored but report why they do not run.
     const webhookPolicyBlock =
@@ -508,6 +543,11 @@ export const layer = Layer.effect(
       webhookPolicyBlock !== undefined && task.schedule.type === "webhook"
         ? { ...task, blockedByPolicy: webhookPolicyBlock }
         : task;
+    const withBotBlock = (task: ScheduledTask) =>
+      botHook.blocked(task).pipe(
+        Effect.map((reason) => (reason === undefined ? task : { ...task, blockedByBot: reason })),
+        Effect.catch(() => Effect.succeed(task)),
+      );
     const webhookPermits = yield* Ref.make<ReadonlyMap<ScheduledTaskId, Semaphore.Semaphore>>(
       new Map(),
     );
@@ -546,6 +586,7 @@ export const layer = Layer.effect(
         project_id,
         thread_id,
         thread_mode,
+        bot_id,
         workspace_strategy_json,
         model_selection_json,
         runtime_mode,
@@ -572,7 +613,7 @@ export const layer = Layer.effect(
       const origin = yield* readWebhookOrigin;
       return yield* Effect.forEach(
         rows,
-        (row) => decodeRow(row, origin).pipe(Effect.map(withPolicy)),
+        (row) => decodeRow(row, origin).pipe(Effect.map(withPolicy), Effect.flatMap(withBotBlock)),
         { concurrency: 1 },
       );
     });
@@ -588,6 +629,7 @@ export const layer = Layer.effect(
         project_id,
         thread_id,
         thread_mode,
+        bot_id,
         workspace_strategy_json,
         model_selection_json,
         runtime_mode,
@@ -615,7 +657,7 @@ export const layer = Layer.effect(
       );
       const row = rows[0];
       if (row === undefined) return null;
-      return withPolicy(yield* decodeRow(row, yield* readWebhookOrigin));
+      return yield* withBotBlock(withPolicy(yield* decodeRow(row, yield* readWebhookOrigin)));
     });
 
     const findWebhookCredentials = (id: ScheduledTaskId) =>
@@ -668,6 +710,7 @@ export const layer = Layer.effect(
           project_id,
           thread_id,
           thread_mode,
+          bot_id,
           workspace_strategy_json,
           model_selection_json,
           runtime_mode,
@@ -693,6 +736,7 @@ export const layer = Layer.effect(
           ${task.projectId},
           ${task.threadId},
           ${scheduledTaskThreadMode(task)},
+          ${task.botId ?? null},
           ${JSON.stringify(task.workspaceStrategy)},
           ${JSON.stringify(task.modelSelection)},
           ${task.runtimeMode},
@@ -725,6 +769,7 @@ export const layer = Layer.effect(
             ELSE COALESCE(excluded.thread_id, NULLIF(scheduled_tasks.thread_id, ${unboundThreadId}))
           END,
           thread_mode = excluded.thread_mode,
+          bot_id = excluded.bot_id,
           workspace_strategy_json = excluded.workspace_strategy_json,
           model_selection_json = excluded.model_selection_json,
           runtime_mode = excluded.runtime_mode,
@@ -1019,6 +1064,13 @@ export const layer = Layer.effect(
         ) {
           return { task: active, threadId: null, dispatchFailed: false };
         }
+        const botBlock = yield* botHook.blocked(active).pipe(Effect.orElseSucceed(() => undefined));
+        if (botBlock !== undefined) {
+          if (webhook !== undefined) return yield* new WebhookDeliverySkipped({ reason: botBlock });
+          if (trigger !== "scheduled") return yield* taskError(botBlock, { taskId: task.id });
+          yield* rescheduleMissedRun(active, startedAt, botBlock);
+          return { task: active, threadId: null, dispatchFailed: false };
+        }
         // A thread that stays busy would otherwise collect one copy of the
         // prompt per interval. A failed read falls through to the normal send.
         if (
@@ -1079,8 +1131,14 @@ export const layer = Layer.effect(
             : `${active.id}:webhook:${webhook.deliveryId}`;
         const commandId = CommandId.make(`scheduled-task:${fireKey}`);
         const messageId = MessageId.make(`scheduled-task-message:${fireKey}`);
-        const prompt = webhook?.prompt ?? active.prompt;
         const threadMode = scheduledTaskThreadMode(active);
+        const basePrompt = webhook?.prompt ?? active.prompt;
+        const prompt = yield* botHook
+          .prompt(active, basePrompt, {
+            freshContext: threadMode === "fresh_session",
+            launching: active.threadId === null,
+          })
+          .pipe(Effect.orElseSucceed(() => basePrompt));
 
         // A bound thread can move to another project (No project to a project) while
         // this fires. Follow it; one move needs at most two retries. Same ids replay safely.
@@ -1144,7 +1202,10 @@ export const layer = Layer.effect(
                   .pipe(
                     Effect.map((launched) => launched.threadId),
                     Effect.tap((threadId) =>
-                      threadMode === "new_thread" ? Effect.void : bindThread(active, threadId),
+                      (threadMode === "new_thread"
+                        ? Effect.void
+                        : bindThread(active, threadId)
+                      ).pipe(Effect.andThen(botHook.afterLaunch(active, threadId))),
                     ),
                   ),
               )
@@ -1492,6 +1553,13 @@ export const layer = Layer.effect(
       // of silently resetting an existing row.
       const existingTask = yield* findTask(id);
       const threadMode = resolveThreadMode(input, existingTask);
+      const botId = input.botId ?? (input.unbindBot === true ? undefined : existingTask?.botId);
+      if (
+        botId !== undefined &&
+        !(yield* botHook.botExists(botId).pipe(Effect.orElseSucceed(() => true)))
+      ) {
+        return yield* taskError("Bot not found.", { taskId: id });
+      }
       const keptThreadId =
         input.threadId ?? (input.unbindThread === true ? null : (existingTask?.threadId ?? null));
       // A bound thread belongs to its project, so moving the task leaves it for a new one.
@@ -1605,6 +1673,7 @@ export const layer = Layer.effect(
         projectId: input.projectId,
         threadId,
         threadMode,
+        botId,
         workspaceStrategy,
         modelSelection: input.modelSelection,
         runtimeMode: input.runtimeMode,

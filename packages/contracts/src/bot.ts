@@ -10,7 +10,7 @@ import {
 } from "./baseSchemas.ts";
 import { ModelSelection } from "./modelSelection.ts";
 import { OrchestrationV2ThreadLaunchWorkspaceStrategy } from "./orchestrationV2.ts";
-import { ProviderInteractionMode } from "./providerPolicy.ts";
+import { ProviderInteractionMode, RuntimeMode } from "./providerPolicy.ts";
 
 /**
  * A bot's id is also the name of its folder under `bots/` in the server home,
@@ -21,16 +21,32 @@ export const BotId = Schema.String.check(Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,
 );
 export type BotId = typeof BotId.Type;
 
-const BOT_SOUL_MAX_BYTES = 24_000;
+export const BOT_SOUL_MAX_BYTES = 24_000;
 
 export const BotApprovalMode = Schema.Literals(["ask", "auto-safe", "full"]);
 export type BotApprovalMode = typeof BotApprovalMode.Type;
+
+/** The runtime mode a bot's threads launch with, derived from its approval mode. */
+export function botRuntimeMode(mode: BotApprovalMode): RuntimeMode {
+  switch (mode) {
+    case "ask":
+      return "approval-required";
+    case "auto-safe":
+      return "auto";
+    case "full":
+      return "full-access";
+  }
+}
 
 export const BotLimits = Schema.Struct({
   maxStepsPerRun: Schema.optional(Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))),
   maxCostUsd: Schema.optional(Schema.Number.check(Schema.isGreaterThan(0))),
 });
 export type BotLimits = typeof BotLimits.Type;
+
+export function botThreadTag(id: BotId): string {
+  return `bot:${id}`;
+}
 
 export const BotProfile = Schema.Struct({
   id: BotId,

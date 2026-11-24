@@ -133,6 +133,7 @@ import * as ThreadLaunchService from "./orchestration-v2/ThreadLaunchService.ts"
 import * as ThreadMessageIntake from "./orchestration-v2/ThreadMessageIntake.ts";
 import * as DocumentText from "./provider/DocumentText.ts";
 import * as ScheduledTasks from "./scheduledTasks/ScheduledTaskService.ts";
+import * as BotService from "./bots/BotService.ts";
 import * as Workflows from "./workflows/Workflows.ts";
 import * as WorkflowRuntime from "./workflows/WorkflowRuntime.ts";
 import * as SecretRequests from "./secrets/SecretRequests.ts";
@@ -1503,6 +1504,7 @@ export const layerWsRpc = (
       const threadViewers = yield* ThreadViewers.ThreadViewers;
       const providerSessionManager = yield* ProviderSessionManager.ProviderSessionManagerV2;
       const scheduledTasks = yield* ScheduledTasks.ScheduledTaskService;
+      const bots = yield* BotService.BotService;
       const workflows = yield* Workflows.Workflows;
       const workflowDefinitions = yield* WorkflowRuntime.WorkflowDefinitions;
       // The service's messages are built from its own attributes, so they are safe to send.
@@ -2439,6 +2441,21 @@ export const layerWsRpc = (
         [WS_METHODS.scheduledTasksGetWebhookDelivery]: (input) =>
           Effect.annotateCurrentSpan({ "scheduled_task.id": input.id }).pipe(
             Effect.andThen(scheduledTasks.getWebhookDelivery(input)),
+          ),
+        [WS_METHODS.botsSubscribe]: (input) => bots.subscribeList(input),
+        [WS_METHODS.botsGet]: (input) => bots.get(input),
+        [WS_METHODS.botsUpsert]: (input) => bots.upsert(input),
+        [WS_METHODS.botsSetEnabled]: (input) =>
+          Effect.annotateCurrentSpan({ "bot.id": input.id }).pipe(
+            Effect.andThen(bots.setEnabled(input)),
+          ),
+        [WS_METHODS.botsDelete]: (input) =>
+          Effect.annotateCurrentSpan({ "bot.id": input.id }).pipe(
+            Effect.andThen(bots.delete(input)),
+          ),
+        [WS_METHODS.botsRunNow]: (input) =>
+          Effect.annotateCurrentSpan({ "bot.id": input.id }).pipe(
+            Effect.andThen(bots.runNow(input)),
           ),
         [WS_METHODS.serverProbe]: (_input) =>
           Effect.map(DateTime.now, (now) => ({ serverTime: DateTime.formatIso(now) })),
