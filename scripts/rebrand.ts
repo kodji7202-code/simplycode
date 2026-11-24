@@ -32,7 +32,6 @@ const EXCLUDED_PREFIXES = [
   "apps/marketing/",
   "apps/mobile/ios/",
   "apps/mobile/android/",
-  "apps/mobile/modules/",
   "infra/",
   "docs/internals/",
   "docs/operations/",
@@ -56,6 +55,12 @@ const EXCLUDED_FILES = new Set([
   "README.md",
   "TRADEMARK.md",
   "UPSTREAM.md",
+  // Native-module docs carry upstream attribution verbatim (vendored branch
+  // refs, "T3 Code has substantially modified ..." history).
+  "apps/mobile/modules/t3-source-text/UPSTREAM.md",
+  "apps/mobile/modules/t3-review-diff/tests/android/README.md",
+  "apps/mobile/modules/t3-terminal/README.md",
+  "apps/mobile/modules/t3-terminal/THIRD_PARTY_NOTICES.md",
   "pnpm-lock.yaml",
   "pnpm-workspace.yaml",
   "scripts/rebrand.ts",
@@ -145,6 +150,12 @@ const TEXT_RULES: ReadonlyArray<readonly [string, string]> = [
   ["https://t3.codes/install.ps1", `${FORK_RAW_URL}/scripts/install.ps1`],
   ["https://t3.codes/download", `${FORK_REPO_URL}/releases`],
   ["https://t3.codes", FORK_REPO_URL],
+  // Issue tracker points at the fork (covers /issues/new?template=... too);
+  // other pingdotgg/t3code cites (PRs, commits, attribution) stay upstream.
+  ["github.com/pingdotgg/t3code/issues", `github.com/${FORK_REPO}/issues`],
+  // Repairs trees corrupted by an earlier rule that dropped the github.com host.
+  [`https://${FORK_REPO}/issues`, `${FORK_REPO_URL}/issues`],
+  ["noreply@t3.codes", "noreply@simplycode.invalid"],
 ];
 
 const REGEX_RULES: ReadonlyArray<{ re: RegExp; to: string; except?: string[] }> = [
@@ -154,13 +165,21 @@ const REGEX_RULES: ReadonlyArray<{ re: RegExp; to: string; except?: string[] }> 
   {
     re: /(?<![\w$./-])t3(?![\w./-])/g,
     to: "simplycode",
-    except: ["scripts/scenarios/", "packages/shared/src/otelEnvironment.ts"],
+    except: [
+      "scripts/scenarios/",
+      "packages/shared/src/otelEnvironment.ts",
+      // Kotlin/Swift identifiers (expo.modules.t3*, t3_* resources) stay
+      // upstream-shaped; only string literals are rebranded by scoped rules.
+      "apps/mobile/modules/",
+    ],
   },
   // Upstream repo coordinates -> fork, except links that cite upstream PRs,
   // issues, commits, or workflow runs (those keep pointing at pingdotgg).
   {
     re: /pingdotgg\/t3code(?!\/(?:pull|issues?|commits?|compare|actions|workflows)\b)/g,
     to: FORK_REPO,
+    // Upstream citations inside vendored native modules stay upstream.
+    except: ["apps/mobile/modules/"],
   },
 ];
 
@@ -297,7 +316,7 @@ const FILE_EDITS: ReadonlyArray<{
       ['Config.withDefault("https://ingest.t3.codes")', 'Config.withDefault("")'],
       [
         "if (!telemetryConfig.enabled || !policyAllows) return Effect.succeed(false);",
-        "if (!telemetryConfig.enabled || !policyAllows || telemetryConfig.posthogKey.length === 0 || telemetryConfig.posthogHost.length === 0) return Effect.succeed(false);",
+        "if (\n      !telemetryConfig.enabled ||\n      !policyAllows ||\n      telemetryConfig.posthogKey.length === 0 ||\n      telemetryConfig.posthogHost.length === 0\n    )\n      return Effect.succeed(false);",
       ],
     ],
   },
@@ -306,7 +325,20 @@ const FILE_EDITS: ReadonlyArray<{
     edits: [
       [
         `const variant = VARIANT_CONFIG[APP_VARIANT];\n// Copied thread links open the app. app.t3.codes/.well-known lists every variant's identifiers.\nconst HOSTED_APP_HOST = "app.t3.codes";`,
-        `const variant = VARIANT_CONFIG[APP_VARIANT];\n// The fork ships no hosted web app, so no applinks host is declared.\nconst easProjectId = repoEnv.SIMPLYCODE_EAS_PROJECT_ID?.trim() || undefined;\nconst easOwner = repoEnv.SIMPLYCODE_EAS_OWNER?.trim() || undefined;`,
+        `const variant = VARIANT_CONFIG[APP_VARIANT];\n// The fork ships no hosted web app, so no applinks host is declared.\nconst easProjectId = repoEnv.SIMPLYCODE_EAS_PROJECT_ID?.trim() || undefined;\nconst easOwner = repoEnv.SIMPLYCODE_EAS_OWNER?.trim() || undefined;\nconst clerkRpDomain = repoEnv.SIMPLYCODE_CLERK_RP_DOMAIN?.trim() || undefined;`,
+      ],
+      // Same declaration for trees that already ran an earlier codemod pass
+      // (find disappears once clerkRpDomain is inserted, so reruns no-op).
+      [
+        "const easOwner = repoEnv.SIMPLYCODE_EAS_OWNER?.trim() || undefined;\nconst iosBundleIdentifier = isIosPersonalTeamBuild",
+        "const easOwner = repoEnv.SIMPLYCODE_EAS_OWNER?.trim() || undefined;\nconst clerkRpDomain = repoEnv.SIMPLYCODE_CLERK_RP_DOMAIN?.trim() || undefined;\nconst iosBundleIdentifier = isIosPersonalTeamBuild",
+      ],
+      // The fork has no Clerk relying party; passkeys/webcredentials activate
+      // only when SIMPLYCODE_CLERK_RP_DOMAIN is set at build time.
+      ['    relyingParty: "clerk.t3.codes",\n', ""],
+      [
+        "    associatedDomains: [\n      `applinks:${variant.relyingParty}`,\n      `webcredentials:${variant.relyingParty}`,\n    ],",
+        "    ...(clerkRpDomain\n      ? {\n          associatedDomains: [`applinks:${clerkRpDomain}`, `webcredentials:${clerkRpDomain}`],\n        }\n      : {}),",
       ],
       ['slug: "t3-code"', 'slug: "simplycode"'],
       [
@@ -315,7 +347,7 @@ const FILE_EDITS: ReadonlyArray<{
       ],
       [
         '    appleTeamId: "ARK85ZXQ4Z",',
-        "    ...(repoEnv.SIMPLYCODE_APPLE_TEAM_ID\n      ? { appleTeamId: repoEnv.SIMPLYCODE_APPLE_TEAM_ID }\n      : {}),",
+        "    ...(repoEnv.SIMPLYCODE_APPLE_TEAM_ID ? { appleTeamId: repoEnv.SIMPLYCODE_APPLE_TEAM_ID } : {}),",
       ],
       ["      `applinks:${HOSTED_APP_HOST}`,\n", ""],
       [
@@ -363,9 +395,16 @@ const FILE_EDITS: ReadonlyArray<{
         `        </Tooltip>
       </code>
       <span className="text-2xs text-muted-foreground">
-        {gt("An unofficial fork of T3 Code. Not affiliated with T3 Tools, Inc.")} {/* rebrand-keep */}
+        {gt("An unofficial fork of T3 Code. Not affiliated with T3 Tools, Inc.")}{" "}
+        {/* rebrand-keep */}
       </span>
     </span>`,
+      ],
+      // Repairs a tree where the marker was formatter-split and the text pass
+      // rebranded the attribution before the adjacent-line guard existed.
+      [
+        '{gt("An unofficial fork of SimplyCode. Not affiliated with T3 Tools, Inc.")}',
+        '{gt("An unofficial fork of T3 Code. Not affiliated with T3 Tools, Inc.")}',
       ],
     ],
   },
@@ -441,7 +480,16 @@ const FILE_EDITS: ReadonlyArray<{
     // extracts a release archive (install.sh validation, npm launcher,
     // service launcher, WSL runtime check) looks for that name.
     file: "scripts/build-cli-archive.ts",
-    edits: [['? "t3.exe" : "t3";', '? "t3.exe" : "t3" /* rebrand-keep */;']],
+    edits: [
+      // EOL-anchored so a formatted `; /* rebrand-keep */` variant is not
+      // matched again (the marker lands after the semicolon post-format).
+      ['? "t3.exe" : "t3";\n', '? "t3.exe" : "t3"; /* rebrand-keep */\n'],
+      // Repairs a tree where the substring find re-fired on the marked line.
+      [
+        '? "t3.exe" : "t3" /* rebrand-keep */; /* rebrand-keep */',
+        '? "t3.exe" : "t3"; /* rebrand-keep */',
+      ],
+    ],
   },
 ];
 
@@ -815,6 +863,11 @@ function* walk(dir: string): Generator<string> {
   }
 }
 
+function isStandaloneKeepLine(line: string): boolean {
+  const t = line.trim();
+  return t === "// rebrand-keep" || t === "/* rebrand-keep */" || t === "{/* rebrand-keep */}";
+}
+
 function applyLine(
   line: string,
   scopedRules: ReadonlyArray<readonly [string, string]>,
@@ -881,7 +934,12 @@ function applyFileEditsToContent(rel: string, content: string): string {
   const lines = content.split("\n");
   let touched = false;
   for (let i = 0; i < lines.length; i++) {
-    const next = applyLine(lines[i], scoped, regexRules);
+    // A standalone marker line also guards the code line next to it: formatters
+    // can split an inline `{/* rebrand-keep */}` onto its own line.
+    const markerGuard =
+      (i > 0 && isStandaloneKeepLine(lines[i - 1])) ||
+      (i + 1 < lines.length && isStandaloneKeepLine(lines[i + 1]));
+    const next = markerGuard ? lines[i] : applyLine(lines[i], scoped, regexRules);
     if (next !== lines[i]) {
       lines[i] = next;
       touched = true;

@@ -83,7 +83,6 @@ const VARIANT_CONFIG = {
     scheme: "simplycode-dev",
     iosBundleIdentifier: "io.github.kodji7202code.simplycode.dev",
     androidPackage: "io.github.kodji7202code.simplycode.dev",
-    relyingParty: "clerk.t3.codes",
     assets: DEVELOPMENT_ASSETS,
   },
   preview: {
@@ -91,7 +90,6 @@ const VARIANT_CONFIG = {
     scheme: "simplycode-preview",
     iosBundleIdentifier: "io.github.kodji7202code.simplycode.preview",
     androidPackage: "io.github.kodji7202code.simplycode.preview",
-    relyingParty: "clerk.t3.codes",
     assets: PREVIEW_ASSETS,
   },
   production: {
@@ -99,7 +97,6 @@ const VARIANT_CONFIG = {
     scheme: "simplycode",
     iosBundleIdentifier: "io.github.kodji7202code.simplycode",
     androidPackage: "io.github.kodji7202code.simplycode",
-    relyingParty: "clerk.t3.codes",
     assets: RELEASE_ASSETS,
   },
 } as const;
@@ -121,6 +118,7 @@ const variant = VARIANT_CONFIG[APP_VARIANT];
 // The fork ships no hosted web app, so no applinks host is declared.
 const easProjectId = repoEnv.SIMPLYCODE_EAS_PROJECT_ID?.trim() || undefined;
 const easOwner = repoEnv.SIMPLYCODE_EAS_OWNER?.trim() || undefined;
+const clerkRpDomain = repoEnv.SIMPLYCODE_CLERK_RP_DOMAIN?.trim() || undefined;
 const iosBundleIdentifier = isIosPersonalTeamBuild
   ? personalTeamBundleIdentifier!
   : variant.iosBundleIdentifier;
@@ -259,10 +257,11 @@ const config: ExpoConfig = {
     bundleIdentifier: iosBundleIdentifier,
     // Avoid Personal Team fallback: it cannot sign App Groups, Apple sign-in or push entitlements.
     ...(repoEnv.SIMPLYCODE_APPLE_TEAM_ID ? { appleTeamId: repoEnv.SIMPLYCODE_APPLE_TEAM_ID } : {}),
-    associatedDomains: [
-      `applinks:${variant.relyingParty}`,
-      `webcredentials:${variant.relyingParty}`,
-    ],
+    ...(clerkRpDomain
+      ? {
+          associatedDomains: [`applinks:${clerkRpDomain}`, `webcredentials:${clerkRpDomain}`],
+        }
+      : {}),
     entitlements: {
       "keychain-access-groups": [`$(AppIdentifierPrefix)${variant.iosBundleIdentifier}`],
     },

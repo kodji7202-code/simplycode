@@ -3210,10 +3210,7 @@
     {
       "t": "span",
       "i": 2,
-      "c": [
-        " ",
-        "no computador que abriu esta página"
-      ]
+      "c": [" ", "no computador que abriu esta página"]
     }
   ],
   "b2d53b4d1d48fbef": [
@@ -3225,10 +3222,7 @@
     {
       "t": "span",
       "i": 2,
-      "c": [
-        " ",
-        "· quem executar recebe este acesso"
-      ]
+      "c": [" ", "· quem executar recebe este acesso"]
     }
   ],
   "c54cc9c75db9dc58": "Aprove apenas um login que você acabou de iniciar.",
@@ -7875,15 +7869,15 @@
   "e1fcc4b74faaae02": "Remover atalho…",
   "efa55bbb1d3aa45e": "Revisar alterações",
   "3e02b74615e20d82": "Configuração manual",
-  "db549627db99e7bd": [
-    "Desative a captura no SimplyCode para pará-la. Remova o atalho de ",
+  "4140c17baed7c0c8": [
+    "Turn capture off in SimplyCode to stop it. Remove the shortcut from",
+    " ",
     {
       "i": 1,
       "k": "_gt_value_1",
       "v": "v"
     },
-    " ",
-    "para liberar as teclas."
+    " to free up the keys."
   ],
   "4bf700ad94c0c486": "Já adicionei o atalho",
   "bcdea6ebe1a65e63": "Conta do ChatGPT a conectar",

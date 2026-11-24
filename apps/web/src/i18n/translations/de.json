@@ -7870,15 +7870,15 @@
   "e1fcc4b74faaae02": "Tastenkürzel entfernen…",
   "efa55bbb1d3aa45e": "Änderungen prüfen",
   "3e02b74615e20d82": "Manuelle Einrichtung",
-  "db549627db99e7bd": [
-    "Deaktiviere die Aufnahme in SimplyCode, um sie zu beenden. Entferne das Tastenkürzel aus ",
+  "4140c17baed7c0c8": [
+    "Turn capture off in SimplyCode to stop it. Remove the shortcut from",
+    " ",
     {
       "i": 1,
       "k": "_gt_value_1",
       "v": "v"
     },
-    ", ",
-    "um die Tasten freizugeben."
+    " to free up the keys."
   ],
   "4bf700ad94c0c486": "Ich habe das Tastenkürzel hinzugefügt",
   "bcdea6ebe1a65e63": "Zu verbindendes ChatGPT-Konto",

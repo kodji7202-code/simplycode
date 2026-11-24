@@ -143,7 +143,7 @@ of \`main\` for that work, never the tag-pinned diagnosis clone.
 
 - If \`gh\` is not authenticated, or the request was rejected and created
   nothing, build a prefilled
-  https://github.com/pingdotgg/t3code/issues/new?template=via-triage.yml URL.
+  https://github.com/kodji7202-code/simplycode/issues/new?template=via-triage.yml URL.
   The form applies the label whoever submits it. Add \`title\` plus one
   URL-encoded query parameter per form field id: \`what-happened\`, \`diagnosis\`,
   \`steps\`, \`version\`, \`environment\`, \`evidence\`, \`related\`, \`workaround\` and

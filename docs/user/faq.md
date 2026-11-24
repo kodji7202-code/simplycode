@@ -37,7 +37,7 @@ Yes. Link your T3 Chat account and T3 Connect raises your limit: up to 10 machin
 
 ## Why is my Claude 5-hour limit draining so fast?
 
-It shouldn't anymore. SimplyCode drives Claude through Anthropic's Agent SDK, and Anthropic's 5h meter used to charge Agent SDK usage about 1.7x more than using Claude Code directly. Weekly limits were never affected. Since v0.1.7, Claude in SimplyCode drains your 5h limit at the same rate as Claude Code. Still seeing it? [Update SimplyCode](./updating.md) on the machine that runs your agents. [My post on it](https://x.com/theo/status/2114166439813017873) · [Tracking issue](https://github.com/pingdotgg/t3code/issues/24649)
+It shouldn't anymore. SimplyCode drives Claude through Anthropic's Agent SDK, and Anthropic's 5h meter used to charge Agent SDK usage about 1.7x more than using Claude Code directly. Weekly limits were never affected. Since v0.1.7, Claude in SimplyCode drains your 5h limit at the same rate as Claude Code. Still seeing it? [Update SimplyCode](./updating.md) on the machine that runs your agents. [My post on it](https://x.com/theo/status/2114166439813017873) · [Tracking issue](https://github.com/kodji7202-code/simplycode/issues/24649)
 
 ## How do I use SimplyCode remotely?
 
