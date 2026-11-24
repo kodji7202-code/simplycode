@@ -147,11 +147,15 @@ const TEXT_RULES: ReadonlyArray<readonly [string, string]> = [
   ["https://t3.codes", FORK_REPO_URL],
 ];
 
-const REGEX_RULES: ReadonlyArray<{ re: RegExp; to: string }> = [
-  // Bare `t3` word: CLI invocations, npm bin name, log tags. The lookarounds
-  // protect `t3_*` MCP tool names, `t3code` identifiers, `t3.json`, `t3.mjs`,
-  // dotted members such as `bin.t3`, and AWS-style names like `t3.micro`.
-  { re: /(?<![\w$./-])t3(?![\w./-])/g, to: "simplycode" },
+const REGEX_RULES: ReadonlyArray<{ re: RegExp; to: string; except?: string[] }> = [
+  // Bare `t3` (CLI, bin name, log tags). Lookarounds keep `t3_*` tools, `t3code`, `t3.json`,
+  // `bin.t3` and `t3.micro`. `except` files use `t3` as a binding whose `t3.foo` accesses are
+  // protected, so renaming it would leave them dangling.
+  {
+    re: /(?<![\w$./-])t3(?![\w./-])/g,
+    to: "simplycode",
+    except: ["scripts/scenarios/", "packages/shared/src/otelEnvironment.ts"],
+  },
   // Upstream repo coordinates -> fork, except links that cite upstream PRs,
   // issues, commits, or workflow runs (those keep pointing at pingdotgg).
   {
@@ -811,7 +815,11 @@ function* walk(dir: string): Generator<string> {
   }
 }
 
-function applyLine(line: string, scopedRules: ReadonlyArray<readonly [string, string]>): string {
+function applyLine(
+  line: string,
+  scopedRules: ReadonlyArray<readonly [string, string]>,
+  regexRules: ReadonlyArray<{ re: RegExp; to: string }> = REGEX_RULES,
+): string {
   if (line.includes(KEEP_MARKER)) return line;
   let out = line;
   for (const [find, replace] of TEXT_RULES) {
@@ -820,7 +828,7 @@ function applyLine(line: string, scopedRules: ReadonlyArray<readonly [string, st
   for (const [find, replace] of scopedRules) {
     if (out.includes(find)) out = out.split(find).join(replace);
   }
-  for (const { re, to } of REGEX_RULES) {
+  for (const { re, to } of regexRules) {
     out = out.replace(re, to);
   }
   return out;
@@ -867,10 +875,13 @@ function applyFileEditsToContent(rel: string, content: string): string {
     }
   }
   const scoped = scopedRulesFor(rel);
+  const regexRules = REGEX_RULES.filter(
+    (r) => !r.except?.some((p) => rel === p || rel.startsWith(p.endsWith("/") ? p : `${p}/`)),
+  );
   const lines = content.split("\n");
   let touched = false;
   for (let i = 0; i < lines.length; i++) {
-    const next = applyLine(lines[i], scoped);
+    const next = applyLine(lines[i], scoped, regexRules);
     if (next !== lines[i]) {
       lines[i] = next;
       touched = true;

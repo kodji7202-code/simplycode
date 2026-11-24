@@ -16,7 +16,7 @@ const TERMINATE_GRACE_MS = 5_000;
 
 function t3Home() {
   const raw = (process.env.T3CODE_HOME || "").trim();
-  if (raw === "") return path.join(os.homedir(), ".t3");
+  if (raw === "") return path.join(os.homedir(), ".simplycode");
   if (raw === "~") return os.homedir();
   if (raw.startsWith("~/") || raw.startsWith("~\\")) return path.join(os.homedir(), raw.slice(2));
   return path.resolve(raw);
@@ -64,7 +64,7 @@ async function download(url, file) {
         shown = step;
         const percent = total ? ` ${step}%` : "";
         process.stderr.write(
-          `\r\x1b[2Kt3: downloading T3 Code ${version}${percent} (${(received / 1048576).toFixed(1)} MB)`,
+          `\r\x1b[2Kt3: downloading SimplyCode ${version}${percent} (${(received / 1048576).toFixed(1)} MB)`,
         );
       }
     }
@@ -78,7 +78,8 @@ async function download(url, file) {
 async function install(dir, key) {
   const archive = `t3-${version}-${key}.${process.platform === "win32" ? "zip" : "tar.gz"}`;
   const base = (
-    process.env.T3CODE_RELEASE_BASE_URL || "https://github.com/pingdotgg/t3code/releases/download"
+    process.env.T3CODE_RELEASE_BASE_URL ||
+    "https://github.com/kodji7202-code/simplycode/releases/download"
   ).replace(/\/+$/, "");
   const sums = await (await get(`${base}/v${version}/SHA256SUMS`)).text();
   const expected = /^([0-9a-f]{64})\s+\*?(.+)$/im;
@@ -105,7 +106,7 @@ async function install(dir, key) {
     if (extract.status !== 0) throw new Error(`could not extract ${archive}`);
     fs.rmSync(file);
     const validate = spawnSync(
-      path.join(staging, process.platform === "win32" ? "t3.exe" : "t3"),
+      path.join(staging, process.platform === "win32" ? "t3.exe" : "simplycode"),
       ["--version"],
       {
         stdio: ["ignore", "ignore", "pipe"],
@@ -152,7 +153,7 @@ function publish(staging, dir) {
   } catch (error) {
     if (error.code !== "EEXIST") throw error;
     throw new Error(
-      `another t3 is installing ${version}. If none is running, delete ${lock} and try again.`,
+      `another simplycode is installing ${version}. If none is running, delete ${lock} and try again.`,
       { cause: error },
     );
   }
@@ -178,8 +179,8 @@ async function main() {
   const key = `${process.platform}-${process.arch}`;
   if (!SUPPORTED.includes(key)) {
     throw new Error(
-      `no T3 Code CLI build is available for ${key} (supported: ${SUPPORTED.join(", ")}).\n` +
-        "The desktop app is at https://github.com/pingdotgg/t3code/releases",
+      `no SimplyCode CLI build is available for ${key} (supported: ${SUPPORTED.join(", ")}).\n` +
+        "The desktop app is at https://github.com/kodji7202-code/simplycode/releases",
     );
   }
   const dir = path.join(t3Home(), "runtime", "versions", version);
@@ -188,7 +189,7 @@ async function main() {
   // Service IPC and signals must reach the child; terminal Ctrl-C already does, so do not forward SIGINT twice.
   const ipc = process.send !== undefined;
   const child = spawn(
-    path.join(dir, process.platform === "win32" ? "t3.exe" : "t3"),
+    path.join(dir, process.platform === "win32" ? "t3.exe" : "simplycode"),
     process.argv.slice(2),
     {
       stdio: ipc ? ["inherit", "inherit", "inherit", "ipc"] : "inherit",
@@ -240,7 +241,7 @@ function killTree(child) {
 
 function executableError(key, detail) {
   return new Error(
-    `could not run T3 Code ${version} for ${key}: ${detail}` +
+    `could not run SimplyCode ${version} for ${key}: ${detail}` +
       (process.platform === "linux"
         ? "\nThe Linux release requires glibc; musl-based systems such as Alpine are not supported. Use a glibc-based Linux environment."
         : ""),
@@ -248,7 +249,7 @@ function executableError(key, detail) {
 }
 
 function fail(error) {
-  process.stderr.write(`t3: ${error.message}\n`);
+  process.stderr.write(`simplycode: ${error.message}\n`);
   process.exit(1);
 }
 

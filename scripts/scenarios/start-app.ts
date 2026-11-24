@@ -19,8 +19,8 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 import { ScenarioError } from "./shell.ts";
 
-// The dev runner's web port is 5733 plus an offset. Mirror of BASE_WEB_PORT in dev-runner.ts.
-const BASE_WEB_PORT = 5733;
+// The dev runner's web port is 6733 plus an offset. Mirror of BASE_WEB_PORT in dev-runner.ts.
+const BASE_WEB_PORT = 6733;
 // The replay agent `vp run dev` registers: free, recorded turns through the real adapter.
 const REPLAY = { instanceId: "devReplay", model: "showcase" };
 // Generated text (titles) cannot go to the replay agent: the server swaps an ACP agent for the
@@ -214,7 +214,16 @@ const startApp = Effect.fn("startApp")(function* (input: {
   const metro = yield* start({
     cwd: path.join(checkout, "apps/mobile"),
     command: "npx",
-    args: ["expo", "start", "--dev-client", "--scheme", "t3code-dev", "--lan", "--port", metroPort],
+    args: [
+      "expo",
+      "start",
+      "--dev-client",
+      "--scheme",
+      "simplycode-dev",
+      "--lan",
+      "--port",
+      metroPort,
+    ],
     env: {
       ...env,
       APP_VARIANT: "development",

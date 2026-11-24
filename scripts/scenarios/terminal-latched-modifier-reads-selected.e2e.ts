@@ -16,8 +16,8 @@ test(
     const environment = await runPromise(
       environmentId(`http://${MOBILE.host}:${MOBILE.serverPort}`),
     );
-    await device.openLink(`t3code-dev://threads/${environment}/${threadId}/terminal`, {
-      app: "com.t3tools.t3code.dev",
+    await device.openLink(`simplycode-dev://threads/${environment}/${threadId}/terminal`, {
+      app: "io.github.kodji7202code.simplycode.dev",
     });
     await device.alert("accept").catch(() => {});
 
