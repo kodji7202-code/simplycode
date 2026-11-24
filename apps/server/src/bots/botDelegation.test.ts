@@ -58,7 +58,7 @@ it("targets the bot's modelSelection and passes options through", () => {
       modelSelection: {
         instanceId: "claude",
         model: "claude-opus-4-6",
-        options: [{ key: "effort", value: "high" }],
+        options: [{ id: "effort", value: "high" }],
       },
     }),
     soul: "",
@@ -68,7 +68,7 @@ it("targets the bot's modelSelection and passes options through", () => {
   expect(built.target).toEqual({
     providerInstanceId: "claude",
     model: "claude-opus-4-6",
-    options: [{ key: "effort", value: "high" }],
+    options: [{ id: "effort", value: "high" }],
   });
 });
 
@@ -135,17 +135,17 @@ it("uses the bot's interactionMode, the general role, and passes run options thr
     bot: makeBot({ interactionMode: "plan" }),
     soul: "",
     input: input({
-      mode: "background",
+      mode: "wait",
       timeoutMs: 30_000,
       clientRequestId: "req-9",
-      isolation: { type: "worktree" },
+      isolation: "worktree",
     }),
     callerRuntimeMode: "full-access",
   });
   expect(built.interactionMode).toBe("plan");
   expect(built.role).toBe("general");
-  expect(built.mode).toBe("background");
+  expect(built.mode).toBe("wait");
   expect(built.timeoutMs).toBe(30_000);
   expect(built.clientRequestId).toBe("req-9");
-  expect(built.isolation).toEqual({ type: "worktree" });
+  expect(built.isolation).toBe("worktree");
 });
