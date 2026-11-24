@@ -1,6 +1,8 @@
 import { useAtomValue } from "@effect/atom-react";
 import {
   AuthOrchestrationOperateScope,
+  BOT_AVATAR_COLORS,
+  BOT_AVATAR_SHAPES,
   BOT_SOUL_MAX_BYTES,
   type Bot,
   type EnvironmentId,
@@ -50,6 +52,7 @@ import {
   APPROVAL_MODE_RUNTIME_LABELS,
   APPROVAL_MODE_TITLES,
   BOT_APPROVAL_MODES,
+  BOT_AVATAR_SHAPE_LABELS,
   botToDraft,
   draftToBotUpsertInput,
   EMPTY_BOT_DRAFT,
@@ -58,6 +61,7 @@ import {
   WORKSPACE_MODES,
   type BotDraft,
 } from "./botPage.logic";
+import { BotAvatar } from "./BotAvatar";
 
 function Field({
   label,
@@ -219,18 +223,64 @@ export function BotEditorDialog(props: {
       </DialogHeader>
       <DialogPanel>
         <fieldset disabled={saving} className="min-w-0 space-y-5">
-          <div className="flex gap-3">
-            <Field label={gt("Avatar")} htmlFor="bot-avatar" className="w-20 shrink-0">
-              <Input
-                id="bot-avatar"
-                value={draft.avatar}
-                maxLength={8}
-                placeholder={(draft.name.trim()[0] ?? "B").toUpperCase()}
-                onChange={(event) =>
-                  setDraft((current) => ({ ...current, avatar: event.target.value }))
-                }
+          <Field label={gt("Avatar")}>
+            <div className="flex items-center gap-4">
+              <BotAvatar
+                bot={{
+                  id: draft.editingId ?? "new-bot",
+                  name: draft.name.trim() || gt("New bot"),
+                  avatar: draft.avatar,
+                  enabled: draft.enabled,
+                }}
+                size={64}
+                glow
               />
-            </Field>
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex flex-wrap gap-1" role="group" aria-label={gt("Shape")}>
+                  {BOT_AVATAR_SHAPES.map((shape) => (
+                    <Button
+                      key={shape}
+                      type="button"
+                      size="micro"
+                      variant={draft.avatar.shape === shape ? "secondary" : "outline"}
+                      aria-pressed={draft.avatar.shape === shape}
+                      onClick={() =>
+                        setDraft((current) => ({
+                          ...current,
+                          avatar: { ...current.avatar, shape },
+                        }))
+                      }
+                    >
+                      {m(BOT_AVATAR_SHAPE_LABELS[shape])}
+                    </Button>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label={gt("Color")}>
+                  {BOT_AVATAR_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      aria-label={color}
+                      aria-pressed={draft.avatar.color === color}
+                      className={cn(
+                        "size-5 rounded-full ring-foreground ring-offset-2 ring-offset-background transition-shadow",
+                        draft.avatar.color === color ? "ring-2" : "hover:ring-1",
+                      )}
+                      style={{ backgroundColor: color }}
+                      onClick={() =>
+                        setDraft((current) => ({
+                          ...current,
+                          avatar: { ...current.avatar, color },
+                        }))
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </Field>
+
+          <div className="flex gap-3">
             <Field label={gt("Name")} htmlFor="bot-name" className="min-w-0 flex-1">
               <Input
                 id="bot-name"
@@ -238,6 +288,17 @@ export function BotEditorDialog(props: {
                 maxLength={100}
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, name: event.target.value }))
+                }
+              />
+            </Field>
+            <Field label={gt("Role")} htmlFor="bot-role" className="min-w-0 flex-1">
+              <Input
+                id="bot-role"
+                value={draft.role}
+                maxLength={60}
+                placeholder={gt("Reviewer")}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, role: event.target.value }))
                 }
               />
             </Field>
@@ -405,6 +466,17 @@ export function BotEditorDialog(props: {
                 }
               />
             </Field>
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="bot-pinned">
+              <T>Pin to top</T>
+            </Label>
+            <Switch
+              id="bot-pinned"
+              checked={draft.pinned}
+              onCheckedChange={(pinned) => setDraft((current) => ({ ...current, pinned }))}
+            />
           </div>
 
           <div className="flex items-center justify-between gap-2">

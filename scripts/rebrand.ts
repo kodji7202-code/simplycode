@@ -823,6 +823,15 @@ const FILE_EDITS: ReadonlyArray<{
     // accessible name go.
     file: "apps/web/src/components/sidebar/SidebarChrome.tsx",
     edits: [
+      // Anchored on the line before the wordmark import so a rerun no longer
+      // finds the two lines adjacent and skips.
+      [
+        `import { useIssuesSupported, usePullRequestsSupported } from "../../state/environments";
+import { T3Wordmark } from "../T3Wordmark";`,
+        `import { useIssuesSupported, usePullRequestsSupported } from "../../state/environments";
+import { SimplyCodeLogo } from "../branding/SimplyCodeLogo";
+import { T3Wordmark } from "../T3Wordmark";`,
+      ],
       [
         `function SidebarBrandMark({ onBackdrop }: { onBackdrop: boolean }) {
   return (
@@ -841,7 +850,12 @@ const FILE_EDITS: ReadonlyArray<{
   );
 }`,
         `function SidebarBrandMark() {
-  return <T3Wordmark aria-label="SimplyCode" className="h-[1cap] w-auto shrink-0" />;
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      <SimplyCodeLogo size={18} />
+      <T3Wordmark aria-label="SimplyCode" className="h-[1cap] w-auto shrink-0" />
+    </span>
+  );
 }`,
       ],
       ["<SidebarBrandMark onBackdrop={onBackdrop} />", "<SidebarBrandMark />"],
@@ -855,6 +869,25 @@ const FILE_EDITS: ReadonlyArray<{
     // via the text rules, so only the tail is removed here.
     file: "apps/web/src/components/ui/standalone-page.tsx",
     edits: [
+      [
+        `import type { ReactNode } from "react";
+
+import { T3Wordmark } from "../T3Wordmark";`,
+        `import type { ReactNode } from "react";
+
+import { SimplyCodeLogo } from "../branding/SimplyCodeLogo";
+import { T3Wordmark } from "../T3Wordmark";`,
+      ],
+      // The wordmark line is upstream-verbatim; anchoring on the span open keeps
+      // the rerun from re-prepending the logo. The replace uses the post-rebrand
+      // aria-label so the applied-state check recognizes it.
+      [
+        `        <span className="flex items-baseline gap-1.5" role="img" aria-label="T3 Code">
+          <T3Wordmark className="h-3 w-auto shrink-0 text-foreground" aria-hidden />`,
+        `        <span className="flex items-center gap-1.5" role="img" aria-label="SimplyCode">
+          <SimplyCodeLogo size={18} />
+          <T3Wordmark className="h-3 w-auto shrink-0 text-foreground" aria-hidden />`,
+      ],
       [
         `          {/* oxlint-disable-next-line t3code/no-untranslated-copy -- product wordmark */}
           <span className="text-lg font-medium tracking-tight">Code</span>

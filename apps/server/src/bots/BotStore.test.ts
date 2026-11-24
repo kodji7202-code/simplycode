@@ -96,6 +96,31 @@ it.effect("reports invalid bot.json folders as load errors and keeps the rest", 
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 );
 
+it.effect("loads a bot.json that still carries a legacy string avatar", () =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "simplycode-bots-" });
+    const path = yield* Path.Path;
+    const botsDir = path.join(baseDir, "bots");
+    yield* seedFolder(
+      path.join(botsDir, "legacy-bot"),
+      JSON.stringify({ ...profile("legacy-bot"), avatar: "🌙" }),
+    );
+
+    const listed = yield* Effect.gen(function* () {
+      const store = yield* BotStore.BotStore;
+      return yield* store.list();
+    }).pipe(
+      Effect.provide(
+        BotStore.layer.pipe(Layer.provideMerge(ServerConfig.layerTest(process.cwd(), baseDir))),
+      ),
+    );
+    expect(listed.loadErrors).toEqual([]);
+    expect(listed.bots.map((bot) => bot.id)).toEqual(["legacy-bot"]);
+    expect(listed.bots[0]?.avatar).toBeUndefined();
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
 it.effect("reports a SOUL.md over the byte limit as a load error", () =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;

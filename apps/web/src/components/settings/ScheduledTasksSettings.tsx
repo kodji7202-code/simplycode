@@ -83,6 +83,7 @@ import { EMPTY_SERVER_PROVIDERS, serverEnvironment } from "../../state/server";
 import { threadFamilies } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { WorktreeBaseBranchPicker } from "../WorktreeBaseBranchPicker";
+import { BotAvatar } from "../bots/BotAvatar";
 import { EnvironmentMachineIcon } from "../EnvironmentMachineIcon";
 import { ConnectionStatusDot, connectionPhaseDotClassName } from "../ConnectionStatusDot";
 import { AuthOrchestrationOperateScope, clampManagedRuntimeMode } from "@t3tools/contracts";
@@ -891,9 +892,7 @@ function ScheduledTaskRow({
           </span>
           {task.botId !== undefined ? (
             <Badge variant="outline">
-              <span aria-hidden className="me-1">
-                {bot?.avatar?.trim() || (bot?.name.trim()[0] ?? "B").toUpperCase()}
-              </span>
+              {bot ? <BotAvatar bot={bot} size={14} className="me-1" /> : null}
               <span className="max-w-28 truncate">{bot?.name ?? task.botId}</span>
             </Badge>
           ) : null}
@@ -1921,8 +1920,9 @@ function ScheduledTaskEditorForm({
                   </SelectItem>
                   {bots.map((bot) => (
                     <SelectItem key={bot.id} value={bot.id} label={bot.name}>
-                      <span className="block truncate">
-                        {bot.avatar?.trim() || bot.name.trim()[0]?.toUpperCase()} {bot.name}
+                      <span className="flex items-center gap-1.5">
+                        <BotAvatar bot={bot} size={14} />
+                        <span className="truncate">{bot.name}</span>
                       </span>
                     </SelectItem>
                   ))}

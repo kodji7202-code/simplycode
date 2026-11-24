@@ -125,11 +125,12 @@ vi.mock("../../state/session", () => ({
 vi.mock("../../state/server", () => ({
   serverEnvironment: {
     scheduledTasksLive: () => ({}),
+    botsLive: () => ({}),
     upsertScheduledTask: { permissionAtom: () => Atom.make(true) },
   },
 }));
 vi.mock("../../state/query", () => ({
-  useEnvironmentQuery: () => ({ data: { tasks: mocks.tasks, threads: [] } }),
+  useEnvironmentQuery: () => ({ data: { tasks: mocks.tasks, threads: [], bots: [] } }),
 }));
 vi.mock("../../state/use-atom-command", () => ({ useAtomCommand: () => mocks.upsert }));
 vi.mock("../../state/queries", () => ({

@@ -254,6 +254,7 @@ describe("applyBotToDraft", () => {
     id: BotId.make("release-bot"),
     name: "Release bot",
     enabled: true,
+    pinned: false,
     projectId: ProjectId.make("bot-project"),
     workspaceStrategy: {
       type: "worktree",

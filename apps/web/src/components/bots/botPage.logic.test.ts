@@ -1,4 +1,4 @@
-import type { Bot, ScheduledTask } from "@t3tools/contracts";
+import { botAvatarOrDefault, type Bot, type ScheduledTask } from "@t3tools/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -12,9 +12,11 @@ import {
 const bot: Bot = {
   id: "night-watch" as Bot["id"],
   name: "Night Watch",
-  avatar: "🌙",
+  avatar: { shape: "hexagon", color: "#a855f7" },
+  role: "Watcher",
   description: "Watches things",
   enabled: true,
+  pinned: true,
   projectId: "project-1" as Bot["projectId"],
   workspaceStrategy: { type: "root" },
   modelSelection: { instanceId: "codex-1", model: "gpt-5" } as Bot["modelSelection"],
@@ -34,8 +36,10 @@ describe("botToDraft", () => {
     expect(input).toMatchObject({
       id: "night-watch",
       name: "Night Watch",
-      avatar: "🌙",
+      avatar: { shape: "hexagon", color: "#a855f7" },
+      role: "Watcher",
       enabled: true,
+      pinned: true,
       approvalMode: "auto-safe",
       workspaceStrategy: { type: "root" },
       soul: "soul text",
@@ -81,10 +85,16 @@ describe("botToDraft", () => {
   });
 
   it("clears optional fields with empty strings", () => {
-    const draft = { ...botToDraft(bot, ""), avatar: " ", description: "" };
+    const draft = { ...botToDraft(bot, ""), role: " ", description: "" };
     const input = draftToBotUpsertInput(draft, "main");
-    expect(input?.avatar).toBe("");
+    expect(input?.role).toBe("");
     expect(input?.description).toBe("");
+  });
+
+  it("falls back to the stable default avatar for a bot without one", () => {
+    const { avatar: _avatar, ...withoutAvatar } = bot;
+    const draft = botToDraft(withoutAvatar as Bot, "");
+    expect(draft.avatar).toEqual(botAvatarOrDefault(withoutAvatar as Bot));
   });
 });
 

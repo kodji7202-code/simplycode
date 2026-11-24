@@ -479,6 +479,7 @@ describe("bot binding", () => {
     id: BotId.make("night-watch"),
     name: "Night Watch",
     enabled: true,
+    pinned: false,
     projectId: ProjectId.make("bot-project"),
     workspaceStrategy: { type: "worktree", baseRef: "main", startFromOrigin: true },
     modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4-mini" },

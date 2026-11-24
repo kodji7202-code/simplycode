@@ -21,6 +21,7 @@ import {
 import { primaryServerKeybindingsAtom } from "../../state/server";
 import { cn } from "../../lib/utils";
 import { useIssuesSupported, usePullRequestsSupported } from "../../state/environments";
+import { SimplyCodeLogo } from "../branding/SimplyCodeLogo";
 import { T3Wordmark } from "../T3Wordmark";
 import {
   resolveEnvironmentIdentificationPillLabel,
@@ -190,7 +191,12 @@ function SidebarBrand({ onBackdrop }: { onBackdrop: boolean }) {
 }
 
 function SidebarBrandMark() {
-  return <T3Wordmark aria-label="SimplyCode" className="h-[1cap] w-auto shrink-0" />;
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      <SimplyCodeLogo size={18} />
+      <T3Wordmark aria-label="SimplyCode" className="h-[1cap] w-auto shrink-0" />
+    </span>
+  );
 }
 
 function SidebarUtilityItem({

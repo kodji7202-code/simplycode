@@ -44,13 +44,10 @@ import {
   WorkspaceBreadcrumbText,
 } from "../WorkspaceBreadcrumb";
 import { WorkspacePageHeader } from "../WorkspacePageHeader";
+import { BotAvatar } from "./BotAvatar";
 import { BotEditorDialog } from "./BotEditorDialog";
 import { APPROVAL_MODE_RUNTIME_LABELS, botAutomationCount } from "./botPage.logic";
 import { scheduleLabel } from "../settings/scheduledTasksSettings.logic";
-
-function botAvatarLabel(bot: Bot): string {
-  return bot.avatar?.trim() || (bot.name.trim()[0] ?? "B").toUpperCase();
-}
 
 function BotRow(props: {
   readonly environmentId: EnvironmentId;
@@ -157,12 +154,7 @@ function BotRow(props: {
   return (
     <li className="rounded-xl border border-border/60 bg-card/40 px-4 py-3">
       <div className="flex items-start gap-3">
-        <span
-          className="mt-0.5 flex size-9 shrink-0 select-none items-center justify-center rounded-lg bg-muted text-sm font-semibold"
-          aria-hidden
-        >
-          {botAvatarLabel(bot)}
-        </span>
+        <BotAvatar bot={bot} size={32} className="mt-0.5 shrink-0" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="truncate text-sm font-medium">{bot.name}</span>
@@ -172,8 +164,10 @@ function BotRow(props: {
               </span>
             ) : null}
           </div>
-          {bot.description ? (
-            <p className="mt-0.5 truncate text-2xs text-muted-foreground">{bot.description}</p>
+          {bot.role || bot.description ? (
+            <p className="mt-0.5 truncate text-2xs text-muted-foreground">
+              {[bot.role, bot.description].filter(Boolean).join(" · ")}
+            </p>
           ) : null}
           <p className="mt-1 text-2xs text-muted-foreground">
             {bot.modelSelection.model} · {m(APPROVAL_MODE_RUNTIME_LABELS[bot.approvalMode])} ·{" "}

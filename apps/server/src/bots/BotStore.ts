@@ -52,6 +52,14 @@ const parseProfileJson = (raw: string): unknown | undefined => {
     return undefined;
   }
 };
+
+// Profiles written before avatars became structured carry a string; treat it as unset.
+const normalizeProfile = (parsed: unknown): unknown => {
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return parsed;
+  const { avatar, ...rest } = parsed as Record<string, unknown>;
+  if (avatar !== undefined && typeof avatar !== "object") return rest;
+  return parsed;
+};
 const profileJson = (profile: BotProfile) => `${JSON.stringify(profile, null, 2)}\n`;
 
 function slugifyBotName(name: string): string {
@@ -117,7 +125,7 @@ export const layer = Layer.effect(
       if (parsed === undefined) {
         return { folder, message: `${PROFILE_FILE} is not valid JSON.` };
       }
-      const profile = yield* decodeProfile(parsed).pipe(
+      const profile = yield* decodeProfile(normalizeProfile(parsed)).pipe(
         Effect.mapError((error) => ({
           folder,
           message: `${PROFILE_FILE} is not a valid bot profile: ${String(error.message)}`,

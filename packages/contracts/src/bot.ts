@@ -27,6 +27,44 @@ export const BOT_SOUL_MAX_BYTES = 24_000;
 export const BotApprovalMode = Schema.Literals(["ask", "auto-safe", "full"]);
 export type BotApprovalMode = typeof BotApprovalMode.Type;
 
+export const BOT_AVATAR_SHAPES = ["rectangle", "square", "circle", "hexagon"] as const;
+export const BotAvatarShape = Schema.Literals(BOT_AVATAR_SHAPES);
+export type BotAvatarShape = typeof BotAvatarShape.Type;
+
+export const BOT_AVATAR_COLORS = [
+  "#00d47e",
+  "#3b82f6",
+  "#f59e0b",
+  "#a855f7",
+  "#ec4899",
+  "#06b6d4",
+  "#ef4444",
+  "#84cc16",
+] as const;
+
+export const BotAvatar = Schema.Struct({
+  shape: BotAvatarShape,
+  color: Schema.String.check(Schema.isPattern(/^#[0-9a-fA-F]{6}$/)),
+});
+export type BotAvatar = typeof BotAvatar.Type;
+
+/** Bots without a chosen avatar still get a stable head, derived from their id. */
+export function botAvatarOrDefault(bot: {
+  readonly id: string;
+  readonly avatar?: BotAvatar | undefined;
+}): BotAvatar {
+  if (bot.avatar !== undefined) return bot.avatar;
+  let hash = 0;
+  for (let i = 0; i < bot.id.length; i++) {
+    hash = (hash * 31 + bot.id.charCodeAt(i)) | 0;
+  }
+  const index = Math.abs(hash);
+  return {
+    shape: BOT_AVATAR_SHAPES[index % BOT_AVATAR_SHAPES.length]!,
+    color: BOT_AVATAR_COLORS[(index >>> 4) % BOT_AVATAR_COLORS.length]!,
+  };
+}
+
 /** The runtime mode a bot's threads launch with, derived from its approval mode. */
 export function botRuntimeMode(mode: BotApprovalMode): RuntimeMode {
   switch (mode) {
@@ -52,9 +90,13 @@ export function botThreadTag(id: BotId): string {
 export const BotProfile = Schema.Struct({
   id: BotId,
   name: TrimmedNonEmptyString.check(Schema.isMaxLength(100), Schema.isPattern(/^[^\r\n]+$/)),
-  avatar: Schema.optional(Schema.String.check(Schema.isMaxLength(8))),
+  avatar: Schema.optional(BotAvatar),
+  role: Schema.optional(
+    Schema.String.check(Schema.isMaxLength(60), Schema.isPattern(/^[^\r\n]*$/)),
+  ),
   description: Schema.optional(Schema.String.check(Schema.isMaxLength(1000))),
   enabled: Schema.Boolean,
+  pinned: Schema.Boolean.pipe(Schema.withDecodingDefaultKey(Effect.succeed(false))),
   projectId: ProjectId,
   workspaceStrategy: OrchestrationV2ThreadLaunchWorkspaceStrategy,
   modelSelection: ModelSelection,
@@ -106,8 +148,11 @@ export const BotUpsertInput = Schema.Struct({
   id: Schema.optional(BotId),
   name: BotProfile.fields.name,
   avatar: BotProfile.fields.avatar,
+  role: BotProfile.fields.role,
   description: BotProfile.fields.description,
   enabled: Schema.Boolean,
+  /** Omitted on update: keep the stored value. Omitted on create: false. */
+  pinned: Schema.optional(Schema.Boolean),
   projectId: ProjectId,
   workspaceStrategy: OrchestrationV2ThreadLaunchWorkspaceStrategy,
   modelSelection: ModelSelection,

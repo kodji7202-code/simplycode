@@ -2,13 +2,23 @@ import { msg, T, useGT } from "gt-react-native";
 import * as Dialog from "../../components/ui/Dialog";
 import { useAtomValue } from "@effect/atom-react";
 import {
+  BOT_AVATAR_COLORS,
+  BOT_AVATAR_SHAPES,
   BOT_SOUL_MAX_BYTES,
   BotId,
   CommandId,
   EnvironmentId,
+  botAvatarOrDefault,
   resolveEnvironmentMachineKind,
 } from "@t3tools/contracts";
-import type { Bot, BotApprovalMode, BotUpsertInput, ModelSelection } from "@t3tools/contracts";
+import type {
+  Bot,
+  BotApprovalMode,
+  BotAvatar,
+  BotAvatarShape,
+  BotUpsertInput,
+  ModelSelection,
+} from "@t3tools/contracts";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
@@ -49,6 +59,7 @@ import {
   createDraft,
   scheduledTaskDefaultModel,
 } from "../settings/scheduledTaskDraft";
+import { BotAvatarView } from "./BotAvatarView";
 
 const APPROVAL_MODES: ReadonlyArray<{
   readonly id: BotApprovalMode;
@@ -71,16 +82,12 @@ function failureMessage(result: AtomCommandResult<unknown, unknown>): string | n
     : null;
 }
 
-function Avatar(props: { readonly bot: Bot }) {
-  const label = (props.bot.avatar ?? "").trim() || props.bot.name.trim().charAt(0) || "?";
-  return (
-    <View className="h-9 w-9 items-center justify-center rounded-full bg-grouped-card-secondary">
-      <Text className="text-base text-foreground" numberOfLines={1}>
-        {label}
-      </Text>
-    </View>
-  );
-}
+const AVATAR_SHAPE_LABELS: Record<BotAvatarShape, string> = {
+  rectangle: msg("Rectangle"),
+  square: msg("Square"),
+  circle: msg("Circle"),
+  hexagon: msg("Hexagon"),
+};
 
 export function SettingsBotsRouteScreen() {
   const gt = useGT();
@@ -258,14 +265,14 @@ function EnvironmentBots(props: {
                 onPress={() => props.onEdit(bot)}
                 className="min-w-0 flex-1 flex-row items-start gap-2 active:opacity-70"
               >
-                <Avatar bot={bot} />
+                <BotAvatarView bot={bot} size={36} />
                 <View className="min-w-0 flex-1 gap-1">
                   <Text textRole="body" className="text-foreground" numberOfLines={1}>
                     {bot.name}
                   </Text>
-                  {bot.description?.trim() ? (
+                  {[bot.role, bot.description].some((value) => value?.trim()) ? (
                     <Text className="text-sm text-foreground-muted" numberOfLines={2}>
-                      {bot.description}
+                      {[bot.role, bot.description].filter((value) => value?.trim()).join(" · ")}
                     </Text>
                   ) : null}
                   <Text className="text-sm text-foreground-muted" numberOfLines={1}>
@@ -380,8 +387,10 @@ export type BotRouteParams = {
 
 type BotDraft = {
   readonly name: string;
-  readonly avatar: string;
+  readonly avatar: BotAvatar;
+  readonly role: string;
   readonly description: string;
+  readonly pinned: boolean;
   readonly projectId: Bot["projectId"] | null;
   readonly workspace: "root" | "worktree" | "existing_worktree";
   readonly checkoutPath: string;
@@ -398,8 +407,10 @@ function draftForNewBot(
 ): BotDraft {
   return {
     name: "",
-    avatar: "",
+    avatar: { shape: "rectangle", color: BOT_AVATAR_COLORS[0] },
+    role: "",
     description: "",
+    pinned: false,
     projectId,
     workspace: "worktree",
     checkoutPath: "",
@@ -414,8 +425,10 @@ function draftForNewBot(
 function draftForBot(bot: Bot, soul: string): BotDraft {
   return {
     name: bot.name,
-    avatar: bot.avatar ?? "",
+    avatar: botAvatarOrDefault(bot),
+    role: bot.role ?? "",
     description: bot.description ?? "",
+    pinned: bot.pinned,
     projectId: bot.projectId,
     workspace: bot.workspaceStrategy.type,
     checkoutPath:
@@ -624,9 +637,11 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
     const input: BotUpsertInput = {
       ...(botId !== null ? { id: botId } : {}),
       name,
-      ...(form.avatar.trim() ? { avatar: form.avatar.trim() } : {}),
+      avatar: form.avatar,
+      role: form.role.trim(),
       ...(form.description.trim() ? { description: form.description.trim() } : {}),
       enabled: existing.data?.bot.enabled ?? true,
+      pinned: form.pinned,
       projectId: form.projectId,
       workspaceStrategy:
         form.workspace === "root"
@@ -730,13 +745,64 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
                 onChange={(name) => set({ name })}
               />
               <FormField
-                label={gt("Avatar")}
-                value={form.avatar}
-                placeholder={gt("Emoji or initials")}
+                label={gt("Role")}
+                value={form.role}
+                placeholder={gt("Reviewer")}
                 disabled={!canOperate || saving}
-                maxLength={8}
+                maxLength={60}
                 borderTop
-                onChange={(avatar) => set({ avatar })}
+                onChange={(role) => set({ role })}
+              />
+              <View className="gap-2 border-t border-border-subtle px-4 py-3">
+                <Text textRole="footnote" className="text-foreground-muted">
+                  {gt("Avatar")}
+                </Text>
+                <View className="flex-row items-center gap-3">
+                  <BotAvatarView
+                    bot={{
+                      id: botId ?? "new-bot",
+                      name: form.name.trim() || "bot",
+                      avatar: form.avatar,
+                      enabled: existing.data?.bot.enabled ?? true,
+                    }}
+                    size={44}
+                  />
+                  <View className="flex-1 flex-row flex-wrap gap-2">
+                    {BOT_AVATAR_COLORS.map((color) => (
+                      <Pressable
+                        key={color}
+                        accessibilityRole="button"
+                        accessibilityLabel={color}
+                        disabled={!canOperate || saving}
+                        onPress={() => set({ avatar: { ...form.avatar, color } })}
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 12,
+                          backgroundColor: color,
+                          borderWidth: 2,
+                          borderColor: form.avatar.color === color ? "#ffffff" : "transparent",
+                        }}
+                      />
+                    ))}
+                  </View>
+                </View>
+              </View>
+              <SelectRow
+                label={gt("Shape")}
+                borderTop
+                value={m(AVATAR_SHAPE_LABELS[form.avatar.shape])}
+                disabled={!canOperate || saving}
+                actions={BOT_AVATAR_SHAPES.map((shape) => ({
+                  id: shape,
+                  title: m(AVATAR_SHAPE_LABELS[shape]),
+                  state: shape === form.avatar.shape ? "on" : undefined,
+                }))}
+                onSelect={(id) => {
+                  if ((BOT_AVATAR_SHAPES as ReadonlyArray<string>).includes(id)) {
+                    set({ avatar: { ...form.avatar, shape: id as BotAvatarShape } });
+                  }
+                }}
               />
               <FormField
                 label={gt("Description")}
@@ -881,6 +947,19 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
                 borderTop
                 onChange={(maxCost) => set({ maxCost })}
               />
+            </SettingsSection>
+            <SettingsSection>
+              <View className="min-h-14 flex-row items-center gap-3 px-4 py-3">
+                <Text textRole="body" className="min-w-0 flex-1 text-foreground">
+                  {gt("Pin to top")}
+                </Text>
+                <ThemedSwitch
+                  accessibilityLabel={gt("Pin to top")}
+                  value={form.pinned}
+                  disabled={!canOperate || saving}
+                  onValueChange={(pinned) => set({ pinned })}
+                />
+              </View>
             </SettingsSection>
             <View className="gap-3">
               {canOperate ? (

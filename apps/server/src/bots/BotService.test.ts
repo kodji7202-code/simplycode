@@ -176,16 +176,28 @@ it.effect("creates a bot with a slug id and keeps the soul on update", () =>
     Effect.gen(function* () {
       const service = yield* BotService.BotService;
       const created = yield* service.upsert(
-        upsertInput({ name: "Night Watch", soul: "Stand guard." }),
+        upsertInput({
+          name: "Night Watch",
+          soul: "Stand guard.",
+          avatar: { shape: "circle", color: "#3b82f6" },
+          role: "Watcher",
+          pinned: true,
+        }),
       );
       expect(created.bot.id).toBe("night-watch");
+      expect(created.bot.avatar).toEqual({ shape: "circle", color: "#3b82f6" });
+      expect(created.bot.role).toBe("Watcher");
+      expect(created.bot.pinned).toBe(true);
       const again = yield* service.upsert(upsertInput({ name: "night watch" }));
       expect(again.bot.id).toBe("night-watch-2");
 
-      yield* service.upsert(upsertInput({ id: created.bot.id, description: "Stays." }));
+      // Omitting pinned keeps the stored value; empty strings still clear role.
+      yield* service.upsert(upsertInput({ id: created.bot.id, description: "Stays.", role: "" }));
       const got = yield* service.get({ id: created.bot.id });
       expect(got.soul).toBe("Stand guard.");
       expect(got.bot.description).toBe("Stays.");
+      expect(got.bot.pinned).toBe(true);
+      expect(got.bot.role).toBe("");
     }),
   ),
 );

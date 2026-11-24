@@ -174,7 +174,9 @@ export const layer = Layer.effect(
           limits: input.limits ?? existing?.limits ?? {},
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
+          pinned: input.pinned ?? existing?.pinned ?? false,
           ...(input.avatar === undefined ? {} : { avatar: input.avatar }),
+          ...(input.role === undefined ? {} : { role: input.role }),
           ...(input.description === undefined ? {} : { description: input.description }),
         };
         const bot = yield* store.write(profile, input.soul);
