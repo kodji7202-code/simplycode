@@ -861,6 +861,11 @@ import { T3Wordmark } from "../T3Wordmark";`,
       ["<SidebarBrandMark onBackdrop={onBackdrop} />", "<SidebarBrandMark />"],
       // The offscreen width probe renders the same mark with a fixed prop.
       ["<SidebarBrandMark onBackdrop={false} />", "<SidebarBrandMark />"],
+      // The robot mark's glow must not be clipped by the brand link.
+      [
+        "items-center overflow-hidden rounded-md outline-hidden",
+        "items-center overflow-visible rounded-md outline-hidden",
+      ],
     ],
   },
   {

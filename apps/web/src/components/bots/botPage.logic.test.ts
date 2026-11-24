@@ -1,12 +1,17 @@
 import { botAvatarOrDefault, type Bot, type ScheduledTask } from "@t3tools/contracts";
+import { DateTime } from "effect";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  botActivity,
   botAutomationCount,
   botToDraft,
   draftToBotUpsertInput,
   EMPTY_BOT_DRAFT,
+  filterBots,
+  sortBotsForSidebar,
   soulByteLength,
+  type BotActivity,
 } from "./botPage.logic";
 
 const bot: Bot = {
@@ -114,5 +119,93 @@ describe("botAutomationCount", () => {
       {},
     ] as unknown as ReadonlyArray<ScheduledTask>;
     expect(botAutomationCount(tasks, "night-watch" as Bot["id"])).toBe(2);
+  });
+});
+
+describe("botActivity", () => {
+  const shell = (over: Record<string, unknown>) =>
+    ({
+      tags: ["bot:night-watch"],
+      title: "Nightly sweep",
+      status: "settled",
+      activityRunStatus: null,
+      updatedAt: DateTime.makeUnsafe(new Date(1_000)),
+      latestUserMessageAt: null,
+      archivedAt: null,
+      ...over,
+    }) as never;
+
+  it("aggregates last activity and running state from tagged shells", () => {
+    const shells = [
+      shell({ updatedAt: DateTime.makeUnsafe(new Date(5_000)), title: "older" }),
+      shell({ updatedAt: DateTime.makeUnsafe(new Date(9_000)), title: "newest" }),
+      shell({
+        tags: ["bot:other"],
+        updatedAt: DateTime.makeUnsafe(new Date(50_000)),
+        title: "not mine",
+      }),
+      shell({ status: "running", updatedAt: DateTime.makeUnsafe(new Date(2_000)) }),
+      shell({
+        archivedAt: DateTime.makeUnsafe(new Date(99_000)),
+        updatedAt: DateTime.makeUnsafe(new Date(99_000)),
+      }),
+    ];
+    const activity = botActivity(bot, shells);
+    expect(activity.lastAt).toBe(9_000);
+    expect(activity.lastTitle).toBe("newest");
+    expect(activity.running).toBe(true);
+  });
+
+  it("reports nothing for a bot without shells", () => {
+    expect(botActivity(bot, [shell({ tags: ["bot:other"] })])).toEqual({
+      lastAt: null,
+      lastTitle: null,
+      running: false,
+    });
+  });
+
+  it("prefers latestUserMessageAt over updatedAt", () => {
+    const activity = botActivity(bot, [
+      shell({
+        updatedAt: DateTime.makeUnsafe(new Date(1_000)),
+        latestUserMessageAt: DateTime.makeUnsafe(new Date(7_000)),
+        title: "user ping",
+      }),
+    ]);
+    expect(activity.lastAt).toBe(7_000);
+  });
+});
+
+describe("sortBotsForSidebar", () => {
+  const named = (name: string, pinned = false): Bot => ({ ...bot, name, pinned });
+  const act = (lastAt: number | null): BotActivity => ({
+    lastAt,
+    lastTitle: null,
+    running: false,
+  });
+
+  it("orders pinned first, then activity desc, then name", () => {
+    const a = named("alpha");
+    const b = named("bravo", true);
+    const c = named("charlie");
+    const activities = new Map<Bot, BotActivity>([
+      [a, act(100)],
+      [b, act(1)],
+      [c, act(null)],
+    ]);
+    expect(sortBotsForSidebar([a, b, c], (x) => activities.get(x) ?? act(null))).toEqual([b, a, c]);
+    // Same activity falls back to name order.
+    expect(sortBotsForSidebar([c, a], () => act(5))).toEqual([a, c]);
+  });
+});
+
+describe("filterBots", () => {
+  it("matches name or role, case-insensitive", () => {
+    const reviewer = { ...bot, name: "Reviewer", role: "Gatekeeper" };
+    const cleaner = { ...bot, name: "Cleaner", role: "" };
+    expect(filterBots([reviewer, cleaner], "gate")).toEqual([reviewer]);
+    expect(filterBots([reviewer, cleaner], "CLEAN")).toEqual([cleaner]);
+    expect(filterBots([reviewer, cleaner], "  ")).toHaveLength(2);
+    expect(filterBots([reviewer, cleaner], "zzz")).toHaveLength(0);
   });
 });

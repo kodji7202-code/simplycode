@@ -7,10 +7,12 @@ import {
   type BotUpsertInput,
   type ModelSelection,
   type OrchestrationV2ThreadLaunchWorkspaceStrategy,
+  type OrchestrationV2ThreadShell,
   type ProjectId,
   type ProviderInteractionMode,
   type ScheduledTask,
 } from "@t3tools/contracts";
+import { DateTime } from "effect";
 import { msg } from "gt-react";
 
 export const BOT_APPROVAL_MODES = [
@@ -45,6 +47,17 @@ export const BOT_AVATAR_SHAPE_LABELS = {
   square: msg("Square"),
   circle: msg("Circle"),
   hexagon: msg("Hexagon"),
+} as const;
+
+export const BOT_AVATAR_COLOR_LABELS = {
+  "#00d47e": msg("Emerald"),
+  "#3b82f6": msg("Blue"),
+  "#f59e0b": msg("Amber"),
+  "#a855f7": msg("Purple"),
+  "#ec4899": msg("Pink"),
+  "#06b6d4": msg("Cyan"),
+  "#ef4444": msg("Red"),
+  "#84cc16": msg("Lime"),
 } as const;
 
 /** New bots get a deterministic head until the user picks one. */
@@ -155,4 +168,77 @@ export function draftToBotUpsertInput(
     },
     soul: draft.soul,
   };
+}
+
+type BotShell = Pick<
+  OrchestrationV2ThreadShell,
+  | "tags"
+  | "title"
+  | "status"
+  | "activityRunStatus"
+  | "updatedAt"
+  | "latestUserMessageAt"
+  | "archivedAt"
+>;
+
+const SHELL_ACTIVE_STATUSES: ReadonlySet<BotShell["status"]> = new Set([
+  "queued",
+  "preparing",
+  "starting",
+  "running",
+  "waiting",
+]);
+
+export interface BotActivity {
+  readonly lastAt: number | null;
+  readonly lastTitle: string | null;
+  readonly running: boolean;
+}
+
+const shellActivityAt = (shell: BotShell): number =>
+  Math.max(
+    DateTime.toEpochMillis(shell.updatedAt),
+    shell.latestUserMessageAt === null ? 0 : DateTime.toEpochMillis(shell.latestUserMessageAt),
+  );
+
+/** Aggregates a bot's live thread shells into last-activity and running state. */
+export function botActivity(
+  bot: Pick<Bot, "threadTag">,
+  shells: ReadonlyArray<BotShell>,
+): BotActivity {
+  let lastAt = -1;
+  let lastTitle: string | null = null;
+  let running = false;
+  for (const shell of shells) {
+    if (shell.archivedAt !== null) continue;
+    if (!(shell.tags ?? []).includes(bot.threadTag)) continue;
+    const at = shellActivityAt(shell);
+    if (at > lastAt) {
+      lastAt = at;
+      lastTitle = shell.title;
+    }
+    if (shell.activityRunStatus != null || SHELL_ACTIVE_STATUSES.has(shell.status)) running = true;
+  }
+  return { lastAt: lastAt < 0 ? null : lastAt, lastTitle, running };
+}
+
+/** Sidebar order: pinned first, then most recent activity, then name. */
+export function sortBotsForSidebar(
+  bots: ReadonlyArray<Bot>,
+  activity: (bot: Bot) => BotActivity,
+): Bot[] {
+  return [...bots].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    const diff = (activity(b).lastAt ?? -1) - (activity(a).lastAt ?? -1);
+    if (diff !== 0) return diff;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+export function filterBots(bots: ReadonlyArray<Bot>, query: string): Bot[] {
+  const q = query.trim().toLowerCase();
+  if (q === "") return [...bots];
+  return bots.filter(
+    (bot) => bot.name.toLowerCase().includes(q) || (bot.role ?? "").toLowerCase().includes(q),
+  );
 }
