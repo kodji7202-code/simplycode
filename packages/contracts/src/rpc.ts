@@ -453,6 +453,20 @@ import {
   ScheduledTaskUpsertInput,
   ScheduledTaskMutationResult,
 } from "./scheduledTask.ts";
+import {
+  BotDeleteInput,
+  BotDeleteResult,
+  BotError,
+  BotGetInput,
+  BotGetResult,
+  BotListInput,
+  BotListResult,
+  BotMutationResult,
+  BotRunNowInput,
+  BotRunNowResult,
+  BotSetEnabledInput,
+  BotUpsertInput,
+} from "./bot.ts";
 import { SecretRequestAnswerInput, SecretRequestError } from "./secretRequest.ts";
 import { AgentFeedbackAnswerInput, AgentFeedbackRequestError } from "./agentFeedback.ts";
 import {
@@ -654,6 +668,13 @@ export const WS_METHODS = {
   guestShareCreate: "guestShare.create",
   scheduledTasksListWebhookDeliveries: "scheduledTasks.listWebhookDeliveries",
   scheduledTasksGetWebhookDelivery: "scheduledTasks.getWebhookDelivery",
+
+  botsSubscribe: "bots.subscribe",
+  botsGet: "bots.get",
+  botsUpsert: "bots.upsert",
+  botsSetEnabled: "bots.setEnabled",
+  botsDelete: "bots.delete",
+  botsRunNow: "bots.runNow",
 
   cloudGetRelayClientStatus: "cloud.getRelayClientStatus",
   cloudInstallRelayClient: "cloud.installRelayClient",
@@ -2439,6 +2460,43 @@ const WsScheduledTasksGetWebhookDeliveryRpc = Rpc.make(
   },
 );
 
+const WsBotsSubscribeRpc = Rpc.make(WS_METHODS.botsSubscribe, {
+  payload: BotListInput,
+  success: BotListResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+  stream: true,
+});
+
+const WsBotsGetRpc = Rpc.make(WS_METHODS.botsGet, {
+  payload: BotGetInput,
+  success: BotGetResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
+const WsBotsUpsertRpc = Rpc.make(WS_METHODS.botsUpsert, {
+  payload: BotUpsertInput,
+  success: BotMutationResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
+const WsBotsSetEnabledRpc = Rpc.make(WS_METHODS.botsSetEnabled, {
+  payload: BotSetEnabledInput,
+  success: BotMutationResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
+const WsBotsDeleteRpc = Rpc.make(WS_METHODS.botsDelete, {
+  payload: BotDeleteInput,
+  success: BotDeleteResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
+const WsBotsRunNowRpc = Rpc.make(WS_METHODS.botsRunNow, {
+  payload: BotRunNowInput,
+  success: BotRunNowResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
 const WsSubscribeAuthAccessRpc = Rpc.make(WS_METHODS.subscribeAuthAccess, {
   payload: Schema.Struct({}),
   success: AuthAccessStreamEvent,
@@ -2559,6 +2617,12 @@ export const WsRpcGroup = RpcGroup.make(
   WsAgentFeedbackAnswerRequestRpc,
   WsScheduledTasksListWebhookDeliveriesRpc,
   WsScheduledTasksGetWebhookDeliveryRpc,
+  WsBotsSubscribeRpc,
+  WsBotsGetRpc,
+  WsBotsUpsertRpc,
+  WsBotsSetEnabledRpc,
+  WsBotsDeleteRpc,
+  WsBotsRunNowRpc,
   WsServerReportClientActivityRpc,
   WsCloudGetRelayClientStatusRpc,
   WsCloudInstallRelayClientRpc,
