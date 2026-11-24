@@ -18,7 +18,7 @@ const MANIFEST = `<manifest xmlns:android="http://schemas.android.com/apk/res/an
 </manifest>`;
 
 // Trimmed from the MainActivity.kt that `expo prebuild` generates for this app.
-const MAIN_ACTIVITY = `package com.t3tools.t3code
+const MAIN_ACTIVITY = `package io.github.kodji7202code.simplycode
 
 import android.os.Build
 import android.os.Bundle
@@ -52,8 +52,8 @@ async function prebuildAndroid(input = { manifest: MANIFEST, mainActivity: MAIN_
   NodeFS.writeFileSync(activityPath, input.mainActivity);
 
   const config = withAndroidTabletOrientation({
-    name: "T3 Code",
-    slug: "t3code",
+    name: "SimplyCode",
+    slug: "simplycode",
     orientation: "portrait",
   });
   // Prebuild registers Expo's orientation mod after app plugins. Mods run in

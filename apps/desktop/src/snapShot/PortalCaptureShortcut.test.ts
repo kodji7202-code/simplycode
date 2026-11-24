@@ -115,7 +115,7 @@ function start(bus = new FakeBus(), shortcut = chord, managedByHyprland = false)
   const capture = vi.fn();
   const changed = vi.fn();
   const client = new PortalCaptureShortcut(
-    "com.t3tools.T3Code",
+    "io.github.kodji7202code.simplycode",
     shortcut,
     capture,
     changed,

@@ -9,7 +9,7 @@ Built from the [T3 Screens fork](https://github.com/pingdotgg/react-native-scree
 To update, sync `main` with upstream, merge it and required branches into `t3/main`, bump `5.0.0-t3.N`, pin `t3Fork.upstreamCommit`, commit, tag `t3-v<version>`, and pack from a clean checkout with Node 24 and the fork's pinned Yarn:
 
 ```sh
-yarn --cwd /tmp/t3-screens-fork pack:t3 /absolute/path/to/t3code/apps/mobile/deps
+yarn --cwd /tmp/t3-screens-fork pack:simplycode /absolute/path/to/t3code/apps/mobile/deps
 ```
 
 Push the commit and tag before submitting the app change, replace the old archive, update `apps/mobile/package.json`, and run `vp i`. The same iOS binary supports iPhone, iPad, and Duo; Duo support requires a binary built with the iOS 27.1 SDK (an OTA cannot add native APIs).
