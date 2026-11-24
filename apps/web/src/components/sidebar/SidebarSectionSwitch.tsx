@@ -7,7 +7,7 @@ import { isBotsSectionPage, useNavigateToMainApp } from "./mainAppLocation";
 
 const SEGMENT =
   "rounded-sm px-2 py-1 transition-colors focus-visible:outline-2 focus-visible:outline-ring";
-const ACTIVE = "bg-card text-foreground shadow-xs ring-1 ring-inset ring-update/45";
+const ACTIVE = "bg-card text-foreground shadow-xs ring-1 ring-inset ring-brand/45";
 const IDLE = "text-muted-foreground hover:text-foreground";
 
 /** Threads | Bots — switches the sidebar between the two main app sections. */

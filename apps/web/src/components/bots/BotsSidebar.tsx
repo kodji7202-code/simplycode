@@ -90,7 +90,7 @@ export function BotsSidebar() {
                   search: botSearch(search.env, bot.id),
                 })
               }
-              className="rounded-md p-1 hover:bg-accent/60 focus-visible:outline-2 focus-visible:outline-ring"
+              className="rounded-md p-1 hover:bg-accent/60 hover:ring-1 hover:ring-inset hover:ring-brand/40 focus-visible:outline-2 focus-visible:outline-brand"
             >
               <PinnedBotAvatar bot={bot} activity={activityById.get(bot.id) ?? EMPTY_ACTIVITY} />
             </button>
@@ -138,7 +138,7 @@ export function BotsSidebar() {
                 }
                 className={cn(
                   "flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left",
-                  selected ? "bg-update/10 ring-1 ring-inset ring-update/40" : "hover:bg-accent/60",
+                  selected ? "bg-brand/10 ring-1 ring-inset ring-brand/40" : "hover:bg-accent/60",
                 )}
               >
                 <BotAvatar

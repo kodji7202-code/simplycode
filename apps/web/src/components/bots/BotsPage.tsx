@@ -496,6 +496,13 @@ export function BotsPage() {
                 </WorkspaceBreadcrumbText>
               </WorkspaceBreadcrumbItem>
             </WorkspaceBreadcrumb>
+            <span className="flex-1" />
+            {canOperate && environmentId !== null ? (
+              <Button size="sm" onClick={() => navigateSearch({ create: true })}>
+                <PlusIcon className="size-3.5" />
+                <T>New bot</T>
+              </Button>
+            ) : null}
           </WorkspacePageHeader>
           <div className={cn("w-full flex-1 px-4 pb-4", selected === null && "mx-auto max-w-4xl")}>
             <div className="mb-4 flex items-center justify-between gap-3">
@@ -531,12 +538,6 @@ export function BotsPage() {
               ) : (
                 <span />
               )}
-              {canOperate && environmentId !== null ? (
-                <Button size="sm" onClick={() => navigateSearch({ create: true })}>
-                  <PlusIcon className="size-3.5" />
-                  <T>New bot</T>
-                </Button>
-              ) : null}
             </div>
 
             {botsQuery.error !== null ? (
@@ -600,7 +601,7 @@ export function BotsPage() {
                         <button
                           type="button"
                           onClick={() => navigateSearch({ create: true })}
-                          className="flex h-full min-h-32 w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 px-4 py-3 text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                          className="flex h-full min-h-32 w-full flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border/60 px-4 py-3 text-muted-foreground transition-colors hover:border-brand/50 hover:bg-accent/40 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
                         >
                           <PlusIcon className="size-5" />
                           <span className="text-2xs font-medium">

@@ -32,7 +32,7 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { scheduledTaskDefaultModel } from "../settings/scheduledTasksSettings.logic";
 import { SETTINGS_PICKER_TRIGGER_CLASSNAME } from "../settings/settingsLayout";
 import { ProviderModelPicker } from "../chat/ProviderModelPicker";
-import { TraitsPicker } from "../chat/TraitsPicker";
+import { getTraitsSectionVisibility, TraitsPicker } from "../chat/TraitsPicker";
 import { Button } from "../ui/button";
 import { DialogFooter, DialogPanel } from "../ui/dialog";
 import { Input } from "../ui/input";
@@ -155,6 +155,17 @@ export function BotProfileForm(props: {
     activeInstanceId,
     activeModel,
   );
+  const traitsVisibility =
+    activeSelection !== null && activeEntry
+      ? getTraitsSectionVisibility({
+          provider: activeEntry.driverKind,
+          models: activeEntry.models,
+          model: activeModel,
+          modelOptions: activeSelection.options ?? [],
+          allowPromptInjectedEffort: false,
+          includePlanAgent: selectsPlanAgent(activeSelection.options),
+        })
+      : null;
 
   const soulBytes = soulByteLength(draft.soul);
   const reportFailure = (title: string, error: unknown) => {
@@ -232,13 +243,15 @@ export function BotProfileForm(props: {
             glow
           />
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex flex-wrap gap-1" role="group" aria-label={gt("Shape")}>
+            <div
+              className="grid grid-cols-4 rounded-md bg-muted/70 p-0.5 text-2xs font-medium"
+              role="group"
+              aria-label={gt("Shape")}
+            >
               {BOT_AVATAR_SHAPES.map((shape) => (
-                <Button
+                <button
                   key={shape}
                   type="button"
-                  size="micro"
-                  variant={draft.avatar.shape === shape ? "secondary" : "outline"}
                   aria-pressed={draft.avatar.shape === shape}
                   onClick={() =>
                     setDraft((current) => ({
@@ -246,9 +259,15 @@ export function BotProfileForm(props: {
                       avatar: { ...current.avatar, shape },
                     }))
                   }
+                  className={cn(
+                    "truncate rounded-sm px-1 py-1 transition-colors focus-visible:outline-2 focus-visible:outline-ring",
+                    draft.avatar.shape === shape
+                      ? "bg-card text-foreground shadow-xs ring-1 ring-inset ring-brand/45"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
                 >
                   {m(BOT_AVATAR_SHAPE_LABELS[shape])}
-                </Button>
+                </button>
               ))}
             </div>
             <div className="flex flex-wrap gap-1.5" role="group" aria-label={gt("Color")}>
@@ -308,28 +327,30 @@ export function BotProfileForm(props: {
       </Field>
 
       <Field label={gt("Model")}>
-        <ProviderModelPicker
-          environmentId={environmentId}
-          disabled={saving}
-          activeInstanceId={activeInstanceId}
-          model={activeModel}
-          lockedProvider={null}
-          instanceEntries={instanceEntries}
-          modelOptionsByInstance={modelOptionsByInstance}
-          isComposerOwned={false}
-          triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
-          onInstanceModelChange={(instanceId, model) => {
-            if (instanceId === activeSelection?.instanceId && model === activeSelection.model)
-              return;
-            setDraft((current) => ({
-              ...current,
-              modelSelection: createModelSelection(instanceId, model),
-            }));
-          }}
-        />
+        <div className="flex">
+          <ProviderModelPicker
+            environmentId={environmentId}
+            disabled={saving}
+            activeInstanceId={activeInstanceId}
+            model={activeModel}
+            lockedProvider={null}
+            instanceEntries={instanceEntries}
+            modelOptionsByInstance={modelOptionsByInstance}
+            isComposerOwned={false}
+            triggerClassName={SETTINGS_PICKER_TRIGGER_CLASSNAME}
+            onInstanceModelChange={(instanceId, model) => {
+              if (instanceId === activeSelection?.instanceId && model === activeSelection.model)
+                return;
+              setDraft((current) => ({
+                ...current,
+                modelSelection: createModelSelection(instanceId, model),
+              }));
+            }}
+          />
+        </div>
       </Field>
 
-      {activeSelection !== null && activeEntry ? (
+      {activeSelection !== null && activeEntry && traitsVisibility?.hasAnyControls ? (
         <Field label={gt("Thinking")}>
           <TraitsPicker
             provider={activeEntry.driverKind}
