@@ -107,7 +107,7 @@ runVcsDriverContractSuite<GitVcsDriver.GitVcsDriver, GitContractError>({
 
 it.effect.each([
   {
-    fetchUrl: "https://github.com/pingdotgg/t3code.git",
+    fetchUrl: "https://github.com/kodji7202-code/simplycode.git",
     pushUrl: "git@github.com:octocat/t3code.git",
     lineEnding: "\n",
   },

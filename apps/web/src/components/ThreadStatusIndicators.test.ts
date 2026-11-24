@@ -49,7 +49,7 @@ function pullRequestSummary(
   return {
     provider: SourceControlProviderKind.make("github"),
     projectId: ProjectId.make("project-1"),
-    repository: "pingdotgg/t3code",
+    repository: "kodji7202-code/simplycode",
     number: 42,
     title: "Feature PR",
     url: "https://github.com/pingdotgg/t3code/pull/42",
@@ -81,7 +81,7 @@ describe("resolveDisplayedThreadPr", () => {
   const mergedPr = mergedFeaturePr();
   const linkedPullRequest = {
     projectId: ProjectId.make("project-1"),
-    repository: "pingdotgg/t3code",
+    repository: "kodji7202-code/simplycode",
     number: 42,
     url: "https://github.com/pingdotgg/t3code/pull/42",
   };
