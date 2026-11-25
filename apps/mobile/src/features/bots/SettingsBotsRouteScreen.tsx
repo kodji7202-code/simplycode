@@ -4,6 +4,7 @@ import { useAtomValue } from "@effect/atom-react";
 import {
   BOT_AVATAR_COLORS,
   BOT_AVATAR_SHAPES,
+  BOT_MEMORY_MAX_BYTES,
   BOT_SOUL_MAX_BYTES,
   BotId,
   CommandId,
@@ -25,6 +26,11 @@ import {
   type AtomCommandResult,
 } from "@t3tools/client-runtime/state/runtime";
 import { scheduledTaskWorktreeBaseRef } from "@t3tools/client-runtime/scheduled-task-worktree";
+import {
+  dedupeProviderSkillsByName,
+  isProviderSkillUserInvocable,
+  resolveProviderSkillsForCwd,
+} from "@t3tools/client-runtime/providerSkills";
 import { useNavigation, type StaticScreenProps } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useState } from "react";
@@ -397,6 +403,7 @@ type BotDraft = {
   readonly modelSelection: ModelSelection | null;
   readonly approvalMode: BotApprovalMode;
   readonly soul: string | null;
+  readonly memory: string | null;
   readonly maxSteps: string;
   readonly maxCost: string;
 };
@@ -417,12 +424,13 @@ function draftForNewBot(
     modelSelection: model,
     approvalMode: "ask",
     soul: "",
+    memory: "",
     maxSteps: "",
     maxCost: "",
   };
 }
 
-function draftForBot(bot: Bot, soul: string): BotDraft {
+function draftForBot(bot: Bot, soul: string, memory: string): BotDraft {
   return {
     name: bot.name,
     avatar: botAvatarOrDefault(bot),
@@ -436,6 +444,7 @@ function draftForBot(bot: Bot, soul: string): BotDraft {
     modelSelection: bot.modelSelection,
     approvalMode: bot.approvalMode,
     soul,
+    memory,
     maxSteps: bot.limits.maxStepsPerRun === undefined ? "" : String(bot.limits.maxStepsPerRun),
     maxCost: bot.limits.maxCostUsd === undefined ? "" : String(bot.limits.maxCostUsd),
   };
@@ -570,6 +579,14 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
     label: "bot run",
     reportFailure: false,
   });
+  const installBotSkill = useAtomCommand(serverEnvironment.installBotSkill, {
+    label: "bot install skill",
+    reportFailure: false,
+  });
+  const removeBotSkill = useAtomCommand(serverEnvironment.removeBotSkill, {
+    label: "bot remove skill",
+    reportFailure: false,
+  });
   const tasks = useEnvironmentQuery(
     serverEnvironment.scheduledTasksLive({ environmentId, input: {} }),
   );
@@ -582,7 +599,7 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
           scheduledTaskDefaultModel(config, projects[0] ?? null),
         )
       : existing.data
-        ? draftForBot(existing.data.bot, existing.data.soul)
+        ? draftForBot(existing.data.bot, existing.data.soul, existing.data.memory)
         : null);
   const form = seeded;
 
@@ -598,7 +615,24 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
     undefined,
     form?.projectId ?? null,
   );
+  const providers = useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? [];
+  const botsList = useEnvironmentQuery(serverEnvironment.botsLive({ environmentId, input: {} }));
+  const liveBot = botsList.data?.bots.find((bot) => bot.id === botId);
+  const botProvider = providers.find(
+    (provider) => provider.instanceId === form?.modelSelection?.instanceId,
+  );
+  const installedSkillNames = new Set<string>((liveBot?.skills ?? []).map((skill) => skill.name));
+  const installableSkills =
+    botProvider === undefined
+      ? []
+      : dedupeProviderSkillsByName(
+          resolveProviderSkillsForCwd(botProvider, project?.workspaceRoot ?? null).filter(
+            isProviderSkillUserInvocable,
+          ),
+        ).filter((skill) => !installedSkillNames.has(skill.name));
+  const [skillBusy, setSkillBusy] = useState(false);
   const soulBytes = new TextEncoder().encode(form?.soul ?? "").length;
+  const memoryBytes = new TextEncoder().encode(form?.memory ?? "").length;
   const automationCount =
     botId === null ? 0 : (tasks.data?.tasks.filter((task) => task.botId === botId).length ?? 0);
 
@@ -612,6 +646,7 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
     if (!form) return;
     const name = form.name.trim();
     const soul = form.soul ?? "";
+    const memory = form.memory ?? "";
     const maxSteps = form.maxSteps.trim();
     const maxCost = form.maxCost.trim();
     const stepsNumber = maxSteps === "" ? undefined : Number(maxSteps);
@@ -624,6 +659,13 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
       Dialog.alert(
         gt("Standing instructions too long"),
         gt("Keep them under {max} bytes.", { max: BOT_SOUL_MAX_BYTES }),
+      );
+      return;
+    }
+    if (memoryBytes > BOT_MEMORY_MAX_BYTES) {
+      Dialog.alert(
+        gt("Memory too long"),
+        gt("Keep it under {max} bytes.", { max: BOT_MEMORY_MAX_BYTES }),
       );
       return;
     }
@@ -660,6 +702,7 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
         ...(costNumber !== undefined ? { maxCostUsd: costNumber } : {}),
       },
       ...(botId === null || soul !== existing.data?.soul ? { soul } : {}),
+      ...(botId === null || memory !== existing.data?.memory ? { memory } : {}),
     };
     setSaving(true);
     const result = await upsert({ environmentId, input });
@@ -686,6 +729,40 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
     selectDetail({
       name: "Thread",
       params: { environmentId: String(environmentId), threadId: String(result.value.threadId) },
+    });
+  };
+
+  const installSkill = (index: number) => {
+    const skill = installableSkills[index];
+    if (skill === undefined || botId === null || skillBusy) return;
+    setSkillBusy(true);
+    void installBotSkill({
+      environmentId,
+      input: { id: botId, sourcePath: skill.path },
+    }).then((result) => {
+      setSkillBusy(false);
+      const message = failureMessage(result);
+      if (message !== null) Dialog.alert(gt("Could not install skill"), message);
+    });
+  };
+
+  const removeSkill = (name: BotId) => {
+    if (botId === null || skillBusy) return;
+    setSkillBusy(true);
+    void removeBotSkill({ environmentId, input: { id: botId, name } }).then((result) => {
+      setSkillBusy(false);
+      const message = failureMessage(result);
+      if (message !== null) Dialog.alert(gt("Could not remove skill"), message);
+    });
+  };
+
+  const clearMemory = () => {
+    Dialog.confirm({
+      title: gt("Clear memory?"),
+      message: gt("This bot's MEMORY.md will be cleared when you save."),
+      confirmText: gt("Clear"),
+      destructive: true,
+      onConfirm: () => set({ memory: "" }),
     });
   };
 
@@ -931,6 +1008,89 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
                 onChange={(soul) => set({ soul })}
               />
             </SettingsSection>
+            <SettingsSection
+              title={gt("Memory")}
+              footer={gt("{bytes} / {max} KB", {
+                bytes: memoryBytes,
+                max: BOT_MEMORY_MAX_BYTES / 1024,
+              })}
+            >
+              <FormField
+                label={gt("MEMORY.md")}
+                value={form.memory ?? ""}
+                placeholder={gt("Facts and lessons this bot keeps between runs.")}
+                multiline
+                disabled={!canOperate || saving}
+                onChange={(memory) => set({ memory })}
+              />
+              <Pressable
+                accessibilityRole="button"
+                disabled={!canOperate || saving || (form.memory ?? "").length === 0}
+                onPress={clearMemory}
+                className="min-h-12 flex-row items-center border-t border-border-subtle px-4 py-3 active:opacity-70"
+              >
+                <Text textRole="body" className="text-danger-foreground">
+                  {gt("Clear memory")}
+                </Text>
+              </Pressable>
+            </SettingsSection>
+            {botId !== null ? (
+              <SettingsSection title={gt("Skills")}>
+                {(liveBot?.skills ?? []).length === 0 ? (
+                  <View className="px-4 py-3">
+                    <Text textRole="body" className="text-foreground-muted">
+                      {gt("No skills installed.")}
+                    </Text>
+                  </View>
+                ) : (
+                  (liveBot?.skills ?? []).map((skill, index) => (
+                    <View
+                      key={skill.name}
+                      className={
+                        index === 0
+                          ? "min-h-14 flex-row items-center gap-3 px-4 py-3"
+                          : "min-h-14 flex-row items-center gap-3 border-t border-border-subtle px-4 py-3"
+                      }
+                    >
+                      <View className="min-w-0 flex-1">
+                        <Text textRole="body" className="text-foreground">
+                          {skill.name}
+                        </Text>
+                        {skill.description !== undefined ? (
+                          <Text textRole="footnote" className="text-foreground-muted">
+                            {skill.description}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={gt("Remove {name}", { name: skill.name })}
+                        disabled={!canOperate || skillBusy}
+                        onPress={() => removeSkill(skill.name)}
+                      >
+                        <Text textRole="body" className="text-danger-foreground">
+                          {gt("Remove")}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ))
+                )}
+                <SelectRow
+                  label={gt("Add a skill")}
+                  borderTop={(liveBot?.skills ?? []).length > 0}
+                  value=""
+                  disabled={!canOperate || skillBusy || installableSkills.length === 0}
+                  actions={installableSkills.map((skill, index) => ({
+                    id: String(index),
+                    title:
+                      skill.description === undefined
+                        ? skill.name
+                        : `${skill.name}: ${skill.description}`,
+                  }))}
+                  onSelect={(id) => installSkill(Number(id))}
+                />
+              </SettingsSection>
+            ) : null}
             <SettingsSection title={gt("Limits")}>
               <FormField
                 label={gt("Max steps per run")}
