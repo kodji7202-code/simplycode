@@ -18,6 +18,7 @@ import { commandLabel } from "./KeybindingsSettings.logic";
 import type { ResolvedSettingsScope } from "./settingsScope";
 
 export type SettingsPath =
+  | "/usage"
   | "/settings/projects"
   | "/settings/general"
   | "/settings/diagnostics"
@@ -97,6 +98,7 @@ export interface SettingsSearchAvailability {
 }
 
 export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
+  "/usage": msg("Usage"),
   "/settings/diagnostics": msg("Diagnostics"),
   "/settings/projects": msg("Projects"),
   "/settings/general": msg("General"),
@@ -156,6 +158,7 @@ const ALL_SETTINGS_NAV_GROUPS: ReadonlyArray<SettingsNavGroup> = [
     heading: msg("Agents"),
     paths: [
       "/settings/providers",
+      "/usage",
       "/settings/threads",
       "/settings/browser",
       "/settings/devices",
@@ -1525,6 +1528,7 @@ export type SettingsSearchItemId = (typeof SETTINGS_SEARCH_ITEMS)[number]["id"];
 const SEARCH_ITEMS_BY_ID = new Map(SETTINGS_SEARCH_ITEMS.map((item) => [item.id, item] as const));
 
 const SETTINGS_CATEGORY_SCOPES: Readonly<Record<SettingsPath, SettingsSearchScope | null>> = {
+  "/usage": null,
   "/settings/diagnostics": "environment",
   "/settings/projects": "project",
   "/settings/general": null,

@@ -687,31 +687,6 @@ export function BotProfileForm(props: {
         </Field>
       ) : null}
 
-      <div className="flex gap-3">
-        <Field label={gt("Max steps per run")} htmlFor="bot-max-steps" className="flex-1">
-          <Input
-            id="bot-max-steps"
-            inputMode="numeric"
-            value={draft.maxStepsPerRun}
-            placeholder={gt("No limit")}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, maxStepsPerRun: event.target.value }))
-            }
-          />
-        </Field>
-        <Field label={gt("Max cost (USD)")} htmlFor="bot-max-cost" className="flex-1">
-          <Input
-            id="bot-max-cost"
-            inputMode="decimal"
-            value={draft.maxCostUsd}
-            placeholder={gt("No limit")}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, maxCostUsd: event.target.value }))
-            }
-          />
-        </Field>
-      </div>
-
       <div className="flex items-center justify-between gap-2">
         <Label htmlFor="bot-pinned">
           <T>Pin to top</T>

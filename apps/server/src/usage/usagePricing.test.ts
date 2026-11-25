@@ -83,6 +83,20 @@ describe("usage pricing", () => {
     expect(cacheSavingsUsd(table, unlisted)).toBeCloseTo(0.9);
   });
 
+  it("prices a Devin effort-suffixed id at the base model rate", () => {
+    const table = parseRateTable({ "claude-opus-5-5": rate(15e-6, 1.5e-6) });
+    const suffixed = { ...record("claude-opus-5-5-max"), rateModel: "claude-opus-5-5" };
+
+    expect(priceUsage(table, suffixed)).toEqual(priceUsage(table, record("claude-opus-5-5")));
+    expect(priceUsage(table, suffixed).costSource).toBe("modelPriced");
+
+    const unknownBase = { ...record("claude-opus-9-9-max"), rateModel: "claude-opus-9-9" };
+    expect(priceUsage(table, unknownBase).costSource).toBe("unpriced");
+
+    const swe = { ...record("swe-2-high"), rateModel: "swe-2" };
+    expect(priceUsage(table, swe).costSource).toBe("unpriced");
+  });
+
   it("prices unknown models offline and uses input prices for omitted cache rates", () => {
     const table = parseRateTable({});
     const overrides = createOverrideRateTable({

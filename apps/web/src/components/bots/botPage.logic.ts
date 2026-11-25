@@ -93,8 +93,6 @@ export interface BotDraft {
   readonly stayInProject: boolean;
   readonly soul: string;
   readonly memory: string;
-  readonly maxStepsPerRun: string;
-  readonly maxCostUsd: string;
 }
 
 export const EMPTY_BOT_DRAFT: BotDraft = {
@@ -114,8 +112,6 @@ export const EMPTY_BOT_DRAFT: BotDraft = {
   stayInProject: true,
   soul: "",
   memory: "",
-  maxStepsPerRun: "",
-  maxCostUsd: "",
 };
 
 export function botToDraft(bot: Bot, soul: string, memory: string): BotDraft {
@@ -136,8 +132,6 @@ export function botToDraft(bot: Bot, soul: string, memory: string): BotDraft {
     stayInProject: bot.stayInProject,
     soul,
     memory,
-    maxStepsPerRun: bot.limits.maxStepsPerRun?.toString() ?? "",
-    maxCostUsd: bot.limits.maxCostUsd?.toString() ?? "",
   };
 }
 
@@ -168,8 +162,6 @@ export function draftToBotUpsertInput(
   const name = draft.name.trim();
   const modelSelection = draft.modelSelection;
   if (!name || modelSelection === null) return null;
-  const steps = Number.parseInt(draft.maxStepsPerRun, 10);
-  const cost = Number.parseFloat(draft.maxCostUsd);
   return {
     ...(draft.editingId === null ? {} : { id: draft.editingId }),
     name,
@@ -186,10 +178,6 @@ export function draftToBotUpsertInput(
     interactionMode: draft.interactionMode,
     canManageBots: draft.canManageBots,
     stayInProject: draft.stayInProject,
-    limits: {
-      ...(Number.isSafeInteger(steps) && steps >= 1 ? { maxStepsPerRun: steps } : {}),
-      ...(Number.isFinite(cost) && cost > 0 ? { maxCostUsd: cost } : {}),
-    },
     soul: draft.soul,
     memory: draft.memory,
   };

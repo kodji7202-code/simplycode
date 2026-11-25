@@ -131,6 +131,12 @@ const SETTINGS_SEARCH_TERMS = {
     msg("restore", { $context: "settings search keyword" }),
     msg("unarchive", { $context: "settings search keyword" }),
   ],
+  SettingsUsage: [
+    msg("usage", { $context: "settings search keyword" }),
+    msg("tokens", { $context: "settings search keyword" }),
+    msg("cost", { $context: "settings search keyword" }),
+    msg("limits", { $context: "settings search keyword" }),
+  ],
   SettingsProviderAccounts: [
     msg("provider accounts", { $context: "settings search keyword" }),
     "codex",

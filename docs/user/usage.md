@@ -1,14 +1,14 @@
 # Usage and limits
 
-Open **Usage** from the sidebar or the command palette, or press `mod+u` on web and
+Open **Usage** from the sidebar, **Settings → Usage**, or the command palette, or press `mod+u` on web and
 desktop when the terminal is not focused. Customize `usage.open` in
 **Settings → Keybindings**.
 
-On mobile, choose **Usage** in the workspace navigation.
+On mobile, choose **Usage** in the workspace navigation or in **Settings**.
 
 ## Understand your usage
 
-**Usage** combines Codex, Claude Code, Grok Build, OpenCode, Antigravity, Pi, Muse Code, and Cursor history
+**Usage** combines Codex, Claude Code, Grok Build, OpenCode, Antigravity, Pi, Muse Code, Devin, and Cursor history
 from your connected environments. It shows token use, cache savings, model breakdowns, and estimated API-equivalent
 cost, split by token type and by speed. These estimates are not your subscription bill.
 **Premium** is what Fast and Ultrafast requests cost above standard rates. Cost that cannot be
@@ -45,6 +45,11 @@ variable to the same directory. Pi includes recorded tool and summary costs unde
 Muse Code reads native session history, including child sessions, from the home reported by the
 configured Muse CLI. Its environment settings, including `XDG_DATA_HOME`, apply. Models without
 known prices still contribute tokens and appear as unpriced; set custom prices to estimate their cost.
+Devin reads response token metrics from the Devin CLI's `sessions.db` under its data directory
+(`%APPDATA%\devin\cli` on Windows, `~/.config/devin` elsewhere). Set `DEVIN_DATA_DIR` on the
+server to read a different data directory; comma-separated paths read multiple directories.
+The estimates are API-equivalent costs, not Devin credits or ACUs, and models without public
+prices appear as unpriced so you can set custom prices for them.
 Use absolute paths or `~/` paths in the account's environment settings; relative environment paths
 depend on each project's working directory and cannot be reliably discovered by Usage. Accounts
 sharing a history directory count once.
@@ -106,7 +111,7 @@ To count only some models, or to leave some out, add `usageModelFilter` to the s
 ```
 
 `include` keeps only the listed models and `exclude` leaves the listed models out. `provider` is
-one of `claude`, `codex`, `cursor`, `grok`, `opencode`, `antigravity`, `pi`, or `muse`; omit it
+one of `claude`, `codex`, `cursor`, `grok`, `opencode`, `antigravity`, `pi`, `muse`, or `devin`; omit it
 to match a model ID from any provider. Use the model ID that Usage shows without **Map to**, such
 as a provider-prefixed ID for Pi. Filters apply before **Map to**, so a model you leave out is not
 counted under its mapped name. Usage applies each environment's own filter. Remove the setting to

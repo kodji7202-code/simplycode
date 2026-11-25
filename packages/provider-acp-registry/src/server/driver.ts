@@ -29,6 +29,7 @@ import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
 import * as ProviderHost from "@t3tools/provider-core/server/ProviderHost";
 import { AcpRegistryAdapterV2Driver, type AcpRegistryAdapterV2DriverEnv } from "./adapter.ts";
+import { devinUsageReader, type DevinUsageReaderEnv } from "./devinUsage.ts";
 import type { ProviderTextGeneration } from "@t3tools/provider-core/server/textGeneration";
 import { ProviderDriverError } from "@t3tools/provider-core/server/errors";
 import { makeManagedServerProvider } from "@t3tools/provider-core/server/managedProvider";
@@ -628,7 +629,11 @@ export type AcpRegistryDriverEnv =
   | Digest.Digest
   | ProviderHost.ProviderHost;
 
-export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryDriverEnv> = {
+export const AcpRegistryDriver: ProviderDriver<
+  AcpRegistrySettings,
+  AcpRegistryDriverEnv,
+  DevinUsageReaderEnv
+> = {
   driverKind: DRIVER_KIND,
   metadata: {
     displayName: "ACP Registry",
@@ -636,6 +641,7 @@ export const AcpRegistryDriver: ProviderDriver<AcpRegistrySettings, AcpRegistryD
     hasDefaultInstance: false,
   },
   configSchema: AcpRegistrySettings,
+  usage: devinUsageReader,
   defaultConfig: () => decodeSettings({}),
   create: Effect.fn("AcpRegistryDriver.create")(function* ({
     instanceId,

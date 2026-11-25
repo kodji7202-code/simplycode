@@ -55,8 +55,9 @@ describe("botToDraft", () => {
       workspaceStrategy: { type: "root" },
       soul: "soul text",
       memory: "memory text",
-      limits: { maxStepsPerRun: 25 },
     });
+    // Limits are no longer editable; omitting them keeps the stored value.
+    expect(input).not.toHaveProperty("limits");
   });
 
   it("rejects a draft without a name or model", () => {
