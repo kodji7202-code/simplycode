@@ -83,16 +83,42 @@ const readLayerSource = Effect.fn("androidIcons.readLayerSource")(function* (
   );
 });
 
+const readLayerBytes = Effect.fn("androidIcons.readLayerBytes")(function* (
+  repositoryRoot: string,
+  variant: IconVariant,
+  file: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  return Buffer.from(
+    yield* fs.readFile(
+      path.join(repositoryRoot, "assets", variant, "app-icon.icon", "Assets", file),
+    ),
+  );
+});
+
 const renderForeground = Effect.fn("androidIcons.renderForeground")(function* (
   repositoryRoot: string,
   size: number,
+  fraction = 0.62,
 ) {
-  const text = yield* readLayerSource(repositoryRoot, "prod", "text.svg");
-  const paths = text.match(/<path[^>]*\/>/g) ?? [];
-  return yield* rasterize(
+  // The composer head layer already fills its canvas; scale to the fraction.
+  const head = yield* readLayerBytes(repositoryRoot, "prod", "head.png");
+  const headSize = Math.round(size * fraction);
+  const resized = yield* Effect.tryPromise({
+    try: () => sharp(head).resize(headSize, headSize).png().toBuffer(),
+    catch: (cause) => new AndroidIconRenderError({ layer: "foreground", cause }),
+  });
+  return yield* composite(
     "foreground",
-    canvasSvg(size, `<g transform="${wordmarkTransform(size)}">${paths.join("")}</g>`),
-    size,
+    yield* solidCanvas("foreground", size, { r: 0, g: 0, b: 0, alpha: 0 }),
+    [
+      {
+        input: resized,
+        left: Math.round((size - headSize) / 2),
+        top: Math.round((size - headSize) / 2),
+      },
+    ],
   );
 });
 
@@ -179,7 +205,7 @@ const renderSplashIcon = Effect.fn("androidIcons.renderSplashIcon")(function* (
   variant: IconVariant,
 ) {
   const background = yield* renderBackground(repositoryRoot, variant, SPLASH_CANVAS);
-  const foreground = yield* renderForeground(repositoryRoot, SPLASH_CANVAS);
+  const foreground = yield* renderForeground(repositoryRoot, SPLASH_CANVAS, 0.5);
   return yield* composite(`${variant}-splash`, background, [{ input: foreground }]);
 });
 

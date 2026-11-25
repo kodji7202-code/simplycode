@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <rect id="bg" width="1024" height="1024" rx="224" fill="#0B0B0D"/>
-  <g id="glyph" fill="none" stroke="#FFFFFF" stroke-width="88" stroke-linecap="round" stroke-linejoin="round">
-    <polyline points="368,352 224,512 368,672"/>
-    <polyline points="656,352 800,512 656,672"/>
-    <line x1="560" y1="288" x2="464" y2="736"/>
-  </g>
-</svg>
