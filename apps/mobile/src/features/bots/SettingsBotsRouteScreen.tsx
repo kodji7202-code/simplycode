@@ -829,6 +829,7 @@ type BotDraft = {
   readonly modelSelection: ModelSelection | null;
   readonly approvalMode: BotApprovalMode;
   readonly canManageBots: boolean;
+  readonly stayInProject: boolean;
   readonly soul: string | null;
   readonly memory: string | null;
   readonly maxSteps: string;
@@ -851,6 +852,7 @@ function draftForNewBot(
     modelSelection: model,
     approvalMode: "ask",
     canManageBots: false,
+    stayInProject: true,
     soul: "",
     memory: "",
     maxSteps: "",
@@ -872,6 +874,7 @@ function draftForBot(bot: Bot, soul: string, memory: string): BotDraft {
     modelSelection: bot.modelSelection,
     approvalMode: bot.approvalMode,
     canManageBots: bot.canManageBots,
+    stayInProject: bot.stayInProject,
     soul,
     memory,
     maxSteps: bot.limits.maxStepsPerRun === undefined ? "" : String(bot.limits.maxStepsPerRun),
@@ -1126,6 +1129,7 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
       modelSelection: form.modelSelection,
       approvalMode: form.approvalMode,
       canManageBots: form.canManageBots,
+      stayInProject: form.stayInProject,
       interactionMode: existing.data?.bot.interactionMode ?? "default",
       limits: {
         ...(stepsNumber !== undefined ? { maxStepsPerRun: stepsNumber } : {}),
@@ -1421,6 +1425,32 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
                   }
                 }}
               />
+              <View className="gap-1 border-t border-border-subtle px-4 py-3">
+                <View className="min-h-14 flex-row items-center gap-3">
+                  <Text textRole="body" className="min-w-0 flex-1 text-foreground">
+                    {gt("Stay in project")}
+                  </Text>
+                  <ThemedSwitch
+                    accessibilityLabel={gt("Stay in project")}
+                    value={form.stayInProject}
+                    disabled={!canOperate || saving || form.approvalMode === "full"}
+                    onValueChange={(stayInProject) => set({ stayInProject })}
+                  />
+                </View>
+                {form.approvalMode === "full" ? (
+                  <Text className="text-sm text-danger-foreground">
+                    {gt(
+                      'Full access: this bot can change any file on this computer, and "Stay in project" does not apply.',
+                    )}
+                  </Text>
+                ) : (
+                  <Text className="text-sm text-foreground-muted">
+                    {gt(
+                      "Refuses file edits outside the project folder. Terminal commands are not limited. Applies to new conversations.",
+                    )}
+                  </Text>
+                )}
+              </View>
               <View className="gap-1 border-t border-border-subtle px-4 py-3">
                 <View className="min-h-14 flex-row items-center gap-3">
                   <Text textRole="body" className="min-w-0 flex-1 text-foreground">
