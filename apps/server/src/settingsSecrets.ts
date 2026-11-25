@@ -8,6 +8,7 @@ import {
   type ServerSettings,
   type SettingsSecretValue,
   SimlockDeviceHostConfig,
+  TelegramNotificationSettings,
   TextGeneratorConfig,
   UsageLimitSourceConfig,
   isSecretReference,
@@ -49,6 +50,7 @@ const providerSecretFields = new Map([
 const usageLimitSecretFields = secretSettingsFields(UsageLimitSourceConfig);
 const textGeneratorSecretFields = secretSettingsFields(TextGeneratorConfig);
 const voiceSecretFields = secretSettingsFields(CloudSpeechCredentials);
+const telegramSecretFields = secretSettingsFields(TelegramNotificationSettings);
 const easDeviceHostSecretFields = secretSettingsFields(EasDeviceHostConfig);
 const simlockDeviceHostSecretFields = secretSettingsFields(SimlockDeviceHostConfig);
 const encode = (value: string) => Buffer.from(value, "utf8").toString("base64url");
@@ -254,6 +256,11 @@ function mapSecretFieldGroups(
       voiceSecretFields,
       (provider) => `voice-cloud-${provider}`,
     ) as ServerSettings["cloudSpeechCredentials"],
+    telegramNotifications: mapFields(
+      settings.telegramNotifications,
+      telegramSecretFields,
+      () => "telegram-bot-token",
+    ) as ServerSettings["telegramNotifications"],
     providerInstances,
     sourceControlHosts,
     usageLimitSources,
