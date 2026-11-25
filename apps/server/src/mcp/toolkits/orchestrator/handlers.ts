@@ -10,6 +10,7 @@ import { readCaller } from "../../threadAccess.ts";
 import * as McpInvocationContext from "../../McpInvocationContext.ts";
 import * as McpToolAccess from "../../McpToolAccess.ts";
 import * as OrchestratorMcpService from "../../OrchestratorMcpService.ts";
+import { TelegramNotifier } from "../../../notifications/TelegramNotifier.ts";
 import * as ThreadMetadataMcpService from "../../ThreadMetadataMcpService.ts";
 
 const handlers = {
@@ -227,6 +228,12 @@ const handlers = {
           ),
         );
       return { environmentId, ...result };
+    }),
+  ),
+  notify_user: McpToolAccess.reads((input) =>
+    Effect.gen(function* () {
+      const notifier = yield* TelegramNotifier;
+      return yield* notifier.notify(input.message);
     }),
   ),
   t3_thread_interrupt: McpToolAccess.writesThreads(

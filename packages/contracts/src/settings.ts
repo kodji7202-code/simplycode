@@ -1384,6 +1384,18 @@ export const CloudSpeechCredentials = Schema.Struct({
   openrouter: CloudSpeechCredential,
 });
 
+export const TelegramNotificationSettings = Schema.Struct({
+  enabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  botToken: SettingsSecretValue.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
+  chatId: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
+  notifyOnCompletion: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+  notifyOnFailure: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+  notifyOnApproval: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+  notifyOnInput: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+  notifyOnWorkflows: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
+});
+export type TelegramNotificationSettings = typeof TelegramNotificationSettings.Type;
+
 export const ServerSettings = Schema.Struct({
   // Null means unmigrated; empty is authoritative and must not resurrect cleared preferences.
   favorites: Schema.NullOr(ModelFavorites).pipe(Schema.withDecodingDefault(Effect.succeed(null))),
@@ -1417,6 +1429,9 @@ export const ServerSettings = Schema.Struct({
   /** New T3 Connect device keys wait for approval from someone already trusted here. */
   requireConnectDeviceApproval: Schema.Boolean.pipe(
     Schema.withDecodingDefault(Effect.succeed(false)),
+  ),
+  telegramNotifications: TelegramNotificationSettings.pipe(
+    Schema.withDecodingDefault(Effect.succeed(Schema.decodeSync(TelegramNotificationSettings)({}))),
   ),
 
   enableAgentBrowserAccess: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(true))),
@@ -1893,6 +1908,18 @@ export const ServerSettingsPatch = Schema.Struct({
       openai: Schema.optionalKey(SettingsSecretValue),
       xai: Schema.optionalKey(SettingsSecretValue),
       openrouter: Schema.optionalKey(SettingsSecretValue),
+    }),
+  ),
+  telegramNotifications: Schema.optionalKey(
+    Schema.Struct({
+      enabled: Schema.optionalKey(Schema.Boolean),
+      botToken: Schema.optionalKey(SettingsSecretValue),
+      chatId: Schema.optionalKey(TrimmedString),
+      notifyOnCompletion: Schema.optionalKey(Schema.Boolean),
+      notifyOnFailure: Schema.optionalKey(Schema.Boolean),
+      notifyOnApproval: Schema.optionalKey(Schema.Boolean),
+      notifyOnInput: Schema.optionalKey(Schema.Boolean),
+      notifyOnWorkflows: Schema.optionalKey(Schema.Boolean),
     }),
   ),
   speechModelId: Schema.optionalKey(Schema.String),

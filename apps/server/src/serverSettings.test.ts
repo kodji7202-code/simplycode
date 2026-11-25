@@ -1612,6 +1612,42 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
       }).pipe(Effect.provide(layerServerSettingsWithSecrets())),
   );
 
+  it.effect("keeps the Telegram bot token in the secret store, redacted to clients", () =>
+    Effect.gen(function* () {
+      const service = yield* ServerSettingsModule.ServerSettingsService;
+      const config = yield* ServerConfig.ServerConfig;
+      const fs = yield* FileSystem.FileSystem;
+      const store = yield* ServerSecretStore.ServerSecretStore;
+      const saved = yield* service.updateSettings({
+        telegramNotifications: {
+          enabled: true,
+          botToken: "telegram-secret",
+          chatId: "42",
+        },
+      });
+      const client = ServerSettingsModule.redactServerSettingsForClient(saved, {
+        secretReferences: true,
+      });
+      const disk = yield* fs.readFileString(config.settingsPath);
+      assert.equal(saved.telegramNotifications.botToken, "telegram-secret");
+      assert.equal(client.telegramNotifications.botToken, SECRET_REDACTED);
+      assert.notInclude(disk, "telegram-secret");
+      assert.include(disk, '"chatId": "42"');
+      assert.isTrue(Option.isSome(yield* store.get("telegram-bot-token")));
+
+      const echoed = yield* service.updateSettings({
+        telegramNotifications: client.telegramNotifications,
+      });
+      assert.equal(echoed.telegramNotifications.botToken, "telegram-secret");
+
+      const cleared = yield* service.updateSettings({
+        telegramNotifications: { enabled: false, botToken: "", chatId: "" },
+      });
+      assert.equal(cleared.telegramNotifications.botToken, "");
+      assert.isTrue(Option.isNone(yield* store.get("telegram-bot-token")));
+    }).pipe(Effect.provide(layerServerSettingsWithSecrets())),
+  );
+
   it.effect("moves saved provider credentials to the secret store when settings load", () =>
     Effect.gen(function* () {
       const service = yield* ServerSettingsModule.ServerSettingsService;
@@ -1932,6 +1968,11 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
           github: { tokens: { "github.com": personal("GitHub/token"), "ghe.acme.test": work } },
         },
         cloudSpeechCredentials: { openai: personal("Voice/key"), xai: work },
+        telegramNotifications: {
+          enabled: true,
+          botToken: personal("Telegram/token"),
+          chatId: "1",
+        },
         usageLimitSources: {
           [hub]: {
             kind: "cliproxy",
@@ -1977,6 +2018,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
       });
       assert.equal(removed.usageLimitSources[hub]?.managementKey, "");
       assert.deepEqual(removed.cloudSpeechCredentials, { openai: "", xai: work, openrouter: "" });
+      assert.equal(removed.telegramNotifications?.botToken, "");
       assert.equal(removed.easDeviceHosts[0]?.accessToken, "");
       assert.deepEqual(Object.keys(removed.secretProviders), ["work"]);
     }).pipe(Effect.provide(layerServerSettingsWithSecrets())),
@@ -1986,6 +2028,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("server settings"
     Effect.sync(() => {
       // Shipped clients decode these as strings. Each must be covered by the older-client case above.
       assert.deepEqual(strictSecretReferencePaths(ServerSettings.ast), [
+        "telegramNotifications.botToken",
         "cloudSpeechCredentials.openai",
         "cloudSpeechCredentials.xai",
         "cloudSpeechCredentials.openrouter",

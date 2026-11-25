@@ -42,6 +42,7 @@ import * as ProjectService from "./project/ProjectService.ts";
 import * as GitVcsDriver from "./vcs/GitVcsDriver.ts";
 import * as ProjectStore from "./orchestration-v2/ProjectStore.ts";
 import * as AgentAwarenessRelay from "./relay/AgentAwarenessRelay.ts";
+import * as TelegramNotifier from "./notifications/TelegramNotifier.ts";
 import * as ServerLifecycleEvents from "./serverLifecycleEvents.ts";
 import * as ServerSettings from "./serverSettings.ts";
 import { forkParked, forkParkedFiber } from "./serverActivation.ts";
@@ -458,6 +459,7 @@ const make = Effect.fn("serverRuntimeStartup.make")(function* (options?: Startup
   const orchestrator = yield* Orchestrator.OrchestratorV2;
   const providerSessions = yield* ProviderSessionManager.ProviderSessionManagerV2;
   const agentAwarenessRelay = yield* AgentAwarenessRelay.AgentAwarenessRelay;
+  const telegramNotifier = yield* TelegramNotifier.TelegramNotifier;
   const lifecycleEvents = yield* ServerLifecycleEvents.ServerLifecycleEvents;
   const serverSettings = yield* ServerSettings.ServerSettingsService;
   const serverEnvironment = yield* ServerEnvironment.ServerEnvironment;
@@ -561,7 +563,7 @@ const make = Effect.fn("serverRuntimeStartup.make")(function* (options?: Startup
         "orchestration-v2.effect-worker.start",
         startEffectWorkerWithRelay({
           runWorker: EffectWorker.runDaemon,
-          startRelay: agentAwarenessRelay.start(),
+          startRelay: Effect.andThen(agentAwarenessRelay.start(), telegramNotifier.start()),
           workerFiberRef: effectWorkerFiber,
         }),
       ),

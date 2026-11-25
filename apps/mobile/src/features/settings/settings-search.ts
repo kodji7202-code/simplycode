@@ -27,6 +27,9 @@ const SETTINGS_SEARCH_TERMS = {
     msg("alerts", { $context: "settings search keyword" }),
     msg("live activity", { $context: "settings search keyword" }),
     msg("agent activity", { $context: "settings search keyword" }),
+    "telegram",
+    msg("bot token", { $context: "settings search keyword" }),
+    msg("chat id", { $context: "settings search keyword" }),
   ],
   SettingsAppearance: [
     msg("theme", { $context: "settings search keyword" }),

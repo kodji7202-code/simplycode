@@ -2115,6 +2115,14 @@ export function createServerEnvironmentAtoms<R, E>(
       label: "environment-data:server:check-otlp-endpoint",
       tag: WS_METHODS.serverCheckOtlpEndpoint,
     }),
+    telegramTest: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:telegram-test",
+      tag: WS_METHODS.notificationsTelegramTest,
+    }),
+    telegramDetectChats: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:telegram-detect-chats",
+      tag: WS_METHODS.notificationsTelegramDetectChats,
+    }),
     checkSecretSource: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:check-secret-source",
       tag: WS_METHODS.serverCheckSecretSource,

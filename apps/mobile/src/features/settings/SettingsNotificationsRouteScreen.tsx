@@ -67,6 +67,7 @@ import { SettingsSection } from "./components/SettingsSection";
 import { SettingsSwitchRow } from "./components/SettingsSwitchRow";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { resolveAgentAwarenessPlatformPresentation } from "./SettingsRouteScreen.logic";
+import { TelegramNotificationsSection } from "./TelegramNotificationsSection";
 
 const updateLiveActivityPreference = createEnvironmentCommand(connectionAtomRuntime, {
   label: "updateLiveActivityPreference",
@@ -199,6 +200,7 @@ export function SettingsNotificationsRouteScreen() {
           <Text className="text-base text-foreground-muted">
             {gt("Notifications require {product} in this app build.", { product: "T3 Connect" })}
           </Text>
+          <TelegramNotificationsSection />
         </ScrollView>
       </SettingsScreen>
     );
@@ -627,6 +629,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
             />
           ) : null}
         </SettingsSection>
+        <TelegramNotificationsSection />
       </ScrollView>
     </SettingsScreen>
   );

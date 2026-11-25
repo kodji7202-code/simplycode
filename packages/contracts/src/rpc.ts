@@ -369,6 +369,11 @@ import {
   ServerConfigStreamEvent,
   DesktopUpdateCommitInput,
   OtlpEndpointCheckInput,
+  TelegramDetectChatsInput,
+  TelegramDetectChatsResult,
+  TelegramRequestError,
+  TelegramTestInput,
+  TelegramTestResult,
   ServerPrepareTriageError,
   ServerPrepareTriageInput,
   ServerPrepareTriageResult,
@@ -668,6 +673,9 @@ export const WS_METHODS = {
   serverReportClientActivity: "server.reportClientActivity",
   serverGetUsageSummary: "server.getUsageSummary",
   serverRefreshUsageRates: "server.refreshUsageRates",
+
+  notificationsTelegramTest: "notifications.telegramTest",
+  notificationsTelegramDetectChats: "notifications.telegramDetectChats",
 
   workflowsSubscribe: "workflows.subscribe",
   workflowsCounts: "workflows.counts",
@@ -1237,6 +1245,23 @@ const WsServerRefreshUsageRatesRpc = Rpc.make(WS_METHODS.serverRefreshUsageRates
   success: UsagePricing,
   error: EnvironmentAuthorizationError,
 });
+
+const NotificationsRpcError = Schema.Union([TelegramRequestError, EnvironmentAuthorizationError]);
+
+const WsNotificationsTelegramTestRpc = Rpc.make(WS_METHODS.notificationsTelegramTest, {
+  payload: TelegramTestInput,
+  success: TelegramTestResult,
+  error: NotificationsRpcError,
+});
+
+const WsNotificationsTelegramDetectChatsRpc = Rpc.make(
+  WS_METHODS.notificationsTelegramDetectChats,
+  {
+    payload: TelegramDetectChatsInput,
+    success: TelegramDetectChatsResult,
+    error: NotificationsRpcError,
+  },
+);
 
 const WsServerSignalProcessRpc = Rpc.make(WS_METHODS.serverSignalProcess, {
   payload: ServerSignalProcessInput,
@@ -2705,6 +2730,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerPrepareTriageRpc,
   WsServerGetUsageSummaryRpc,
   WsServerRefreshUsageRatesRpc,
+  WsNotificationsTelegramTestRpc,
+  WsNotificationsTelegramDetectChatsRpc,
   WsServerSignalProcessRpc,
   WsWorkflowsSubscribeRpc,
   WsWorkflowsCountsRpc,
