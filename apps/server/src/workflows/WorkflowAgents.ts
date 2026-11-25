@@ -94,6 +94,8 @@ export class WorkflowAgents extends Context.Service<
       readonly issue?: IssueAddress | undefined;
       /** How a new thread starts. Refused with `thread`, which keeps how it started. */
       readonly launch?: AgentLaunch | undefined;
+      /** Tags set on a new thread once it is made; a continued thread keeps its own. */
+      readonly tags?: ReadonlyArray<string> | undefined;
     }) => Effect.Effect<AgentTurn, WorkflowAgentError>;
     /**
      * Wait for the turn to end and return what it produced. With `quiet`, a turn that ended

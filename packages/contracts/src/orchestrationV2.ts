@@ -2515,14 +2515,17 @@ export function isLiveSubagentShell(
 }
 
 /**
- * A subagent thread a bot's delegated run produced (`delegate_to_bot` tags it `bot:<id>`). It
- * lists under its bot like a top-level thread, so shells keep it while plain idle children are
- * omitted.
+ * A subagent thread a bot's delegated run produced (`delegate_to_bot` tags it `bot:<id>`), or a
+ * pipeline stage's workflow thread tagged the same way. It lists under its bot like a top-level
+ * thread, so shells keep it while plain idle children are omitted.
  */
 export function isBotDelegatedSubagentShell(
   thread: Pick<OrchestrationV2ThreadShell, "lineage" | "tags">,
 ): boolean {
-  return thread.lineage.relationshipToParent === "subagent" && hasBotThreadTag(thread.tags);
+  return (
+    (thread.lineage.relationshipToParent === "subagent" || thread.lineage.workflowStep === true) &&
+    hasBotThreadTag(thread.tags)
+  );
 }
 
 /**

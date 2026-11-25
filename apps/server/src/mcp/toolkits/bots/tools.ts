@@ -19,6 +19,7 @@ import { McpSchema, Tool, Toolkit } from "effect/ai";
 
 import { BotService } from "../../../bots/BotService.ts";
 import { BotStore } from "../../../bots/BotStore.ts";
+import { TeamStore } from "../../../bots/TeamStore.ts";
 import * as ProviderRegistry from "../../../provider/ProviderRegistry.ts";
 import * as Orchestrator from "../../../orchestration-v2/Orchestrator.ts";
 import * as ThreadManagementService from "../../../orchestration-v2/ThreadManagementService.ts";
@@ -31,6 +32,7 @@ const dependencies = [
   OrchestratorMcpService.OrchestratorMcpService,
   BotStore,
   BotService,
+  TeamStore,
   ProviderRegistry.ProviderRegistry,
   Orchestrator.OrchestratorV2,
 ];

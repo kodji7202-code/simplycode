@@ -18,6 +18,8 @@ export type WorkflowRunStatus = typeof WorkflowRunStatus.Type;
 export const WorkflowRun = Schema.Struct({
   runId: Schema.String,
   workflow: Schema.String,
+  /** The idempotency key it was started under; null for one started without a key. */
+  key: Schema.NullOr(Schema.String),
   version: Schema.Number,
   title: Schema.String,
   status: WorkflowRunStatus,

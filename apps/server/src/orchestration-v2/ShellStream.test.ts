@@ -209,6 +209,24 @@ describe("omitIdleSubagentShells", () => {
     expect(omitIdleSubagentShells(threads).map((thread) => thread.id)).toEqual(["root", "bot-run"]);
   });
 
+  it("keeps a pipeline stage thread (workflowStep, bot: tag) so it can list under its bot", () => {
+    const stage = shellFixture({
+      id: ThreadId.make("stage"),
+      lineage: {
+        parentThreadId: null,
+        relationshipToParent: null,
+        rootThreadId: ThreadId.make("stage"),
+        workflowStep: true,
+      },
+      status: "completed",
+      activityRunStatus: null,
+      pendingRuntimeRequest: null,
+      pendingBackgroundTasks: [],
+      tags: [botThreadTag(BotId.make("dev"))],
+    });
+    expect(omitIdleSubagentShells([stage]).map((thread) => thread.id)).toEqual(["stage"]);
+  });
+
   it("still filters the transcript events of omitted children for a subscriber that opts in", () => {
     const threads = [row("root", null), row("idle", "root")];
     const omitted = activeShellRowsForSubscriber(threads, true);
@@ -388,6 +406,21 @@ describe("shellSubscriberThreadIds", () => {
     expect(
       shellSubscriberThreadIds(index, { omitIdleSubagents: true, omitOlderSettled: true }),
     ).toEqual([...newest.map((row) => row.id), "bot-run"]);
+  });
+
+  it("keeps a bot-tagged workflow step row in the ids a subscriber reads", () => {
+    const stage = entry("stage", {
+      lineage: {
+        parentThreadId: null,
+        relationshipToParent: null,
+        rootThreadId: ThreadId.make("stage"),
+        workflowStep: true,
+      },
+      tags: [botThreadTag(BotId.make("dev"))],
+    });
+    expect(
+      shellSubscriberThreadIds([stage], { omitIdleSubagents: true, omitOlderSettled: true }),
+    ).toEqual(["stage"]);
   });
 });
 

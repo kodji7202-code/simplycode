@@ -474,6 +474,20 @@ import {
   BotRunNowResult,
   BotSetEnabledInput,
   BotUpsertInput,
+  PipelineDeleteInput,
+  PipelineDeleteResult,
+  PipelineListInput,
+  PipelineListResult,
+  PipelineMutationResult,
+  PipelineRunInput,
+  PipelineRunResult,
+  PipelineUpsertInput,
+  TeamDeleteInput,
+  TeamDeleteResult,
+  TeamListInput,
+  TeamListResult,
+  TeamMutationResult,
+  TeamUpsertInput,
 } from "./bot.ts";
 import { SecretRequestAnswerInput, SecretRequestError } from "./secretRequest.ts";
 import { AgentFeedbackAnswerInput, AgentFeedbackRequestError } from "./agentFeedback.ts";
@@ -688,6 +702,13 @@ export const WS_METHODS = {
   botsImportScan: "bots.importScan",
   botsImportApply: "bots.importApply",
   botsExport: "bots.export",
+  teamsSubscribe: "teams.subscribe",
+  teamsUpsert: "teams.upsert",
+  teamsDelete: "teams.delete",
+  pipelinesSubscribe: "pipelines.subscribe",
+  pipelinesUpsert: "pipelines.upsert",
+  pipelinesDelete: "pipelines.delete",
+  pipelinesRun: "pipelines.run",
 
   cloudGetRelayClientStatus: "cloud.getRelayClientStatus",
   cloudInstallRelayClient: "cloud.installRelayClient",
@@ -2540,6 +2561,50 @@ const WsBotsExportRpc = Rpc.make(WS_METHODS.botsExport, {
   error: Schema.Union([BotError, EnvironmentAuthorizationError]),
 });
 
+const WsTeamsSubscribeRpc = Rpc.make(WS_METHODS.teamsSubscribe, {
+  payload: TeamListInput,
+  success: TeamListResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+  stream: true,
+});
+
+const WsTeamsUpsertRpc = Rpc.make(WS_METHODS.teamsUpsert, {
+  payload: TeamUpsertInput,
+  success: TeamMutationResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
+const WsTeamsDeleteRpc = Rpc.make(WS_METHODS.teamsDelete, {
+  payload: TeamDeleteInput,
+  success: TeamDeleteResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
+const WsPipelinesSubscribeRpc = Rpc.make(WS_METHODS.pipelinesSubscribe, {
+  payload: PipelineListInput,
+  success: PipelineListResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+  stream: true,
+});
+
+const WsPipelinesUpsertRpc = Rpc.make(WS_METHODS.pipelinesUpsert, {
+  payload: PipelineUpsertInput,
+  success: PipelineMutationResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
+const WsPipelinesDeleteRpc = Rpc.make(WS_METHODS.pipelinesDelete, {
+  payload: PipelineDeleteInput,
+  success: PipelineDeleteResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
+const WsPipelinesRunRpc = Rpc.make(WS_METHODS.pipelinesRun, {
+  payload: PipelineRunInput,
+  success: PipelineRunResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
 const WsSubscribeAuthAccessRpc = Rpc.make(WS_METHODS.subscribeAuthAccess, {
   payload: Schema.Struct({}),
   success: AuthAccessStreamEvent,
@@ -2671,6 +2736,13 @@ export const WsRpcGroup = RpcGroup.make(
   WsBotsImportScanRpc,
   WsBotsImportApplyRpc,
   WsBotsExportRpc,
+  WsTeamsSubscribeRpc,
+  WsTeamsUpsertRpc,
+  WsTeamsDeleteRpc,
+  WsPipelinesSubscribeRpc,
+  WsPipelinesUpsertRpc,
+  WsPipelinesDeleteRpc,
+  WsPipelinesRunRpc,
   WsServerReportClientActivityRpc,
   WsCloudGetRelayClientStatusRpc,
   WsCloudInstallRelayClientRpc,

@@ -92,6 +92,12 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   [WS_METHODS.botsImportScan]: AuthOrchestrationOperateScope,
   [WS_METHODS.botsImportApply]: AuthOrchestrationOperateScope,
   [WS_METHODS.botsExport]: AuthOrchestrationOperateScope,
+  [WS_METHODS.teamsUpsert]: AuthOrchestrationOperateScope,
+  [WS_METHODS.teamsDelete]: AuthOrchestrationOperateScope,
+  [WS_METHODS.pipelinesUpsert]: AuthOrchestrationOperateScope,
+  [WS_METHODS.pipelinesDelete]: AuthOrchestrationOperateScope,
+  // A run starts agents that act on a project, as running a bot by hand does.
+  [WS_METHODS.pipelinesRun]: AuthOrchestrationOperateScope,
   [ORCHESTRATION_V2_WS_METHODS.stopWorkflow]: AuthOrchestrationOperateScope,
   // An answer, a resume and a cancel each decide what a run's agents do next.
   [WS_METHODS.workflowsAnswer]: AuthOrchestrationOperateScope,
