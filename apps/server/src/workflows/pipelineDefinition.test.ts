@@ -305,24 +305,28 @@ it.effect("a failed review goes back to its stage's thread, which then passes", 
           output: { verdict: "fail", findings: ["Missing a test."] },
         });
 
-        // Round two asks the same threads again, carrying the reviewer's findings.
+        // Round two asks the same threads again, carrying the reviewer's findings. The
+        // continued thread keeps its bot's standing instructions, so it gets the bare brief.
         const again = yield* agents.started(runId, "dev@2/0");
         assert.equal(again.thread, "thread-1");
         assert.isTrue(
-          again.prompt.endsWith(
-            workBrief(
-              2,
-              `Work from earlier stages:\n- Dev: Added the endpoint.\n` +
-                `Reviewer findings to fix:\n- Missing a test.\n`,
-            ),
+          again.prompt.startsWith('Pipeline "'),
+          `prompt started differently:\n${again.prompt}`,
+        );
+        assert.notInclude(again.prompt, "standing instructions");
+        assert.equal(
+          again.prompt,
+          workBrief(
+            2,
+            `Work from earlier stages:\n- Dev: Added the endpoint.\n` +
+              `Reviewer findings to fix:\n- Missing a test.\n`,
           ),
-          `prompt ended differently:\n${again.prompt}`,
         );
         yield* agents.end(runId, "dev@2/0", { output: { summary: "Added the test." } });
 
         const reReview = yield* agents.started(runId, "review@2/0");
         assert.equal(reReview.thread, "thread-2");
-        assert.isTrue(reReview.prompt.endsWith(reviewBrief(2, "Added the test.")));
+        assert.equal(reReview.prompt, reviewBrief(2, "Added the test."));
         yield* agents.end(runId, "review@2/0", {
           output: { verdict: "pass", findings: [] },
         });
@@ -436,23 +440,30 @@ it.effect("a run keeps the bots it snapshotted, however the bots are then edited
         // `started` means the snapshot step ran: the bot is frozen from here on.
         yield* agents.started(runId, "dev@1/0");
         yield* agents.end(runId, "dev@1/0", { output: { summary: "Did it." } });
-        // The bot is rewritten mid-run; the snapshot step already froze it.
-        stores.bots.set("dev", {
-          ...stores.bots.get("dev")!,
-          bot: bot("dev", { name: "Dev" }),
-          soul: "NEW SOUL",
-        });
+        // The bot is deleted mid-run; a live re-read would die at the snapshot check.
+        stores.bots.delete("dev");
         yield* agents.end(runId, "review@1/0", {
           output: { verdict: "fail", findings: ["Missing a test."] },
         });
         const again = yield* agents.started(runId, "dev@2/0");
-        assert.include(again.prompt, "You write code.");
-        assert.notInclude(again.prompt, "NEW SOUL");
+        assert.equal(
+          again.prompt,
+          workBrief(
+            2,
+            `Work from earlier stages:\n- Dev: Did it.\n` +
+              `Reviewer findings to fix:\n- Missing a test.\n`,
+          ),
+        );
         yield* agents.end(runId, "dev@2/0", { output: { summary: "Tried." } });
         yield* agents.end(runId, "review@2/0", {
           output: { verdict: "pass", findings: [] },
         });
-        yield* workflows.waitFor(runId, status("completed"));
+        const done = yield* workflows.waitFor(runId, status("completed"));
+        assert.deepStrictEqual(done.result, {
+          status: "passed",
+          rounds: 2,
+          summary: "Tried.",
+        });
       }),
     );
   }).pipe(Effect.provide(NodeServices.layer), Effect.scoped),

@@ -230,12 +230,13 @@ export const makePipelineDefinition = (deps: PipelineDefinitionDeps): WorkflowDe
           }
           const name = `${stage.id}@${round}`;
           const prior = threads.get(stage.id);
+          const briefOnly = stageBrief(stage, round, stage.kind === "work" ? findings : []);
           const base = {
-            brief: botPrompt(
-              snap.bot,
-              instructionsFor(snap),
-              stageBrief(stage, round, stage.kind === "work" ? findings : []),
-            ),
+            // A continued thread already carries the bot's standing instructions.
+            brief:
+              prior === undefined
+                ? botPrompt(snap.bot, instructionsFor(snap), briefOnly)
+                : briefOnly,
             timeout: `${pipeline.limits.stageTimeoutMinutes} minutes` as const,
             ...(prior === undefined
               ? {
