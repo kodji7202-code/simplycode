@@ -143,6 +143,38 @@ it("installSkillDenial refuses a non-self target above the caller's own approval
   ).toBeUndefined();
 });
 
+it("teamDenial refuses a member above the caller's own approval", () => {
+  const below = bot({ id: "worker", name: "Worker", canManageBots: false, approvalMode: "ask" });
+  const same = bot({ id: "peer", name: "Peer", canManageBots: false });
+  const above = bot({ id: "strong", name: "Strong", canManageBots: false, approvalMode: "full" });
+  expect(Policy.teamDenial(caller, [])).toBeUndefined();
+  expect(Policy.teamDenial(caller, [below, same])).toBeUndefined();
+  // A full-access caller may team with a full member.
+  expect(Policy.teamDenial(bot({ approvalMode: "full" }), [above])).toBeUndefined();
+  expect(Policy.teamDenial(caller, [below, above])).toBe(
+    'You can\'t add "Strong" to a team: its approval mode ("full") is above your own ("auto-safe").',
+  );
+});
+
+it("pipelineDenial names the stage whose bot is above the caller's approval", () => {
+  const below = bot({ id: "worker", name: "Worker", canManageBots: false, approvalMode: "ask" });
+  const above = bot({ id: "strong", name: "Strong", canManageBots: false, approvalMode: "full" });
+  expect(
+    Policy.pipelineDenial(caller, [
+      { stage: "write", bot: below },
+      { stage: "check", bot: below },
+    ]),
+  ).toBeUndefined();
+  expect(
+    Policy.pipelineDenial(caller, [
+      { stage: "write", bot: below },
+      { stage: "check", bot: above },
+    ]),
+  ).toBe(
+    'Stage "check" can\'t use "Strong": its approval mode ("full") is above your own ("auto-safe").',
+  );
+});
+
 it("resolveModelPick maps an existing slug and refuses anything else", () => {
   expect(
     Policy.resolveModelPick({ providerInstanceId: "devin", model: "swe-2-high" }, [devinProvider]),

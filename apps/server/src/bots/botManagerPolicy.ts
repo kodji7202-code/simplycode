@@ -69,6 +69,32 @@ export function installSkillDenial(caller: Bot, target: Bot): string | undefined
 }
 
 /**
+ * No member's approval may be above the caller's, whether the bots are being
+ * added to a team or are already on one the caller wants to change.
+ */
+export function teamDenial(caller: Bot, memberBots: ReadonlyArray<Bot>): string | undefined {
+  const above = memberBots.find(
+    (member) => approvalRank(member.approvalMode) > approvalRank(caller.approvalMode),
+  );
+  return above === undefined
+    ? undefined
+    : `You can't add "${above.name}" to a team: its approval mode ("${above.approvalMode}") is above your own ("${caller.approvalMode}").`;
+}
+
+/** The same rule for a pipeline's stage bots. */
+export function pipelineDenial(
+  caller: Bot,
+  stageBots: ReadonlyArray<{ readonly stage: string; readonly bot: Bot }>,
+): string | undefined {
+  const above = stageBots.find(
+    (entry) => approvalRank(entry.bot.approvalMode) > approvalRank(caller.approvalMode),
+  );
+  return above === undefined
+    ? undefined
+    : `Stage "${above.stage}" can't use "${above.bot.name}": its approval mode ("${above.bot.approvalMode}") is above your own ("${caller.approvalMode}").`;
+}
+
+/**
  * A `model` pick names an instance and a slug; it must exist on this server,
  * with the import's matching rule (instance id or driver, case-insensitive).
  * Returns the resolved selection or the message to refuse with.
