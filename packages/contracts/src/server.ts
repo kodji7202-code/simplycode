@@ -402,6 +402,38 @@ export const OtlpEndpointCheckResult = Schema.Union([
 ]);
 export type OtlpEndpointCheckResult = typeof OtlpEndpointCheckResult.Type;
 
+/** Omitted or the redaction marker falls back to the saved bot token. */
+export const TelegramTestInput = Schema.Struct({
+  botToken: Schema.optionalKey(Schema.String),
+  chatId: Schema.optionalKey(Schema.String),
+});
+export type TelegramTestInput = typeof TelegramTestInput.Type;
+
+export const TelegramDetectChatsInput = Schema.Struct({
+  botToken: Schema.optionalKey(Schema.String),
+});
+export type TelegramDetectChatsInput = typeof TelegramDetectChatsInput.Type;
+
+export const TelegramChatSummary = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
+  type: Schema.String,
+});
+export type TelegramChatSummary = typeof TelegramChatSummary.Type;
+
+export const TelegramDetectChatsResult = Schema.Struct({
+  chats: Schema.Array(TelegramChatSummary),
+});
+export type TelegramDetectChatsResult = typeof TelegramDetectChatsResult.Type;
+
+export const TelegramTestResult = Schema.Struct({ ok: Schema.Literal(true) });
+export type TelegramTestResult = typeof TelegramTestResult.Type;
+
+export class TelegramRequestError extends Schema.TaggedError<TelegramRequestError>()(
+  "TelegramRequestError",
+  { message: Schema.String },
+) {}
+
 /** The client tells the server what it is, so the triage context can name it. */
 export const ServerPrepareTriageInput = Schema.Struct({
   client: AuthClientPresentationMetadata,

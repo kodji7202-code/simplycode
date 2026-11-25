@@ -138,6 +138,7 @@ import * as BotImportService from "./bots/import/BotImportService.ts";
 import * as PipelineService from "./bots/PipelineService.ts";
 import * as TeamService from "./bots/TeamService.ts";
 import * as Workflows from "./workflows/Workflows.ts";
+import * as TelegramNotifier from "./notifications/TelegramNotifier.ts";
 import * as WorkflowRuntime from "./workflows/WorkflowRuntime.ts";
 import * as SecretRequests from "./secrets/SecretRequests.ts";
 import * as FeedbackStore from "./feedback/FeedbackStore.ts";
@@ -1512,6 +1513,7 @@ export const layerWsRpc = (
       const teams = yield* TeamService.TeamService;
       const pipelines = yield* PipelineService.PipelineService;
       const workflows = yield* Workflows.Workflows;
+      const telegramNotifier = yield* TelegramNotifier.TelegramNotifier;
       const workflowDefinitions = yield* WorkflowRuntime.WorkflowDefinitions;
       // The service's messages are built from its own attributes, so they are safe to send.
       const toWorkflowRequestError = (error: Workflows.WorkflowError) =>
@@ -2892,6 +2894,10 @@ export const layerWsRpc = (
         [WS_METHODS.serverRefreshUsageRates]: (_input) => usage.refreshRates,
         [WS_METHODS.serverRetryResourceTelemetry]: (_input) => resourceTelemetry.retry,
         [WS_METHODS.serverCheckOtlpEndpoint]: (input) => otlpEndpointCheck.check(input),
+        [WS_METHODS.notificationsTelegramTest]: (input) =>
+          telegramNotifier.sendTest(input).pipe(Effect.as({ ok: true as const })),
+        [WS_METHODS.notificationsTelegramDetectChats]: (input) =>
+          telegramNotifier.detectChats(input),
         [WS_METHODS.serverListTextGeneratorModels]: (input) => textGenerators.listModels(input),
         [WS_METHODS.serverPrepareTriage]: (input) => triage.prepare(input),
         [WS_METHODS.serverSignalProcess]: (input) => processDiagnostics.signal(input),

@@ -129,6 +129,9 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.serverRefreshUsageRates]: AuthDiagnosticsReadScope,
   [WS_METHODS.serverSignalProcess]: AuthEnvironmentMaintainScope,
   [WS_METHODS.serverReportClientActivity]: AuthOrchestrationReadScope,
+  // The token they send is the one Telegram settings save.
+  [WS_METHODS.notificationsTelegramTest]: AuthSettingsWriteScope,
+  [WS_METHODS.notificationsTelegramDetectChats]: AuthSettingsWriteScope,
   [WS_METHODS.scheduledTasksSubscribe]: AuthOrchestrationReadScope,
   [WS_METHODS.botsSubscribe]: AuthOrchestrationReadScope,
   [WS_METHODS.botsGet]: AuthOrchestrationReadScope,
