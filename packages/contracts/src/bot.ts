@@ -422,6 +422,8 @@ export const PipelineRunInput = Schema.Struct({
   projectId: Schema.optional(ProjectId),
   /** Replays with the same commandId return the same run instead of starting again. */
   commandId: Schema.optional(CommandId),
+  /** Stage threads launch with no more access than this; unset means each bot's own mode. */
+  runtimeCeiling: Schema.optional(RuntimeMode),
 });
 export type PipelineRunInput = typeof PipelineRunInput.Type;
 
@@ -634,3 +636,89 @@ export const BotsMcpInstallBotSkillResult = Schema.Struct({
   skills: Schema.Array(BotSkillName),
 });
 export type BotsMcpInstallBotSkillResult = typeof BotsMcpInstallBotSkillResult.Type;
+
+export const BotsMcpListTeamsInput = Schema.Record(Schema.String, Schema.Never);
+export type BotsMcpListTeamsInput = typeof BotsMcpListTeamsInput.Type;
+
+const BotsMcpListedTeamMember = Schema.Struct({
+  id: BotId,
+  name: Schema.String,
+  role: Schema.optional(Schema.String),
+});
+
+const BotsMcpListedPipelineStage = Schema.Struct({
+  id: PipelineStageId,
+  name: Schema.String,
+  botId: BotId,
+  kind: PipelineStageKind,
+  onFail: Schema.optional(PipelineStageId),
+});
+
+const BotsMcpListedPipeline = Schema.Struct({
+  id: PipelineId,
+  name: Schema.String,
+  description: Pipeline.fields.description,
+  stages: Schema.Array(BotsMcpListedPipelineStage),
+  limits: PipelineLimits,
+});
+
+const BotsMcpListedTeam = Schema.Struct({
+  id: TeamId,
+  name: Schema.String,
+  description: Team.fields.description,
+  leadBotId: Schema.optional(BotId),
+  members: Schema.Array(BotsMcpListedTeamMember),
+  pipelines: Schema.Array(BotsMcpListedPipeline),
+});
+
+export const BotsMcpListTeamsResult = Schema.Struct({
+  teams: Schema.Array(BotsMcpListedTeam),
+});
+export type BotsMcpListTeamsResult = typeof BotsMcpListTeamsResult.Type;
+
+export const BotsMcpSaveTeamInput = Schema.Struct({
+  id: Schema.optional(TeamId),
+  /** Required to create; kept as it is on change when left out. */
+  name: Schema.optional(Team.fields.name),
+  description: Schema.optional(Team.fields.description),
+  leadBotId: Schema.optional(BotId),
+  /** Required to create; kept as it is on change when left out. */
+  memberBotIds: Schema.optional(Schema.Array(BotId)),
+});
+export type BotsMcpSaveTeamInput = typeof BotsMcpSaveTeamInput.Type;
+
+export const BotsMcpSaveTeamResult = Schema.Struct({
+  teamId: TeamId,
+});
+export type BotsMcpSaveTeamResult = typeof BotsMcpSaveTeamResult.Type;
+
+export const BotsMcpSavePipelineInput = Schema.Struct({
+  id: Schema.optional(PipelineId),
+  /** Required to create; kept as it is on change when left out. */
+  teamId: Schema.optional(TeamId),
+  /** Required to create; kept as it is on change when left out. */
+  name: Schema.optional(Pipeline.fields.name),
+  description: Schema.optional(Pipeline.fields.description),
+  /** Required to create. On change it replaces the whole stage list. */
+  stages: Schema.optional(Pipeline.fields.stages),
+  limits: Schema.optional(PipelineLimits),
+});
+export type BotsMcpSavePipelineInput = typeof BotsMcpSavePipelineInput.Type;
+
+export const BotsMcpSavePipelineResult = Schema.Struct({
+  pipelineId: PipelineId,
+});
+export type BotsMcpSavePipelineResult = typeof BotsMcpSavePipelineResult.Type;
+
+export const BotsMcpRunPipelineInput = Schema.Struct({
+  pipelineId: PipelineId,
+  task: TrimmedNonEmptyString,
+  /** Defaults to the caller thread's project. */
+  projectId: Schema.optional(ProjectId),
+});
+export type BotsMcpRunPipelineInput = typeof BotsMcpRunPipelineInput.Type;
+
+export const BotsMcpRunPipelineResult = Schema.Struct({
+  runId: Schema.String,
+});
+export type BotsMcpRunPipelineResult = typeof BotsMcpRunPipelineResult.Type;
