@@ -225,7 +225,7 @@ describe("importModelLine", () => {
     automations: [],
     warnings: [],
   };
-  const fallback = { instanceId: "claude-1", model: "sonnet" };
+  const fallbackLabel = "sonnet (claude-1)";
 
   it("shows the mapped selection when present", () => {
     expect(
@@ -234,19 +234,33 @@ describe("importModelLine", () => {
           ...candidate,
           modelSelection: { instanceId: "devin", model: "swe-2-high" },
         } as never,
-        fallback,
+        fallbackLabel,
       ),
     ).toBe("swe-2-high (devin)");
   });
 
+  it("uses the display-name label for a mapped selection when given one", () => {
+    expect(
+      importModelLine(
+        {
+          ...candidate,
+          modelSelection: { instanceId: "devin", model: "swe-2-high" },
+        } as never,
+        fallbackLabel,
+        undefined,
+        () => "SWE-2 · Devin",
+      ),
+    ).toBe("SWE-2 · Devin");
+  });
+
   it("names the source model and fallback when unmapped", () => {
-    expect(importModelLine({ ...candidate, sourceModel: "swe-2-high" }, fallback)).toBe(
+    expect(importModelLine({ ...candidate, sourceModel: "swe-2-high" }, fallbackLabel)).toBe(
       "swe-2-high, not available here, will use sonnet (claude-1)",
     );
   });
 
   it("labels a missing source model as unknown", () => {
-    expect(importModelLine(candidate, fallback)).toBe(
+    expect(importModelLine(candidate, fallbackLabel)).toBe(
       "Unknown model, not available here, will use sonnet (claude-1)",
     );
   });

@@ -267,28 +267,27 @@ export const modelSelectionLabel = (selection: {
 }): string => `${selection.model} (${selection.instanceId})`;
 
 /**
- * The preview's model line: the mapped selection, or the source model with a
- * note that the fallback will be used instead.
+ * The preview's model line: the mapped selection's display label, or the source
+ * model with a note that the fallback will be used instead.
  */
 export function importModelLine(
   candidate: BotImportCandidate,
-  fallback: { readonly instanceId: string; readonly model: string },
+  fallbackLabel: string,
   resolve: MessageResolver = m,
+  selectionLabel: (selection: {
+    instanceId: string;
+    model: string;
+  }) => string = modelSelectionLabel,
 ): string {
   if (candidate.modelSelection !== undefined) {
-    return resolve(
-      msg("{model} ({instance})", {
-        model: candidate.modelSelection.model,
-        instance: candidate.modelSelection.instanceId,
-      }),
-    );
+    return selectionLabel(candidate.modelSelection);
   }
   const source =
     candidate.sourceModel === undefined ? resolve(msg("Unknown model")) : candidate.sourceModel;
   return resolve(
     msg("{model}, not available here, will use {fallback}", {
       model: source,
-      fallback: modelSelectionLabel(fallback),
+      fallback: fallbackLabel,
     }),
   );
 }
