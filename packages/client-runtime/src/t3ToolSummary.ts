@@ -462,6 +462,23 @@ export function summarizeT3ToolCalls(
           );
       break;
     }
+    case "notify-user": {
+      const count = selected.length;
+      label = done
+        ? resolve(
+            msg(
+              "{count, plural, one {Messaged the user {count} time} other {Messaged the user {count} times}}",
+              { count },
+            ),
+          )
+        : resolve(
+            msg(
+              "{count, plural, one {Tried to message the user {count} time} other {Tried to message the user {count} times}}",
+              { count },
+            ),
+          );
+      break;
+    }
     case "secret-request": {
       const count = selected.length;
       label = done

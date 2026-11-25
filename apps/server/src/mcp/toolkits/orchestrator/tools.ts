@@ -43,6 +43,7 @@ import * as Schema from "effect/Schema";
 import * as Struct from "effect/Struct";
 
 import * as ThreadManagementService from "../../../orchestration-v2/ThreadManagementService.ts";
+import { TelegramNotifier } from "../../../notifications/TelegramNotifier.ts";
 import * as PeerForwarding from "../../../peer/PeerForwarding.ts";
 import * as PeerLinkRequests from "../../../peer/PeerLinkRequests.ts";
 import * as PeerLinks from "../../../peer/PeerLinks.ts";
@@ -308,6 +309,25 @@ const ThreadWaitTool = Tool.make("t3_thread_wait", {
   .annotate(Tool.Destructive, false)
   .annotate(Tool.Idempotent, true);
 
+const NotifyUserTool = Tool.make("notify_user", {
+  description:
+    "Send a short message to the user's phone through their notification channel (Telegram). Use it when the user asked to be told about something, or when you are blocked and need them. Not for progress updates.",
+  parameters: Schema.Struct({
+    message: TrimmedNonEmptyString.check(Schema.isMaxLength(1000)),
+  }),
+  success: Schema.Struct({
+    delivered: Schema.Boolean,
+    reason: Schema.optional(Schema.String),
+  }),
+  failure: OrchestratorMcpFailure,
+  failureMode: "return",
+  dependencies: [TelegramNotifier],
+})
+  .annotate(Tool.Title, "Notify the user")
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.OpenWorld, true)
+  .annotate(McpSchema.EnabledWhen, McpInvocationContext.hiddenFromOutsideClients);
+
 const ThreadInterruptTool = Tool.make("t3_thread_interrupt", {
   description:
     "Interrupt a top-level thread's running turn. No `runId`: newest running turn. No effect when idle. For a delegate, use `task_cancel`.",
@@ -379,6 +399,7 @@ export const OrchestratorToolkit = Toolkit.make(
   ThreadUpdateTool,
   ThreadSendTool,
   ThreadWaitTool,
+  NotifyUserTool,
   ThreadInterruptTool,
   EnvironmentLinksTool,
   EnvironmentLinkTool,
