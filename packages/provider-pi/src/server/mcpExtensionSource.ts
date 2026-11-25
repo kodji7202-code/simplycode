@@ -400,6 +400,7 @@ export default async function t3McpExtension(pi: ExtensionAPI) {
     "orchestrator_capabilities",
     "delegate_task",
     "delegate_to_bot",
+    "update_bot_memory",
     "task_status",
   ]);
   const ALIAS_PREFIX = "mcp__t3_code__";

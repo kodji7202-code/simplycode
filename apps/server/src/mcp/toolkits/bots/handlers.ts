@@ -1,4 +1,10 @@
-import { BotId, botThreadTag, CommandId, OrchestratorMcpFailure } from "@t3tools/contracts";
+import {
+  BotId,
+  BOT_MEMORY_MAX_BYTES,
+  botThreadTag,
+  CommandId,
+  OrchestratorMcpFailure,
+} from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 
 import { botDelegateTaskInput } from "../../../bots/botDelegation.ts";
@@ -44,7 +50,7 @@ const handlers = {
       const store = yield* BotStore;
       const orchestrator = yield* Orchestrator.OrchestratorV2;
       const { scope, caller } = yield* readCaller();
-      const { bot, soul } = yield* store
+      const { bot, soul, memory, skills } = yield* store
         .get(input.botId)
         .pipe(Effect.mapError(() => invalidRequest("Bot not found.")));
       if (!bot.enabled) return yield* invalidRequest("Bot is disabled.");
@@ -59,6 +65,8 @@ const handlers = {
         botDelegateTaskInput({
           bot,
           soul,
+          memory,
+          skills,
           input,
           callerRuntimeMode: caller.runtimeMode,
         }),
@@ -81,6 +89,35 @@ const handlers = {
           );
       }
       return { ...result, botId: input.botId };
+    }),
+  ),
+  update_bot_memory: McpToolAccess.actsAsCaller((input) =>
+    Effect.gen(function* () {
+      const store = yield* BotStore;
+      const { caller } = yield* loadCaller();
+      const selfBotId = caller === undefined ? null : botIdFromTags(caller.tags);
+      if (selfBotId === null) {
+        return yield* invalidRequest("update_bot_memory only works in a bot's own thread.");
+      }
+      const botId = BotId.make(selfBotId);
+      const { memory } = yield* store
+        .get(botId)
+        .pipe(Effect.mapError(() => invalidRequest("Bot not found.")));
+      const next =
+        input.mode === "replace"
+          ? input.text
+          : memory.length === 0
+            ? input.text
+            : `${memory}\n\n${input.text}`;
+      if (Buffer.byteLength(next, "utf8") > BOT_MEMORY_MAX_BYTES) {
+        return yield* invalidRequest(
+          "That would put the memory over its 16 KB limit. Condense it and use replace.",
+        );
+      }
+      const memoryBytes = yield* store
+        .writeMemory(botId, next)
+        .pipe(Effect.mapError((error) => invalidRequest(error.message)));
+      return { botId, memoryBytes };
     }),
   ),
 } satisfies McpToolAccess.Handlers<typeof BotsToolkit.tools>;

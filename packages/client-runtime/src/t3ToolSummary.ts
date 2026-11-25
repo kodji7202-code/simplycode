@@ -142,6 +142,23 @@ export function summarizeT3ToolCalls(
           );
       break;
     }
+    case "bot-memory": {
+      const count = selected.length;
+      label = done
+        ? resolve(
+            msg(
+              "{count, plural, one {Saved {count} bot memory} other {Saved {count} bot memories}}",
+              { count },
+            ),
+          )
+        : resolve(
+            msg(
+              "{count, plural, one {Tried to save {count} bot memory} other {Tried to save {count} bot memories}}",
+              { count },
+            ),
+          );
+      break;
+    }
     case "thread-interrupt": {
       const count = countEntities(threadIds);
       label = done

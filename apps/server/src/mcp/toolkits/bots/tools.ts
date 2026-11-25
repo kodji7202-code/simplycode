@@ -3,6 +3,8 @@ import {
   BotsMcpDelegateToBotResult,
   BotsMcpListInput,
   BotsMcpListResult,
+  BotsMcpUpdateMemoryInput,
+  BotsMcpUpdateMemoryResult,
   OrchestratorMcpFailure,
 } from "@t3tools/contracts";
 import { McpSchema, Tool, Toolkit } from "effect/ai";
@@ -49,4 +51,20 @@ const DelegateToBotTool = Tool.make("delegate_to_bot", {
   .annotate(Tool.OpenWorld, true)
   .annotate(McpSchema.EnabledWhen, McpInvocationContext.hiddenFromOutsideClients);
 
-export const BotsToolkit = Toolkit.make(ListBotsTool, DelegateToBotTool);
+const UpdateBotMemoryTool = Tool.make("update_bot_memory", {
+  description:
+    "Save to your persistent bot memory (MEMORY.md), which is shown to you at the start of every run. Use append for a new fact or lesson; use replace to rewrite or condense the whole memory. Only works when you are running as a bot.",
+  parameters: BotsMcpUpdateMemoryInput,
+  success: BotsMcpUpdateMemoryResult,
+  failure: OrchestratorMcpFailure,
+  failureMode: "return",
+  dependencies,
+})
+  .annotate(Tool.Title, "Update bot memory")
+  .annotate(Tool.Readonly, false)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, false)
+  .annotate(Tool.OpenWorld, false)
+  .annotate(McpSchema.EnabledWhen, McpInvocationContext.hiddenFromOutsideClients);
+
+export const BotsToolkit = Toolkit.make(ListBotsTool, DelegateToBotTool, UpdateBotMemoryTool);

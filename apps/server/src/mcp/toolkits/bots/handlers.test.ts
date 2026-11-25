@@ -105,17 +105,32 @@ const delegateResult: OrchestratorMcpDelegateTaskResult = {
 const layerToolkit = (input: {
   readonly bots: ReadonlyArray<Bot>;
   readonly souls?: ReadonlyMap<BotId, string>;
+  readonly memories?: ReadonlyMap<BotId, string>;
   readonly callerTags?: ReadonlyArray<string>;
   readonly callerRuntimeMode?: "approval-required" | "auto" | "full-access";
 }) => {
   const calls: Array<unknown> = [];
+  const storedMemories = new Map(input.memories ?? []);
   const layerStore = Layer.mock(BotStore)({
     list: () => Effect.succeed({ bots: [...input.bots], loadErrors: [] }),
     get: (id) => {
       const bot = input.bots.find((entry) => entry.id === id);
       return bot === undefined
         ? Effect.fail(new BotError({ message: "Bot not found.", botId: id }))
-        : Effect.succeed({ bot, soul: input.souls?.get(id) ?? "" });
+        : Effect.succeed({
+            bot,
+            soul: input.souls?.get(id) ?? "",
+            memory: storedMemories.get(id) ?? "",
+            skills: [],
+          });
+    },
+    writeMemory: (id, memory) => {
+      const bot = input.bots.find((entry) => entry.id === id);
+      if (bot === undefined) {
+        return Effect.fail(new BotError({ message: "Bot not found.", botId: id }));
+      }
+      storedMemories.set(id, memory);
+      return Effect.succeed(Buffer.byteLength(memory, "utf8"));
     },
   });
   const layerService = Layer.mock(OrchestratorMcpService.OrchestratorMcpService)({
@@ -269,5 +284,88 @@ it.effect("delegate_to_bot hands the built input to delegateTask and tags the ch
     });
 
     expect(result.structuredContent).toMatchObject({ botId: "planner", taskId: "task-1" });
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("update_bot_memory appends to an empty memory", () => {
+  const { layer } = layerToolkit({
+    bots: [plannerBot()],
+    callerTags: [botThreadTag(BotId.make("planner"))],
+  });
+  return Effect.gen(function* () {
+    const result = yield* callTool("update_bot_memory", {
+      mode: "append",
+      text: "Prefers short plans.",
+    });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toMatchObject({
+      botId: "planner",
+      memoryBytes: Buffer.byteLength("Prefers short plans.", "utf8"),
+    });
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("update_bot_memory joins an existing memory with a blank line", () => {
+  const { layer } = layerToolkit({
+    bots: [plannerBot()],
+    memories: new Map([[BotId.make("planner"), "Prefers short plans."]]),
+    callerTags: [botThreadTag(BotId.make("planner"))],
+  });
+  return Effect.gen(function* () {
+    const result = yield* callTool("update_bot_memory", {
+      mode: "append",
+      text: "Ships Friday.",
+    });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toMatchObject({
+      memoryBytes: Buffer.byteLength("Prefers short plans.\n\nShips Friday.", "utf8"),
+    });
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("update_bot_memory replaces the whole memory", () => {
+  const { layer } = layerToolkit({
+    bots: [plannerBot()],
+    memories: new Map([[BotId.make("planner"), "Stale notes. ".repeat(300)]]),
+    callerTags: [botThreadTag(BotId.make("planner"))],
+  });
+  return Effect.gen(function* () {
+    const result = yield* callTool("update_bot_memory", {
+      mode: "replace",
+      text: "Only Friday.",
+    });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toMatchObject({
+      botId: "planner",
+      memoryBytes: Buffer.byteLength("Only Friday.", "utf8"),
+    });
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("update_bot_memory refuses when the result would exceed the cap", () => {
+  const { layer } = layerToolkit({
+    bots: [plannerBot()],
+    memories: new Map([[BotId.make("planner"), "x".repeat(15_900)]]),
+    callerTags: [botThreadTag(BotId.make("planner"))],
+  });
+  return Effect.gen(function* () {
+    const failure = declaredFailure(
+      yield* callTool("update_bot_memory", { mode: "append", text: "y".repeat(200) }),
+    );
+    expect(failure).toMatchObject({ code: "invalid_request" });
+    expect(failure?.message).toContain("replace");
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("update_bot_memory refuses a caller that is not running as a bot", () => {
+  const { layer } = layerToolkit({ bots: [plannerBot()] });
+  return Effect.gen(function* () {
+    const failure = declaredFailure(
+      yield* callTool("update_bot_memory", { mode: "append", text: "hi" }),
+    );
+    expect(failure).toMatchObject({
+      code: "invalid_request",
+      message: "update_bot_memory only works in a bot's own thread.",
+    });
   }).pipe(Effect.provide(layer));
 });
