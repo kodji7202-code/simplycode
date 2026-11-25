@@ -50,7 +50,7 @@ import {
 import { AuthMcpClientAccess } from "./auth.ts";
 import { ChatAttachment } from "./chatAttachment.ts";
 import { ThreadGuestShare } from "./guestShare.ts";
-import { StoredThreadTags, ThreadTag } from "./threadTags.ts";
+import { hasBotThreadTag, StoredThreadTags, ThreadTag } from "./threadTags.ts";
 import { ThreadTitleRegenerationOutcome } from "./threadTitle.ts";
 import {
   OrchestrationSearchThreadsInput,
@@ -2512,6 +2512,17 @@ export function isLiveSubagentShell(
     thread.pendingRuntimeRequest !== null ||
     (thread.pendingBackgroundTasks?.length ?? 0) > 0
   );
+}
+
+/**
+ * A subagent thread a bot's delegated run produced (`delegate_to_bot` tags it `bot:<id>`). It
+ * lists under its bot like a top-level thread, so shells keep it while plain idle children are
+ * omitted.
+ */
+export function isBotDelegatedSubagentShell(
+  thread: Pick<OrchestrationV2ThreadShell, "lineage" | "tags">,
+): boolean {
+  return thread.lineage.relationshipToParent === "subagent" && hasBotThreadTag(thread.tags);
 }
 
 /**

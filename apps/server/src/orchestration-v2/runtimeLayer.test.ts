@@ -98,6 +98,7 @@ import * as ScratchThreadPromotion from "../project/ScratchThreadPromotion.ts";
 import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
 import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 import * as Scheduler from "../scheduling/Scheduler.ts";
+import * as BotStore from "../bots/BotStore.ts";
 import * as SecretRequests from "../secrets/SecretRequests.ts";
 import * as DeviceHost from "../device/DeviceHost.ts";
 import * as DeviceService from "../device/DeviceService.ts";
@@ -108,6 +109,15 @@ import * as ThreadLaunchService from "./ThreadLaunchService.ts";
 import * as ThreadCommandExecutor from "./ThreadCommandExecutor.ts";
 import * as DelegatedTaskQuestionReactor from "./DelegatedTaskQuestionReactor.ts";
 import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
+
+// The /mcp bots toolkit resolves BotStore per call through its registration middleware's context
+// capture, so unit tests that mock BotStore cannot catch a missing production export. Removing
+// layerBotStoreProvided from layerProduction's merge makes this file fail typecheck.
+const _layerProductionProvidesBotStore = true satisfies BotStore.BotStore extends Layer.Success<
+  typeof RuntimeLayer.layerProduction
+>
+  ? true
+  : never;
 
 const layerPlatformTest = Layer.mergeAll(
   Layer.mock(ProjectSetupScriptRunner.ProjectSetupScriptRunner)({

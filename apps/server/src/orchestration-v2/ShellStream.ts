@@ -12,6 +12,7 @@ import type {
   ThreadId,
 } from "@t3tools/contracts";
 import {
+  isBotDelegatedSubagentShell,
   isListedThreadLineage,
   isLiveSubagentShell,
   isOlderSettledThreadShell,
@@ -179,7 +180,7 @@ function buildActiveShellSnapshot(input: {
 
 type ShellTrimRow = Pick<
   OrchestrationV2ThreadShell,
-  "id" | "projectId" | "lineage" | "settledOverride" | "settledAt"
+  "id" | "projectId" | "lineage" | "settledOverride" | "settledAt" | "tags"
 > & { readonly hasRemoteTasks?: boolean };
 
 /**
@@ -256,6 +257,7 @@ function omitIdleSubagentShellsWith(
     (thread) =>
       thread.lineage.relationshipToParent !== "subagent" ||
       isLiveSubagentShell(thread) ||
+      isBotDelegatedSubagentShell(thread) ||
       facts.subagentParentIds.has(thread.id) ||
       facts.remoteTaskParentIds.has(thread.id),
   );
@@ -299,9 +301,9 @@ function omitOlderSettledShellsWith(
 
 /**
  * Idle subagent children have no sidebar row, so clients that opt in read them from their thread
- * family instead. A child stays while it is live or the parent of another child, so the request
- * and working walks over shell rows never meet a gap in a nested chain. It also stays as the
- * parent of a task in a linked environment, whose clients nest that task under it.
+ * family instead. A child stays while it is live or the parent of another child or of a linked-
+ * environment task, so walks over shell rows never meet a gap. A bot's delegated run (`bot:` tag)
+ * stays too: it lists under its bot.
  */
 export function omitIdleSubagentShells(
   threads: ReadonlyArray<OrchestrationV2ThreadShell>,
@@ -369,7 +371,7 @@ function trimShellSnapshot(
  * The threads whose shells a trimmed snapshot can contain: a superset of what the trims keep, so
  * trimming the shells read for these ids gives the snapshot trimming every shell would.
  */
-function shellSubscriberThreadIds(
+export function shellSubscriberThreadIds(
   index: ReadonlyArray<ActiveShellIndexEntry>,
   options: ShellSubscriberOptions,
 ): ReadonlyArray<ThreadId> {
@@ -380,6 +382,7 @@ function shellSubscriberThreadIds(
       (!options.omitIdleSubagents ||
         entry.mayBeLive ||
         entry.hasRemoteTasks ||
+        isBotDelegatedSubagentShell(entry) ||
         facts.subagentParentIds.has(entry.id)),
   );
   const ancestorIds = hiddenChildAncestorIds([

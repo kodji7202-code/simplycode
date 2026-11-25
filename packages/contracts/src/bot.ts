@@ -13,6 +13,7 @@ import { ModelSelection } from "./modelSelection.ts";
 import { OrchestrationV2ThreadLaunchWorkspaceStrategy } from "./orchestrationV2.ts";
 import { ProviderInstanceId } from "./providerInstance.ts";
 import { ProviderInteractionMode, RuntimeMode } from "./providerPolicy.ts";
+import { BOT_THREAD_TAG_PREFIX } from "./threadTags.ts";
 
 /**
  * A bot's id is also the name of its folder under `bots/` in the server home,
@@ -85,7 +86,7 @@ export const BotLimits = Schema.Struct({
 export type BotLimits = typeof BotLimits.Type;
 
 export function botThreadTag(id: BotId): string {
-  return `bot:${id}`;
+  return `${BOT_THREAD_TAG_PREFIX}${id}`;
 }
 
 export const BotProfile = Schema.Struct({
