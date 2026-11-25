@@ -1987,6 +1987,18 @@ export function createServerEnvironmentAtoms<R, E>(
       label: "environment-data:server:bots:run-now",
       tag: WS_METHODS.botsRunNow,
     }),
+    installBotSkill: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:bots:install-skill",
+      tag: WS_METHODS.botsInstallSkill,
+      scheduler: configScheduler,
+      concurrency: configConcurrency,
+    }),
+    removeBotSkill: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:bots:remove-skill",
+      tag: WS_METHODS.botsRemoveSkill,
+      scheduler: configScheduler,
+      concurrency: configConcurrency,
+    }),
     answerWorkflowQuestion: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:workflows:answer",
       tag: WS_METHODS.workflowsAnswer,

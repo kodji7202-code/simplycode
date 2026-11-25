@@ -266,6 +266,8 @@ describe("applyBotToDraft", () => {
     interactionMode: "plan",
     limits: {},
     soulBytes: 10,
+    memoryBytes: 0,
+    skills: [],
     threadTag: "bot:release-bot",
     createdAt: "2026-09-17T00:00:00.000Z",
     updatedAt: "2026-09-17T00:00:00.000Z",

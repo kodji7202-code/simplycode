@@ -1,6 +1,7 @@
 import { expect, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { BotId, BotProfile } from "@t3tools/contracts";
+import { BotId, BotError, BotProfile } from "@t3tools/contracts";
+import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
 import * as Deferred from "effect/Deferred";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -10,6 +11,7 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Ref from "effect/Ref";
+import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import * as Scope from "effect/Scope";
 import * as Stream from "effect/Stream";
@@ -234,6 +236,200 @@ it.live("reloads when the bots folder changes on disk", () =>
       expect(Option.isSome(emissions)).toBe(true);
       const last = Option.isSome(emissions) ? emissions.value.at(-1) : undefined;
       expect(last?.bots.map((bot) => bot.id)).toEqual(["edited-bot"]);
+    }).pipe(
+      Effect.provide(
+        BotStore.layer.pipe(Layer.provideMerge(ServerConfig.layerTest(process.cwd(), baseDir))),
+      ),
+    );
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
+it.effect("writes, reloads and clears a bot's memory", () =>
+  withStore(
+    Effect.gen(function* () {
+      const store = yield* BotStore.BotStore;
+      const written = yield* store.write(profile("night-watch"), "", "The user prefers dark mode.");
+      expect(written.memoryBytes).toBe(Buffer.byteLength("The user prefers dark mode.", "utf8"));
+      const got = yield* store.get(BotId.make("night-watch"));
+      expect(got.memory).toBe("The user prefers dark mode.");
+
+      yield* store.write(profile("night-watch"), undefined, "");
+      const cleared = yield* store.get(BotId.make("night-watch"));
+      expect(cleared.memory).toBe("");
+      expect(cleared.bot.memoryBytes).toBe(0);
+    }),
+  ),
+);
+
+it.effect("reports an over-cap MEMORY.md as a load error", () =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "simplycode-bots-" });
+    const path = yield* Path.Path;
+    yield* Effect.gen(function* () {
+      const store = yield* BotStore.BotStore;
+      const config = yield* ServerConfig.ServerConfig;
+      const dir = path.join(config.botsDir, "night-watch");
+      yield* seedFolder(dir, JSON.stringify(profile("night-watch")));
+      yield* fs.writeFileString(path.join(dir, "MEMORY.md"), "x".repeat(16_001));
+      yield* store.write(profile("other-bot"));
+      const listed = yield* store.list();
+      expect(listed.bots.map((bot) => bot.id)).toEqual(["other-bot"]);
+      expect(listed.loadErrors).toEqual([
+        { folder: "night-watch", message: "MEMORY.md exceeds the 16 KB limit." },
+      ]);
+    }).pipe(
+      Effect.provide(
+        BotStore.layer.pipe(Layer.provideMerge(ServerConfig.layerTest(process.cwd(), baseDir))),
+      ),
+    );
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
+const seedSkill = (root: string, name: string, contents: string, extra?: string) =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const dir = path.join(root, name);
+    yield* fs.makeDirectory(dir, { recursive: true });
+    yield* fs.writeFileString(path.join(dir, "SKILL.md"), contents);
+    if (extra !== undefined) {
+      yield* fs.makeDirectory(path.join(dir, "refs"), { recursive: true });
+      yield* fs.writeFileString(path.join(dir, "refs", "guide.txt"), extra);
+    }
+    return dir;
+  });
+
+const expectBotError = <A>(effect: Effect.Effect<A, BotError>) =>
+  Effect.gen(function* () {
+    const result = yield* Effect.result(effect);
+    expect(Result.isFailure(result)).toBe(true);
+    return Result.isFailure(result) ? result.failure : undefined;
+  });
+
+it.effect("installs a skill from a folder and from a SKILL.md path, then removes it", () =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "simplycode-bots-" });
+    const path = yield* Path.Path;
+    yield* Effect.gen(function* () {
+      const store = yield* BotStore.BotStore;
+      const config = yield* ServerConfig.ServerConfig;
+      const sourceRoot = path.join(path.dirname(config.botsDir), "skills-src");
+      yield* store.write(profile("night-watch"));
+
+      const folder = yield* seedSkill(
+        sourceRoot,
+        "deploy",
+        '---\ndescription: "Ships the release"\n---\n# Deploy\n',
+        "check the changelog",
+      );
+      const installed = yield* store.installSkill(BotId.make("night-watch"), folder);
+      expect(installed.skills).toEqual([{ name: "deploy", description: "Ships the release" }]);
+      const copied = yield* fs.readFileString(
+        path.join(config.botsDir, "night-watch", "skills", "deploy", "refs", "guide.txt"),
+      );
+      expect(copied).toBe("check the changelog");
+      const got = yield* store.get(BotId.make("night-watch"));
+      expect(got.skills[0]?.path.endsWith(path.join("deploy", "SKILL.md"))).toBe(true);
+
+      const skillFile = yield* seedSkill(path.join(sourceRoot, "second"), "triage", "# Triage\n");
+      const fromFile = yield* store.installSkill(
+        BotId.make("night-watch"),
+        path.join(skillFile, "SKILL.md"),
+      );
+      expect(fromFile.skills.map((skill) => skill.name).sort()).toEqual(["deploy", "triage"]);
+
+      const removed = yield* store.removeSkill(BotId.make("night-watch"), BotId.make("deploy"));
+      expect(removed.skills.map((skill) => skill.name)).toEqual(["triage"]);
+      expect(yield* fs.exists(path.join(config.botsDir, "night-watch", "skills", "deploy"))).toBe(
+        false,
+      );
+    }).pipe(
+      Effect.provide(
+        BotStore.layer.pipe(Layer.provideMerge(ServerConfig.layerTest(process.cwd(), baseDir))),
+      ),
+    );
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
+it.effect("rejects a folder without SKILL.md and overwrites on reinstall", () =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "simplycode-bots-" });
+    const path = yield* Path.Path;
+    yield* Effect.gen(function* () {
+      const store = yield* BotStore.BotStore;
+      const config = yield* ServerConfig.ServerConfig;
+      const sourceRoot = path.join(path.dirname(config.botsDir), "skills-src");
+      yield* store.write(profile("night-watch"));
+
+      const empty = path.join(sourceRoot, "empty-skill");
+      yield* fs.makeDirectory(empty, { recursive: true });
+      const failure = yield* expectBotError(store.installSkill(BotId.make("night-watch"), empty));
+      expect(failure?.message).toContain("SKILL.md");
+
+      const folder = yield* seedSkill(sourceRoot, "deploy", "v1");
+      yield* store.installSkill(BotId.make("night-watch"), folder);
+      yield* fs.writeFileString(path.join(folder, "SKILL.md"), "v2");
+      yield* store.installSkill(BotId.make("night-watch"), folder);
+      const reread = yield* fs.readFileString(
+        path.join(config.botsDir, "night-watch", "skills", "deploy", "SKILL.md"),
+      );
+      expect(reread).toBe("v2");
+    }).pipe(
+      Effect.provide(
+        BotStore.layer.pipe(Layer.provideMerge(ServerConfig.layerTest(process.cwd(), baseDir))),
+      ),
+    );
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
+it.effect("rejects a skill over 2 MB before writing anything", () =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "simplycode-bots-" });
+    const path = yield* Path.Path;
+    yield* Effect.gen(function* () {
+      const store = yield* BotStore.BotStore;
+      const config = yield* ServerConfig.ServerConfig;
+      const sourceRoot = path.join(path.dirname(config.botsDir), "skills-src");
+      yield* store.write(profile("night-watch"));
+
+      const folder = yield* seedSkill(sourceRoot, "huge-skill", "# Big\n");
+      yield* fs.writeFileString(path.join(folder, "blob.bin"), "x".repeat(2 * 1024 * 1024 + 1));
+      const failure = yield* expectBotError(store.installSkill(BotId.make("night-watch"), folder));
+      expect(failure?.message).toContain("2 MB");
+      expect(
+        yield* fs.exists(path.join(config.botsDir, "night-watch", "skills", "huge-skill")),
+      ).toBe(false);
+    }).pipe(
+      Effect.provide(
+        BotStore.layer.pipe(Layer.provideMerge(ServerConfig.layerTest(process.cwd(), baseDir))),
+      ),
+    );
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
+it.effect.skipIf(!symlinksSupported)("rejects a skill containing a symbolic link", () =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "simplycode-bots-" });
+    const path = yield* Path.Path;
+    yield* Effect.gen(function* () {
+      const store = yield* BotStore.BotStore;
+      const config = yield* ServerConfig.ServerConfig;
+      const sourceRoot = path.join(path.dirname(config.botsDir), "skills-src");
+      yield* store.write(profile("night-watch"));
+
+      const folder = yield* seedSkill(sourceRoot, "linked-skill", "# Links\n");
+      yield* fs.writeFileString(path.join(sourceRoot, "outside.txt"), "secret");
+      yield* fs.symlink(path.join(sourceRoot, "outside.txt"), path.join(folder, "outside.txt"));
+      const failure = yield* expectBotError(store.installSkill(BotId.make("night-watch"), folder));
+      expect(failure?.message).toContain("symbolic link");
+      expect(
+        yield* fs.exists(path.join(config.botsDir, "night-watch", "skills", "linked-skill")),
+      ).toBe(false);
     }).pipe(
       Effect.provide(
         BotStore.layer.pipe(Layer.provideMerge(ServerConfig.layerTest(process.cwd(), baseDir))),

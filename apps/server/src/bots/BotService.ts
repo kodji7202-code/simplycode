@@ -10,10 +10,12 @@ import {
   type BotDeleteResult,
   type BotGetInput,
   type BotGetResult,
+  type BotInstallSkillInput,
   type BotListInput,
   type BotListResult,
   type BotMutationResult,
   type BotProfile,
+  type BotRemoveSkillInput,
   type BotRunNowInput,
   type BotRunNowResult,
   type BotSetEnabledInput,
@@ -35,6 +37,7 @@ import * as Orchestrator from "../orchestration-v2/Orchestrator.ts";
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
 import * as ScheduledTasks from "../scheduledTasks/ScheduledTaskService.ts";
 import { BotStore } from "./BotStore.ts";
+import { botInstructions } from "./botInstructions.ts";
 import { botPrompt } from "@t3tools/shared/botPrompt";
 
 function botError(message: string, input?: { botId?: BotId; cause?: unknown }) {
@@ -62,7 +65,15 @@ export const botHookLayer = Layer.unwrap(
       if (!context.launching && !context.freshContext) return text;
       const entry = yield* store.get(task.botId).pipe(Effect.result);
       if (entry._tag === "Failure") return text;
-      return botPrompt(entry.success.bot, entry.success.soul, text);
+      return botPrompt(
+        entry.success.bot,
+        botInstructions({
+          soul: entry.success.soul,
+          memory: entry.success.memory,
+          skills: entry.success.skills,
+        }),
+        text,
+      );
     });
 
     const afterLaunch: ScheduledTasks.ScheduledTaskBotHookShape["afterLaunch"] = Effect.fn(
@@ -116,6 +127,12 @@ export class BotService extends Context.Service<
     readonly setEnabled: (input: BotSetEnabledInput) => Effect.Effect<BotMutationResult, BotError>;
     readonly delete: (input: BotDeleteInput) => Effect.Effect<BotDeleteResult, BotError>;
     readonly runNow: (input: BotRunNowInput) => Effect.Effect<BotRunNowResult, BotError>;
+    readonly installSkill: (
+      input: BotInstallSkillInput,
+    ) => Effect.Effect<BotMutationResult, BotError>;
+    readonly removeSkill: (
+      input: BotRemoveSkillInput,
+    ) => Effect.Effect<BotMutationResult, BotError>;
   }
 >()("simplycode/bots/BotService") {}
 
@@ -145,7 +162,13 @@ export const layer = Layer.effect(
     });
 
     const toProfile = (bot: Bot): BotProfile => {
-      const { soulBytes: _soulBytes, threadTag: _threadTag, ...profile } = bot;
+      const {
+        soulBytes: _soulBytes,
+        memoryBytes: _memoryBytes,
+        skills: _skills,
+        threadTag: _threadTag,
+        ...profile
+      } = bot;
       return profile;
     };
 
@@ -179,7 +202,7 @@ export const layer = Layer.effect(
           ...(input.role === undefined ? {} : { role: input.role }),
           ...(input.description === undefined ? {} : { description: input.description }),
         };
-        const bot = yield* store.write(profile, input.soul);
+        const bot = yield* store.write(profile, input.soul, input.memory);
         return { bot };
       },
     );
@@ -216,7 +239,7 @@ export const layer = Layer.effect(
 
     const runNow: BotService["Service"]["runNow"] = Effect.fn("BotService.runNow")(
       function* (input) {
-        const { bot, soul } = yield* store.get(input.id);
+        const { bot, soul, memory, skills } = yield* store.get(input.id);
         if (!bot.enabled) return yield* botError("Bot is disabled.", { botId: input.id });
         yield* requireProject(bot.projectId, input.id);
         const commandId =
@@ -234,7 +257,7 @@ export const layer = Layer.effect(
             workspaceStrategy: bot.workspaceStrategy,
             initialMessage: {
               messageId: MessageId.make(`bot-message:${commandId}`),
-              text: botPrompt(bot, soul, input.prompt),
+              text: botPrompt(bot, botInstructions({ soul, memory, skills }), input.prompt),
               attachments: [],
             },
             createdBy: "user",
@@ -265,11 +288,19 @@ export const layer = Layer.effect(
     return BotService.of({
       list: Effect.fn("BotService.list")(() => store.list()),
       subscribeList: () => store.subscribeList(),
-      get: Effect.fn("BotService.get")((input) => store.get(input.id)),
+      get: Effect.fn("BotService.get")((input) =>
+        store.get(input.id).pipe(Effect.map(({ skills: _skills, ...rest }) => rest)),
+      ),
       upsert,
       setEnabled,
       delete: deleteBot,
       runNow,
+      installSkill: Effect.fn("BotService.installSkill")((input) =>
+        store.installSkill(input.id, input.sourcePath).pipe(Effect.map((bot) => ({ bot }))),
+      ),
+      removeSkill: Effect.fn("BotService.removeSkill")((input) =>
+        store.removeSkill(input.id, input.name).pipe(Effect.map((bot) => ({ bot }))),
+      ),
     });
   }),
 );

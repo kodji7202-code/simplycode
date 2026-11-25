@@ -168,7 +168,7 @@ it.effect("wraps the launch prompt and tags the thread for a bot task", () =>
       yield* service.runNow({ id: created.task.id });
       expect(launchedMessages).toHaveLength(1);
       expect(launchedMessages[0]?.text).toBe(
-        'You are "Night Watch", a SimplyCode bot. Follow these standing instructions:\n\nStand guard.\n\n--- end of standing instructions ---\n\nRun the checks.',
+        'You are "Night Watch", a SimplyCode bot. Follow these standing instructions:\n\nStand guard.\n\n## Your memory\nThis is your MEMORY.md, kept between runs. When you learn something worth keeping (a user preference, a project fact, a lesson from a mistake), save it with the update_bot_memory tool. Keep it short and current.\n\n(empty)\n\n--- end of standing instructions ---\n\nRun the checks.',
       );
       const tag = dispatches.find((command) => command.type === "thread.tag.set");
       expect(tag?.tag).toBe("bot:night-watch");
@@ -234,7 +234,13 @@ it.effect("blocks a task whose bot is disabled until it is re-enabled", () =>
       expect(sentMessages).toHaveLength(0);
 
       const { bot } = yield* store.get(BotId.make("night-watch"));
-      const { soulBytes: _soulBytes, threadTag: _threadTag, ...profile } = bot;
+      const {
+        soulBytes: _soulBytes,
+        memoryBytes: _memoryBytes,
+        skills: _skills,
+        threadTag: _threadTag,
+        ...profile
+      } = bot;
       yield* store.write({ ...profile, enabled: true });
       const fired = yield* service.runNow({ id: created.task.id });
       expect(fired.task.lastRunStatus).toBe("succeeded");

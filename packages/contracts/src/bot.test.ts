@@ -1,9 +1,10 @@
 import * as Schema from "effect/Schema";
 import { describe, expect, it } from "vite-plus/test";
 
-import { BotId, BotProfile, BotUpsertInput, botRuntimeMode } from "./bot.ts";
+import { Bot, BotId, BotProfile, BotUpsertInput, botRuntimeMode } from "./bot.ts";
 
 const decodeBotId = Schema.decodeUnknownSync(BotId);
+const decodeBot = Schema.decodeUnknownSync(Bot);
 const decodeProfile = Schema.decodeUnknownSync(BotProfile);
 const decodeUpsert = Schema.decodeUnknownSync(BotUpsertInput);
 
@@ -44,9 +45,36 @@ describe("BotProfile", () => {
   });
 });
 
+describe("Bot", () => {
+  const wireBot = { ...validProfile, soulBytes: 0, threadTag: "bot:night-watch" };
+
+  it("defaults memoryBytes and skills for a wire item written before they existed", () => {
+    const bot = decodeBot(wireBot);
+    expect(bot.memoryBytes).toBe(0);
+    expect(bot.skills).toEqual([]);
+  });
+
+  it("decodes memoryBytes and skills", () => {
+    const bot = decodeBot({
+      ...wireBot,
+      memoryBytes: 12,
+      skills: [{ name: "deploy", description: "Ships the release" }, { name: "triage" }],
+    });
+    expect(bot.memoryBytes).toBe(12);
+    expect(bot.skills).toEqual([
+      { name: "deploy", description: "Ships the release" },
+      { name: "triage" },
+    ]);
+  });
+});
+
 describe("BotUpsertInput", () => {
   it("rejects a soul over the byte limit", () => {
     expect(() => decodeUpsert({ ...validProfile, soul: "x".repeat(24_001) })).toThrow();
+  });
+
+  it("rejects a memory over the byte limit", () => {
+    expect(() => decodeUpsert({ ...validProfile, memory: "x".repeat(16_001) })).toThrow();
   });
 });
 

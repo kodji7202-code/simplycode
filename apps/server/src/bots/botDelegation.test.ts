@@ -30,10 +30,13 @@ const input = (overrides?: Partial<BotsMcpDelegateToBotInput>): BotsMcpDelegateT
   ...overrides,
 });
 
+const EMPTY_INSTRUCTIONS = { memory: "", skills: [] as const };
+
 it("wraps the task with the bot's SOUL instructions", () => {
   const built = botDelegateTaskInput({
     bot: makeBot(),
     soul: "Always think in graphs.",
+    ...EMPTY_INSTRUCTIONS,
     input: input(),
     callerRuntimeMode: "full-access",
   });
@@ -42,14 +45,31 @@ it("wraps the task with the bot's SOUL instructions", () => {
   expect(built.task.endsWith("Audit the auth flow")).toBe(true);
 });
 
-it("leaves the task untouched when the soul is empty", () => {
+it("still wraps the task with the memory section when the soul is empty", () => {
   const built = botDelegateTaskInput({
     bot: makeBot(),
     soul: "",
+    ...EMPTY_INSTRUCTIONS,
     input: input(),
     callerRuntimeMode: "full-access",
   });
-  expect(built.task).toBe("Audit the auth flow");
+  expect(built.task).toContain('You are "Planner", a SimplyCode bot');
+  expect(built.task).toContain("## Your memory");
+  expect(built.task).toContain("(empty)");
+  expect(built.task.endsWith("Audit the auth flow")).toBe(true);
+});
+
+it("includes memory and skills in the preamble", () => {
+  const built = botDelegateTaskInput({
+    bot: makeBot(),
+    soul: "Always think in graphs.",
+    memory: "The user prefers short plans.",
+    skills: [{ name: "deploy", path: "/bots/planner/skills/deploy/SKILL.md" }],
+    input: input(),
+    callerRuntimeMode: "full-access",
+  });
+  expect(built.task).toContain("The user prefers short plans.");
+  expect(built.task).toContain("- deploy: no description (/bots/planner/skills/deploy/SKILL.md)");
 });
 
 it("targets the bot's modelSelection and passes options through", () => {
@@ -62,6 +82,7 @@ it("targets the bot's modelSelection and passes options through", () => {
       },
     }),
     soul: "",
+    ...EMPTY_INSTRUCTIONS,
     input: input(),
     callerRuntimeMode: "full-access",
   });
@@ -76,6 +97,7 @@ it("leaves options out when the selection has none", () => {
   const built = botDelegateTaskInput({
     bot: makeBot(),
     soul: "",
+    ...EMPTY_INSTRUCTIONS,
     input: input(),
     callerRuntimeMode: "full-access",
   });
@@ -87,6 +109,7 @@ it("clamps a broad bot down to a supervised caller's runtime mode", () => {
   const built = botDelegateTaskInput({
     bot: makeBot({ approvalMode: "full" }),
     soul: "",
+    ...EMPTY_INSTRUCTIONS,
     input: input(),
     callerRuntimeMode: "approval-required",
   });
@@ -97,6 +120,7 @@ it("keeps a supervised bot supervised under a full-access caller", () => {
   const built = botDelegateTaskInput({
     bot: makeBot({ approvalMode: "auto-safe" }),
     soul: "",
+    ...EMPTY_INSTRUCTIONS,
     input: input(),
     callerRuntimeMode: "full-access",
   });
@@ -108,6 +132,7 @@ it("defaults the title to the bot name and task start, and honors an override", 
   const defaulted = botDelegateTaskInput({
     bot,
     soul: "",
+    ...EMPTY_INSTRUCTIONS,
     input: input(),
     callerRuntimeMode: "auto",
   });
@@ -116,6 +141,7 @@ it("defaults the title to the bot name and task start, and honors an override", 
   const long = botDelegateTaskInput({
     bot,
     soul: "",
+    ...EMPTY_INSTRUCTIONS,
     input: input({ task: "x".repeat(120) }),
     callerRuntimeMode: "auto",
   });
@@ -124,6 +150,7 @@ it("defaults the title to the bot name and task start, and honors an override", 
   const titled = botDelegateTaskInput({
     bot,
     soul: "",
+    ...EMPTY_INSTRUCTIONS,
     input: input({ title: "Weekly audit" }),
     callerRuntimeMode: "auto",
   });
@@ -134,6 +161,7 @@ it("uses the bot's interactionMode, the general role, and passes run options thr
   const built = botDelegateTaskInput({
     bot: makeBot({ interactionMode: "plan" }),
     soul: "",
+    ...EMPTY_INSTRUCTIONS,
     input: input({
       mode: "wait",
       timeoutMs: 30_000,

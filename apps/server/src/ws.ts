@@ -2457,6 +2457,14 @@ export const layerWsRpc = (
           Effect.annotateCurrentSpan({ "bot.id": input.id }).pipe(
             Effect.andThen(bots.runNow(input)),
           ),
+        [WS_METHODS.botsInstallSkill]: (input) =>
+          Effect.annotateCurrentSpan({ "bot.id": input.id }).pipe(
+            Effect.andThen(bots.installSkill(input)),
+          ),
+        [WS_METHODS.botsRemoveSkill]: (input) =>
+          Effect.annotateCurrentSpan({ "bot.id": input.id }).pipe(
+            Effect.andThen(bots.removeSkill(input)),
+          ),
         [WS_METHODS.serverProbe]: (_input) =>
           Effect.map(DateTime.now, (now) => ({ serverTime: DateTime.formatIso(now) })),
         [WS_METHODS.serverGetConfig]: (_input) =>
