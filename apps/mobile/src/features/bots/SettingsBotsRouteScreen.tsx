@@ -20,6 +20,7 @@ import type {
   BotImportCandidate,
   BotImportScanResult,
   BotImportSource,
+  BotSkillName,
   BotUpsertInput,
   ModelSelection,
   ProjectId,
@@ -30,6 +31,7 @@ import {
   type AtomCommandResult,
 } from "@t3tools/client-runtime/state/runtime";
 import { scheduledTaskWorktreeBaseRef } from "@t3tools/client-runtime/scheduled-task-worktree";
+import { resolveProviderInstanceDisplayName } from "@t3tools/client-runtime/state/provider-instance-display";
 import {
   dedupeProviderSkillsByName,
   isProviderSkillUserInvocable,
@@ -52,6 +54,7 @@ import { Menu } from "../../components/ui/Menu";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
 import { ThemedSwitch } from "../../components/ui/ThemedSwitch";
 import { m } from "../../i18n/messages";
+import { formatBytes } from "../../lib/formatBytes";
 import { uuidv4 } from "../../lib/uuid";
 import { buildModelOptions } from "../../lib/modelOptions";
 import { useEnvironmentServerConfig, useProjects } from "../../state/entities";
@@ -505,8 +508,16 @@ function ImportBotsPanel(props: {
   const fallback =
     modelOptions.find((option) => option.key === fallbackKey)?.selection ??
     modelOptions[0]?.selection;
-  const fallbackLabel =
-    fallback === undefined ? gt("no model") : `${fallback.model} (${fallback.instanceId})`;
+
+  // "SWE-2 · Devin" for models this server knows; the raw slug when it doesn't.
+  const selectionLabel = (selection: { instanceId: string; model: string }): string => {
+    const provider = providers.find((item) => item.instanceId === selection.instanceId);
+    const model = provider?.models.find((item) => item.slug === selection.model);
+    return provider !== undefined && model !== undefined
+      ? `${model.name} · ${resolveProviderInstanceDisplayName(provider)}`
+      : `${selection.model} (${selection.instanceId})`;
+  };
+  const fallbackLabel = fallback === undefined ? gt("no model") : selectionLabel(fallback);
   const selectedProjectId = projectId ?? projects[0]?.id ?? null;
 
   const source = (): BotImportSource | null => {
@@ -517,23 +528,7 @@ function ImportBotsPanel(props: {
     return packageContent === null ? null : { type: "package", content: packageContent };
   };
 
-  const pickPackage = async () => {
-    const { getDocumentAsync } = await import("expo-document-picker");
-    const picked = await getDocumentAsync({ copyToCacheDirectory: true });
-    const asset = picked.canceled ? null : (picked.assets[0] ?? null);
-    if (asset === null) return;
-    try {
-      const content = await new File(asset.uri).text();
-      setPackageContent(content);
-      setPackageName(asset.name);
-    } catch (error) {
-      Dialog.alert(gt("Could not read file"), String(error));
-    }
-  };
-
-  const scan = async () => {
-    const src = source();
-    if (src === null) return;
+  const runScan = async (src: BotImportSource) => {
     setBusy(true);
     setResult(null);
     const next = await scanBotImport({ environmentId, input: { source: src } });
@@ -545,6 +540,33 @@ function ImportBotsPanel(props: {
     }
     setResult(next.value);
     setChecked(new Set(next.value.candidates.map((candidate) => candidate.key)));
+  };
+
+  const scan = () => {
+    const src = source();
+    if (src !== null) void runScan(src);
+  };
+
+  // Local-install sources scan as soon as they are picked; folder waits for Scan.
+  const pickSourceKind = (kind: ImportSourceKind) => {
+    setSourceKind(kind);
+    setResult(null);
+    if (kind === "openbot") void runScan({ type: "openbot" });
+  };
+
+  const pickPackage = async () => {
+    const { getDocumentAsync } = await import("expo-document-picker");
+    const picked = await getDocumentAsync({ copyToCacheDirectory: true });
+    const asset = picked.canceled ? null : (picked.assets[0] ?? null);
+    if (asset === null) return;
+    try {
+      const content = await new File(asset.uri).text();
+      setPackageContent(content);
+      setPackageName(asset.name);
+      void runScan({ type: "package", content });
+    } catch (error) {
+      Dialog.alert(gt("Could not read file"), String(error));
+    }
   };
 
   const apply = async () => {
@@ -567,17 +589,20 @@ function ImportBotsPanel(props: {
       Dialog.alert(gt("Import failed"), message ?? gt("Try again."));
       return;
     }
-    if (next.value.warnings.length > 0) {
-      Dialog.alert(gt("Import warnings"), next.value.warnings.join("\n"));
+    const warnings = next.value.warnings;
+    if (warnings.length > 0) {
+      Dialog.alert(
+        gt("Import warnings"),
+        [
+          ...warnings.slice(0, 3),
+          ...(warnings.length > 3 ? [gt("and {count} more", { count: warnings.length - 3 })] : []),
+        ].join("\n"),
+      );
     }
     props.onImported(next.value.bots);
   };
 
   const candidates = result?.candidates ?? [];
-  const ready =
-    sourceKind === "openbot" ||
-    (sourceKind === "folder" && folderPath.trim() !== "") ||
-    (sourceKind === "package" && packageContent !== null);
 
   return (
     <View className="gap-2 border-t border-border-subtle px-4 py-3">
@@ -608,17 +633,22 @@ function ImportBotsPanel(props: {
           },
         ]}
         onSelect={(id) => {
-          if (id === "openbot" || id === "folder" || id === "package") setSourceKind(id);
+          if (id === "openbot" || id === "folder" || id === "package") {
+            pickSourceKind(id);
+          }
         }}
       />
       {sourceKind === "folder" ? (
-        <RNTextInput
-          value={folderPath}
-          onChangeText={setFolderPath}
-          placeholder={gt("Path on the server")}
-          placeholderTextColor="#888"
-          className="rounded-lg border border-border-subtle px-3 py-2 text-base text-foreground"
-        />
+        <>
+          <RNTextInput
+            value={folderPath}
+            onChangeText={setFolderPath}
+            placeholder={gt("Path on the server")}
+            placeholderTextColor="#888"
+            className="rounded-lg border border-border-subtle px-3 py-2 text-base text-foreground"
+          />
+          <Button label={gt("Scan")} onPress={scan} disabled={folderPath.trim() === "" || busy} />
+        </>
       ) : null}
       {sourceKind === "package" ? (
         <Button
@@ -627,7 +657,9 @@ function ImportBotsPanel(props: {
           onPress={() => void pickPackage()}
         />
       ) : null}
-      <Button label={gt("Scan")} onPress={() => void scan()} disabled={!ready || busy} />
+      {busy && result === null && sourceKind !== "folder" ? (
+        <Text className="text-sm text-foreground-muted">{gt("Scanning…")}</Text>
+      ) : null}
 
       {result !== null ? (
         candidates.length === 0 ? (
@@ -645,6 +677,7 @@ function ImportBotsPanel(props: {
                 candidate={candidate}
                 checked={checked.has(candidate.key)}
                 fallbackLabel={fallbackLabel}
+                selectionLabel={selectionLabel}
                 onToggle={() =>
                   setChecked((current) => {
                     const updated = new Set(current);
@@ -714,13 +747,14 @@ function ImportCandidateRow(props: {
   readonly candidate: BotImportCandidate;
   readonly checked: boolean;
   readonly fallbackLabel: string;
+  readonly selectionLabel: (selection: { instanceId: string; model: string }) => string;
   readonly onToggle: () => void;
 }) {
   const gt = useGT();
-  const { candidate, checked, fallbackLabel, onToggle } = props;
+  const { candidate, checked, fallbackLabel, selectionLabel, onToggle } = props;
   const modelLine =
     candidate.modelSelection !== undefined
-      ? `${candidate.modelSelection.model} (${candidate.modelSelection.instanceId})`
+      ? selectionLabel(candidate.modelSelection)
       : gt("{model}, not available here, will use {fallback}", {
           model: candidate.sourceModel ?? gt("Unknown model"),
           fallback: fallbackLabel,
@@ -741,6 +775,7 @@ function ImportCandidateRow(props: {
         <Text className="text-sm text-foreground-muted" numberOfLines={1}>
           {[
             gt("{count} skills", { count: candidate.skills.length }),
+            gt("instructions {size}", { size: formatBytes(candidate.soulBytes) }),
             gt("{count} bytes", { count: candidate.memoryBytes }),
             gt("{count} automations", { count: automationCount }),
             candidate.approvalMode,
@@ -1121,7 +1156,7 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
     });
   };
 
-  const removeSkill = (name: BotId) => {
+  const removeSkill = (name: BotSkillName) => {
     if (botId === null || skillBusy) return;
     setSkillBusy(true);
     void removeBotSkill({ environmentId, input: { id: botId, name } }).then((result) => {
