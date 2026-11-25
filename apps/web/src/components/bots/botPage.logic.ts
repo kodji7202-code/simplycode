@@ -60,6 +60,16 @@ export const BOT_AVATAR_COLOR_LABELS = {
   "#84cc16": msg("Lime"),
 } as const;
 
+/** Where a discovered provider skill came from. */
+export const BOT_SKILL_SOURCE_LABELS = {
+  app: msg("App"),
+  repo: msg("Repository"),
+  project: msg("Project"),
+  personal: msg("Personal"),
+  system: msg("System"),
+  other: msg("Other"),
+} as const;
+
 /** New bots get a deterministic head until the user picks one. */
 const NEW_BOT_AVATAR: BotAvatar = { shape: "rectangle", color: BOT_AVATAR_COLORS[0] };
 
@@ -77,6 +87,7 @@ export interface BotDraft {
   readonly approvalMode: BotApprovalMode;
   readonly interactionMode: ProviderInteractionMode;
   readonly soul: string;
+  readonly memory: string;
   readonly maxStepsPerRun: string;
   readonly maxCostUsd: string;
 }
@@ -95,11 +106,12 @@ export const EMPTY_BOT_DRAFT: BotDraft = {
   approvalMode: "ask",
   interactionMode: "default",
   soul: "",
+  memory: "",
   maxStepsPerRun: "",
   maxCostUsd: "",
 };
 
-export function botToDraft(bot: Bot, soul: string): BotDraft {
+export function botToDraft(bot: Bot, soul: string, memory: string): BotDraft {
   return {
     editingId: bot.id,
     name: bot.name,
@@ -114,6 +126,7 @@ export function botToDraft(bot: Bot, soul: string): BotDraft {
     approvalMode: bot.approvalMode,
     interactionMode: bot.interactionMode,
     soul,
+    memory,
     maxStepsPerRun: bot.limits.maxStepsPerRun?.toString() ?? "",
     maxCostUsd: bot.limits.maxCostUsd?.toString() ?? "",
   };
@@ -167,6 +180,7 @@ export function draftToBotUpsertInput(
       ...(Number.isFinite(cost) && cost > 0 ? { maxCostUsd: cost } : {}),
     },
     soul: draft.soul,
+    memory: draft.memory,
   };
 }
 
