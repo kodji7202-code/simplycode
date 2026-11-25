@@ -131,6 +131,8 @@ export const BotProfile = Schema.Struct({
     Schema.withDecodingDefaultKey(Effect.succeed("default" as const)),
   ),
   limits: BotLimits.pipe(Schema.withDecodingDefaultKey(Effect.succeed({}))),
+  /** Whether this bot may create and edit other bots through the MCP tools. */
+  canManageBots: Schema.Boolean.pipe(Schema.withDecodingDefaultKey(Effect.succeed(false))),
   createdAt: IsoDateTime,
   updatedAt: IsoDateTime,
 });
@@ -204,6 +206,8 @@ export const BotUpsertInput = Schema.Struct({
   interactionMode: Schema.optional(ProviderInteractionMode),
   /** Omitted on update: keep the stored value. Omitted on create: no limits. */
   limits: Schema.optional(BotLimits),
+  /** Omitted on update: keep the stored value. Omitted on create: false. */
+  canManageBots: Schema.optional(Schema.Boolean),
   /** Omitted: keep the stored SOUL.md (or no soul for a new bot). */
   soul: Schema.optional(Schema.String.check(Schema.isMaxLength(BOT_SOUL_MAX_BYTES))),
   /** Omitted: keep the stored MEMORY.md. An empty string deletes it. */
@@ -393,3 +397,72 @@ export const BotsMcpUpdateMemoryResult = Schema.Struct({
   memoryBytes: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
 });
 export type BotsMcpUpdateMemoryResult = typeof BotsMcpUpdateMemoryResult.Type;
+
+/** The bot-management tools take `{ providerInstanceId, model }`, like the list_bots shape. */
+const BotsMcpModelPick = Schema.Struct({
+  providerInstanceId: ProviderInstanceId,
+  model: TrimmedNonEmptyString,
+});
+
+export const BotsMcpGetBotInput = Schema.Struct({
+  botId: BotId,
+});
+export type BotsMcpGetBotInput = typeof BotsMcpGetBotInput.Type;
+
+export const BotsMcpGetBotResult = Schema.Struct({
+  bot: Schema.Struct({
+    ...BotsMcpListedBot.fields,
+    avatar: Schema.optional(BotAvatar),
+    interactionMode: ProviderInteractionMode,
+    canManageBots: Schema.Boolean,
+    skills: Schema.Array(BotSkill),
+    soul: Schema.String,
+    memoryBytes: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  }),
+});
+export type BotsMcpGetBotResult = typeof BotsMcpGetBotResult.Type;
+
+export const BotsMcpCreateBotInput = Schema.Struct({
+  name: BotProfile.fields.name,
+  role: BotProfile.fields.role,
+  description: BotProfile.fields.description,
+  soul: Schema.String.check(Schema.isMaxLength(BOT_SOUL_MAX_BYTES)),
+  model: Schema.optional(BotsMcpModelPick),
+  approvalMode: Schema.optional(BotApprovalMode),
+  avatar: Schema.optional(BotAvatar),
+});
+export type BotsMcpCreateBotInput = typeof BotsMcpCreateBotInput.Type;
+
+export const BotsMcpCreateBotResult = Schema.Struct({
+  botId: BotId,
+});
+export type BotsMcpCreateBotResult = typeof BotsMcpCreateBotResult.Type;
+
+export const BotsMcpUpdateBotInput = Schema.Struct({
+  botId: BotId,
+  name: Schema.optional(BotProfile.fields.name),
+  role: BotProfile.fields.role,
+  description: BotProfile.fields.description,
+  soul: Schema.optional(Schema.String.check(Schema.isMaxLength(BOT_SOUL_MAX_BYTES))),
+  model: Schema.optional(BotsMcpModelPick),
+  approvalMode: Schema.optional(BotApprovalMode),
+});
+export type BotsMcpUpdateBotInput = typeof BotsMcpUpdateBotInput.Type;
+
+export const BotsMcpUpdateBotResult = Schema.Struct({
+  botId: BotId,
+});
+export type BotsMcpUpdateBotResult = typeof BotsMcpUpdateBotResult.Type;
+
+export const BotsMcpInstallBotSkillInput = Schema.Struct({
+  botId: BotId,
+  /** A SKILL.md file, or the folder that holds one, on this machine. */
+  sourcePath: TrimmedNonEmptyString,
+});
+export type BotsMcpInstallBotSkillInput = typeof BotsMcpInstallBotSkillInput.Type;
+
+export const BotsMcpInstallBotSkillResult = Schema.Struct({
+  botId: BotId,
+  skills: Schema.Array(BotSkillName),
+});
+export type BotsMcpInstallBotSkillResult = typeof BotsMcpInstallBotSkillResult.Type;

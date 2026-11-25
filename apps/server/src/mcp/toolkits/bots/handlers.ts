@@ -3,12 +3,17 @@ import {
   BOT_MEMORY_MAX_BYTES,
   botThreadTag,
   CommandId,
+  type ModelSelection,
   OrchestratorMcpFailure,
+  type ProviderInstanceId,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 
 import { botDelegateTaskInput } from "../../../bots/botDelegation.ts";
+import * as BotManagerPolicy from "../../../bots/botManagerPolicy.ts";
+import { BotService } from "../../../bots/BotService.ts";
 import { BotStore } from "../../../bots/BotStore.ts";
+import * as ProviderRegistry from "../../../provider/ProviderRegistry.ts";
 import * as Orchestrator from "../../../orchestration-v2/Orchestrator.ts";
 import { loadCaller, readCaller } from "../../threadAccess.ts";
 import * as McpToolAccess from "../../McpToolAccess.ts";
@@ -20,6 +25,51 @@ const botIdFromTags = (tags: ReadonlyArray<string> | undefined): string | null =
 
 const invalidRequest = (message: string) =>
   new OrchestratorMcpFailure({ code: "invalid_request", message });
+
+// The bot-management tools all start at the same gate: the caller must be a
+// thread running as an enabled bot that opted into managing bots.
+const loadCallerBot = Effect.gen(function* () {
+  const store = yield* BotStore;
+  const { caller } = yield* loadCaller();
+  const selfBotId = caller === undefined ? null : botIdFromTags(caller.tags);
+  if (selfBotId === null) {
+    return yield* invalidRequest(BotManagerPolicy.NOT_A_MANAGER_MESSAGE);
+  }
+  const stored = yield* store
+    .get(BotId.make(selfBotId))
+    .pipe(Effect.orElseSucceed(() => undefined));
+  if (stored === undefined) {
+    return yield* invalidRequest(BotManagerPolicy.NOT_A_MANAGER_MESSAGE);
+  }
+  const denial = BotManagerPolicy.managerDenial(stored.bot);
+  if (denial !== undefined) {
+    return yield* invalidRequest(denial);
+  }
+  return stored.bot;
+});
+
+const loadTargetBot = Effect.fn("loadTargetBot")(function* (botId: BotId) {
+  const service = yield* BotService;
+  const stored = yield* service.get({ id: botId }).pipe(Effect.orElseSucceed(() => undefined));
+  if (stored === undefined) {
+    return yield* invalidRequest(`Bot "${botId}" was not found.`);
+  }
+  return stored.bot;
+});
+
+const resolveModel = Effect.fn("resolveModel")(function* (
+  pick: { readonly providerInstanceId: ProviderInstanceId; readonly model: string } | undefined,
+  fallback: ModelSelection,
+) {
+  if (pick === undefined) return fallback;
+  const registry = yield* ProviderRegistry.ProviderRegistry;
+  const providers = yield* registry.getProviders;
+  const resolved = BotManagerPolicy.resolveModelPick(pick, providers);
+  if ("denial" in resolved) {
+    return yield* invalidRequest(resolved.denial);
+  }
+  return resolved.modelSelection;
+});
 
 const handlers = {
   list_bots: McpToolAccess.reads(() =>
@@ -119,6 +169,106 @@ const handlers = {
         .writeMemory(botId, next)
         .pipe(Effect.mapError((error) => invalidRequest(error.message)));
       return { botId, memoryBytes };
+    }),
+  ),
+  get_bot: McpToolAccess.readsAsCaller((input) =>
+    Effect.gen(function* () {
+      yield* loadCallerBot;
+      const service = yield* BotService;
+      const { bot, soul } = yield* service
+        .get({ id: input.botId })
+        .pipe(Effect.mapError(() => invalidRequest("Bot not found.")));
+      return {
+        bot: {
+          id: bot.id,
+          name: bot.name,
+          role: bot.role,
+          description: bot.description,
+          providerInstanceId: bot.modelSelection.instanceId,
+          model: bot.modelSelection.model,
+          approvalMode: bot.approvalMode,
+          avatar: bot.avatar,
+          interactionMode: bot.interactionMode,
+          canManageBots: bot.canManageBots,
+          skills: bot.skills,
+          soul,
+          memoryBytes: bot.memoryBytes,
+        },
+      };
+    }),
+  ),
+  create_bot: McpToolAccess.actsAsCaller((input) =>
+    Effect.gen(function* () {
+      const callerBot = yield* loadCallerBot;
+      const denial = BotManagerPolicy.createDenial(callerBot, input);
+      if (denial !== undefined) {
+        return yield* invalidRequest(denial);
+      }
+      const service = yield* BotService;
+      const modelSelection = yield* resolveModel(input.model, callerBot.modelSelection);
+      const { bot } = yield* service
+        .upsert({
+          name: input.name,
+          enabled: true,
+          projectId: callerBot.projectId,
+          workspaceStrategy: callerBot.workspaceStrategy,
+          modelSelection,
+          approvalMode: input.approvalMode ?? callerBot.approvalMode,
+          soul: input.soul,
+          canManageBots: false,
+          role: input.role,
+          description: input.description,
+          avatar: input.avatar,
+        })
+        .pipe(Effect.mapError((error) => invalidRequest(error.message)));
+      return { botId: bot.id };
+    }),
+  ),
+  update_bot: McpToolAccess.actsAsCaller((input) =>
+    Effect.gen(function* () {
+      const callerBot = yield* loadCallerBot;
+      const target = yield* loadTargetBot(input.botId);
+      const denial = BotManagerPolicy.updateDenial(callerBot, target, input);
+      if (denial !== undefined) {
+        return yield* invalidRequest(denial);
+      }
+      const service = yield* BotService;
+      const modelSelection = yield* resolveModel(input.model, target.modelSelection);
+      yield* service
+        .upsert({
+          id: target.id,
+          name: input.name ?? target.name,
+          enabled: target.enabled,
+          projectId: target.projectId,
+          workspaceStrategy: target.workspaceStrategy,
+          modelSelection,
+          approvalMode: input.approvalMode ?? target.approvalMode,
+          interactionMode: target.interactionMode,
+          limits: target.limits,
+          pinned: target.pinned,
+          canManageBots: target.canManageBots,
+          avatar: target.avatar,
+          role: input.role !== undefined ? input.role : target.role,
+          description: input.description !== undefined ? input.description : target.description,
+          soul: input.soul,
+        })
+        .pipe(Effect.mapError((error) => invalidRequest(error.message)));
+      return { botId: target.id };
+    }),
+  ),
+  install_bot_skill: McpToolAccess.actsAsCaller((input) =>
+    Effect.gen(function* () {
+      const callerBot = yield* loadCallerBot;
+      const target = yield* loadTargetBot(input.botId);
+      const denial = BotManagerPolicy.installSkillDenial(callerBot, target);
+      if (denial !== undefined) {
+        return yield* invalidRequest(denial);
+      }
+      const service = yield* BotService;
+      const { bot } = yield* service
+        .installSkill({ id: target.id, sourcePath: input.sourcePath })
+        .pipe(Effect.mapError((error) => invalidRequest(error.message)));
+      return { botId: bot.id, skills: bot.skills.map((skill) => skill.name) };
     }),
   ),
 } satisfies McpToolAccess.Handlers<typeof BotsToolkit.tools>;

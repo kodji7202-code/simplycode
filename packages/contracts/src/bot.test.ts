@@ -54,6 +54,11 @@ describe("BotProfile", () => {
     expect(profile.limits).toEqual({});
   });
 
+  it("defaults canManageBots for a profile written before it existed, and decodes it", () => {
+    expect(decodeProfile(validProfile).canManageBots).toBe(false);
+    expect(decodeProfile({ ...validProfile, canManageBots: true }).canManageBots).toBe(true);
+  });
+
   it("rejects a multi-line name", () => {
     expect(() => decodeProfile({ ...validProfile, name: "two\nlines" })).toThrow();
   });
@@ -83,6 +88,11 @@ describe("Bot", () => {
 });
 
 describe("BotUpsertInput", () => {
+  it("decodes canManageBots and leaves it out when omitted", () => {
+    expect(decodeUpsert({ ...validProfile, canManageBots: true }).canManageBots).toBe(true);
+    expect(decodeUpsert(validProfile).canManageBots).toBeUndefined();
+  });
+
   it("rejects a soul over the byte limit", () => {
     expect(() => decodeUpsert({ ...validProfile, soul: "x".repeat(24_001) })).toThrow();
   });

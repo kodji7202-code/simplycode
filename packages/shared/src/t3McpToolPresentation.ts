@@ -9,6 +9,7 @@ export type T3McpToolSummaryAction =
   | "capabilities"
   | "delegate"
   | "bot-memory"
+  | "bot-manage"
   | "task-status"
   | "task-cancel"
   | "schedule-run"
@@ -213,6 +214,10 @@ const T3_MCP_TOOLS: Readonly<Record<string, T3McpToolDefinition>> = {
   delegate_task: tool(["Delegate", "Delegating", "Delegated", "a child task"], "delegate"),
   delegate_to_bot: tool(["Delegate", "Delegating", "Delegated", "a task to a bot"], "delegate"),
   update_bot_memory: tool(["Save", "Saving", "Saved", "to the bot memory"], "bot-memory"),
+  get_bot: tool(["Read", "Reading", "Read", "a bot"], "bot-manage"),
+  create_bot: tool(["Create", "Creating", "Created", "a bot"], "bot-manage"),
+  update_bot: tool(["Update", "Updating", "Updated", "a bot"], "bot-manage"),
+  install_bot_skill: tool(["Install", "Installing", "Installed", "a bot skill"], "bot-manage"),
   task_status: tool(["Get", "Getting", "Got", "delegated task status"], "task-status"),
   task_cancel: tool(
     ["Cancel", "Canceling", "Requested cancellation of", "a delegated task"],

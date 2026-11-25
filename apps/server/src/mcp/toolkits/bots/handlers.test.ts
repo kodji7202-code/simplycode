@@ -4,11 +4,14 @@ import {
   Bot,
   BotError,
   BotId,
+  BotSkillName,
   botThreadTag,
   EnvironmentId,
   NodeId,
+  ProviderDriverKind,
   ProviderInstanceId,
   RunId,
+  type ServerProvider,
   ThreadId,
   type OrchestrationV2ServerCommand,
   type OrchestratorMcpDelegateTaskResult,
@@ -18,7 +21,9 @@ import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
 import { McpSchema, McpServer } from "effect/ai";
 
+import { BotService } from "../../../bots/BotService.ts";
 import { BotStore } from "../../../bots/BotStore.ts";
+import * as ProviderRegistry from "../../../provider/ProviderRegistry.ts";
 import * as Orchestrator from "../../../orchestration-v2/Orchestrator.ts";
 import * as ThreadManagement from "../../../orchestration-v2/ThreadManagementService.ts";
 import * as McpHttpServer from "../../McpHttpServer.ts";
@@ -102,12 +107,30 @@ const delegateResult: OrchestratorMcpDelegateTaskResult = {
   waitTimedOut: false,
 };
 
+const devinProvider: ServerProvider = {
+  instanceId: ProviderInstanceId.make("devin"),
+  driver: ProviderDriverKind.make("devin"),
+  enabled: true,
+  installed: true,
+  version: "test",
+  status: "ready",
+  auth: { status: "authenticated" },
+  checkedAt: "2026-09-13T00:00:00.000Z",
+  models: [
+    { slug: "swe-2-high", name: "SWE-2 High", isCustom: false, capabilities: null },
+    { slug: "swe-1.6", name: "SWE-1.6", isCustom: false, capabilities: null },
+  ],
+  slashCommands: [],
+  skills: [],
+};
+
 const layerToolkit = (input: {
   readonly bots: ReadonlyArray<Bot>;
   readonly souls?: ReadonlyMap<BotId, string>;
   readonly memories?: ReadonlyMap<BotId, string>;
   readonly callerTags?: ReadonlyArray<string>;
   readonly callerRuntimeMode?: "approval-required" | "auto" | "full-access";
+  readonly providers?: ReadonlyArray<ServerProvider>;
 }) => {
   const calls: Array<unknown> = [];
   const storedMemories = new Map(input.memories ?? []);
@@ -134,6 +157,44 @@ const layerToolkit = (input: {
       return Effect.succeed(Buffer.byteLength(memory, "utf8"));
     },
   });
+  const layerBotService = Layer.mock(BotService)({
+    get: ({ id }) => {
+      const bot = input.bots.find((entry) => entry.id === id);
+      return bot === undefined
+        ? Effect.fail(new BotError({ message: "Bot not found.", botId: id }))
+        : Effect.succeed({
+            bot,
+            soul: input.souls?.get(id) ?? "",
+            memory: storedMemories.get(id) ?? "",
+          });
+    },
+    upsert: (upsertInput) => {
+      calls.push({ type: "upsert", input: upsertInput });
+      const id = upsertInput.id ?? BotId.make("created-bot");
+      return Effect.succeed({
+        bot: decodeBot({
+          ...upsertInput,
+          id,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          soulBytes: 0,
+          threadTag: botThreadTag(id),
+        }),
+      });
+    },
+    installSkill: ({ id }) => {
+      calls.push({ type: "installSkill", botId: id });
+      const bot = input.bots.find((entry) => entry.id === id);
+      return bot === undefined
+        ? Effect.fail(new BotError({ message: "Bot not found.", botId: id }))
+        : Effect.succeed({
+            bot: { ...bot, skills: [{ name: BotSkillName.make("installed-skill") }] },
+          });
+    },
+  });
+  const layerProviders = Layer.mock(ProviderRegistry.ProviderRegistry)({
+    getProviders: Effect.succeed(input.providers ?? []),
+  });
   const layerService = Layer.mock(OrchestratorMcpService.OrchestratorMcpService)({
     delegateTask: (callScope, callInput) => {
       calls.push({ scope: callScope, input: callInput });
@@ -159,6 +220,8 @@ const layerToolkit = (input: {
     calls,
     layer: McpHttpServer.toolkitRegistration(BotsToolkit, BotsHandlers.layer).pipe(
       Layer.provide(layerStore),
+      Layer.provide(layerBotService),
+      Layer.provide(layerProviders),
       Layer.provide(layerService),
       Layer.provide(layerOrchestrator),
       Layer.provide(layerThreads),
@@ -370,3 +433,309 @@ it.effect("update_bot_memory refuses a caller that is not running as a bot", () 
     });
   }).pipe(Effect.provide(layer));
 });
+
+const NOT_A_MANAGER =
+  'This bot isn\'t allowed to manage bots. Turn on "Can create and edit other bots" in its profile.';
+
+const managerBot = (overrides?: Record<string, unknown>): Bot =>
+  plannerBot({ id: "manager", name: "Manager", canManageBots: true, ...overrides });
+
+const managerCaller = { callerTags: [botThreadTag(BotId.make("manager"))] };
+
+it.effect("the bot-management tools refuse a caller that is not a bot thread", () => {
+  const { layer } = layerToolkit({ bots: [managerBot()] });
+  return Effect.gen(function* () {
+    for (const [name, args] of [
+      ["get_bot", { botId: "manager" }],
+      ["create_bot", { name: "Worker", soul: "Do work." }],
+      ["update_bot", { botId: "manager", name: "Renamed" }],
+      ["install_bot_skill", { botId: "manager", sourcePath: "/skills/a" }],
+    ] as const) {
+      expect(declaredFailure(yield* callTool(name, args))).toMatchObject({
+        code: "invalid_request",
+        message: NOT_A_MANAGER,
+      });
+    }
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("the bot-management tools refuse a bot without canManageBots", () => {
+  const { layer } = layerToolkit({
+    bots: [plannerBot()],
+    callerTags: [botThreadTag(BotId.make("planner"))],
+  });
+  return Effect.gen(function* () {
+    expect(
+      declaredFailure(yield* callTool("create_bot", { name: "Worker", soul: "Do work." })),
+    ).toMatchObject({ code: "invalid_request", message: NOT_A_MANAGER });
+    expect(declaredFailure(yield* callTool("get_bot", { botId: "planner" }))).toMatchObject({
+      code: "invalid_request",
+      message: NOT_A_MANAGER,
+    });
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("get_bot returns the full profile with the soul", () => {
+  const { layer } = layerToolkit({
+    bots: [
+      managerBot(),
+      plannerBot({
+        id: "worker",
+        name: "Worker",
+        avatar: { shape: "hexagon", color: "#00d47e" },
+        interactionMode: "plan",
+        skills: [{ name: "review-code", description: "Reviews code." }],
+      }),
+    ],
+    souls: new Map([[BotId.make("worker"), "Stand tall."]]),
+    ...managerCaller,
+  });
+  return Effect.gen(function* () {
+    const result = yield* callTool("get_bot", { botId: "worker" });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toMatchObject({
+      bot: {
+        id: "worker",
+        name: "Worker",
+        role: "Plans work",
+        providerInstanceId: "claude",
+        model: "claude-opus-4-6",
+        approvalMode: "full",
+        avatar: { shape: "hexagon", color: "#00d47e" },
+        interactionMode: "plan",
+        canManageBots: false,
+        skills: [{ name: "review-code", description: "Reviews code." }],
+        soul: "Stand tall.",
+        memoryBytes: 0,
+      },
+    });
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("create_bot inherits the caller's project, model and approval mode", () => {
+  const { calls, layer } = layerToolkit({
+    bots: [managerBot({ approvalMode: "auto-safe" })],
+    providers: [devinProvider],
+    ...managerCaller,
+  });
+  return Effect.gen(function* () {
+    const result = yield* callTool("create_bot", {
+      name: "Worker",
+      soul: "Do work.",
+      role: "Works",
+    });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toMatchObject({ botId: "created-bot" });
+    const upsert = calls.find(
+      (call): call is { type: "upsert"; input: Record<string, unknown> } =>
+        typeof call === "object" && call !== null && "type" in call && call.type === "upsert",
+    );
+    expect(upsert?.input).toMatchObject({
+      name: "Worker",
+      enabled: true,
+      projectId: "project-1",
+      workspaceStrategy: { type: "root" },
+      modelSelection: { instanceId: "claude", model: "claude-opus-4-6" },
+      approvalMode: "auto-safe",
+      soul: "Do work.",
+      role: "Works",
+      canManageBots: false,
+    });
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("create_bot takes a listed model pick and refuses an unknown one", () => {
+  const { calls, layer } = layerToolkit({
+    bots: [managerBot()],
+    providers: [devinProvider],
+    ...managerCaller,
+  });
+  return Effect.gen(function* () {
+    const picked = yield* callTool("create_bot", {
+      name: "Worker",
+      soul: "Do work.",
+      model: { providerInstanceId: "devin", model: "swe-1.6" },
+    });
+    expect(picked.isError).not.toBe(true);
+    const upsert = calls.find(
+      (call): call is { type: "upsert"; input: Record<string, unknown> } =>
+        typeof call === "object" && call !== null && "type" in call && call.type === "upsert",
+    );
+    expect(upsert?.input).toMatchObject({
+      modelSelection: { instanceId: "devin", model: "swe-1.6" },
+    });
+
+    const failure = declaredFailure(
+      yield* callTool("create_bot", {
+        name: "Worker",
+        soul: "Do work.",
+        model: { providerInstanceId: "devin", model: "ghost" },
+      }),
+    );
+    expect(failure).toMatchObject({
+      code: "invalid_request",
+      message:
+        'Model "ghost" is not available on provider "devin". Available provider instances: devin.',
+    });
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("create_bot refuses an approval mode above the caller's", () => {
+  const { layer } = layerToolkit({
+    bots: [managerBot({ approvalMode: "auto-safe" })],
+    ...managerCaller,
+  });
+  return Effect.gen(function* () {
+    const failure = declaredFailure(
+      yield* callTool("create_bot", {
+        name: "Worker",
+        soul: "Do work.",
+        approvalMode: "full",
+      }),
+    );
+    expect(failure).toMatchObject({
+      code: "invalid_request",
+      message: 'Approval mode "full" is above your own ("auto-safe").',
+    });
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("update_bot keeps the fields the call leaves out", () => {
+  const { calls, layer } = layerToolkit({
+    bots: [
+      managerBot(),
+      plannerBot({
+        id: "worker",
+        pinned: true,
+        limits: { maxStepsPerRun: 5 },
+        avatar: { shape: "hexagon", color: "#00d47e" },
+        interactionMode: "plan",
+        approvalMode: "ask",
+        role: "Old role",
+      }),
+    ],
+    ...managerCaller,
+  });
+  return Effect.gen(function* () {
+    const result = yield* callTool("update_bot", {
+      botId: "worker",
+      name: "Renamed",
+      soul: "New instructions.",
+    });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toMatchObject({ botId: "worker" });
+    const upsert = calls.find(
+      (call): call is { type: "upsert"; input: Record<string, unknown> } =>
+        typeof call === "object" && call !== null && "type" in call && call.type === "upsert",
+    );
+    expect(upsert?.input).toMatchObject({
+      id: "worker",
+      name: "Renamed",
+      enabled: true,
+      projectId: "project-1",
+      modelSelection: { instanceId: "claude", model: "claude-opus-4-6" },
+      approvalMode: "ask",
+      interactionMode: "plan",
+      limits: { maxStepsPerRun: 5 },
+      pinned: true,
+      canManageBots: false,
+      avatar: { shape: "hexagon", color: "#00d47e" },
+      role: "Old role",
+      soul: "New instructions.",
+    });
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("update_bot refuses the caller itself, other managers, and approval raises", () =>
+  Effect.gen(function* () {
+    const { layer: self } = layerToolkit({
+      bots: [managerBot()],
+      ...managerCaller,
+    });
+    expect(
+      declaredFailure(
+        yield* callTool("update_bot", { botId: "manager", name: "Me" }).pipe(Effect.provide(self)),
+      ),
+    ).toMatchObject({ code: "invalid_request", message: "You can't edit yourself." });
+
+    const { layer: managerTarget } = layerToolkit({
+      bots: [managerBot(), managerBot({ id: "other-manager" })],
+      ...managerCaller,
+    });
+    expect(
+      declaredFailure(
+        yield* callTool("update_bot", { botId: "other-manager", name: "X" }).pipe(
+          Effect.provide(managerTarget),
+        ),
+      ),
+    ).toMatchObject({
+      code: "invalid_request",
+      message: "You can't edit another bot that manages bots.",
+    });
+
+    const { layer: raise } = layerToolkit({
+      bots: [managerBot({ approvalMode: "auto-safe" }), plannerBot({ id: "worker" })],
+      ...managerCaller,
+    });
+    expect(
+      declaredFailure(
+        yield* callTool("update_bot", { botId: "worker", approvalMode: "full" }).pipe(
+          Effect.provide(raise),
+        ),
+      ),
+    ).toMatchObject({
+      code: "invalid_request",
+      message: 'Approval mode "full" is above your own ("auto-safe").',
+    });
+  }),
+);
+
+it.effect("install_bot_skill works on self and editable targets, refuses managers", () =>
+  Effect.gen(function* () {
+    const { calls, layer } = layerToolkit({
+      bots: [managerBot(), plannerBot({ id: "worker" })],
+      ...managerCaller,
+    });
+
+    const selfResult = yield* callTool("install_bot_skill", {
+      botId: "manager",
+      sourcePath: "/skills/a",
+    }).pipe(Effect.provide(layer));
+    expect(selfResult.isError).not.toBe(true);
+    expect(selfResult.structuredContent).toMatchObject({
+      botId: "manager",
+      skills: ["installed-skill"],
+    });
+
+    const targetResult = yield* callTool("install_bot_skill", {
+      botId: "worker",
+      sourcePath: "/skills/b",
+    }).pipe(Effect.provide(layer));
+    expect(targetResult.isError).not.toBe(true);
+    expect(
+      calls.filter(
+        (call): call is { type: "installSkill" } =>
+          typeof call === "object" &&
+          call !== null &&
+          "type" in call &&
+          call.type === "installSkill",
+      ),
+    ).toHaveLength(2);
+
+    const { layer: managerTarget } = layerToolkit({
+      bots: [managerBot(), managerBot({ id: "other-manager" })],
+      ...managerCaller,
+    });
+    expect(
+      declaredFailure(
+        yield* callTool("install_bot_skill", {
+          botId: "other-manager",
+          sourcePath: "/skills/c",
+        }).pipe(Effect.provide(managerTarget)),
+      ),
+    ).toMatchObject({
+      code: "invalid_request",
+      message: "You can't edit another bot that manages bots.",
+    });
+  }),
+);
