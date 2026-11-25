@@ -133,6 +133,11 @@ export const BotProfile = Schema.Struct({
   limits: BotLimits.pipe(Schema.withDecodingDefaultKey(Effect.succeed({}))),
   /** Whether this bot may create and edit other bots through the MCP tools. */
   canManageBots: Schema.Boolean.pipe(Schema.withDecodingDefaultKey(Effect.succeed(false))),
+  /**
+   * New conversations confine the bot's file edits to its project folder. Absent on profiles
+   * written before the option existed; read as true. Full-access approvals are never confined.
+   */
+  stayInProject: Schema.Boolean.pipe(Schema.withDecodingDefaultKey(Effect.succeed(true))),
   createdAt: IsoDateTime,
   updatedAt: IsoDateTime,
 });
@@ -208,6 +213,8 @@ export const BotUpsertInput = Schema.Struct({
   limits: Schema.optional(BotLimits),
   /** Omitted on update: keep the stored value. Omitted on create: false. */
   canManageBots: Schema.optional(Schema.Boolean),
+  /** Omitted on update: keep the stored value. Omitted on create: true. */
+  stayInProject: Schema.optional(Schema.Boolean),
   /** Omitted: keep the stored SOUL.md (or no soul for a new bot). */
   soul: Schema.optional(Schema.String.check(Schema.isMaxLength(BOT_SOUL_MAX_BYTES))),
   /** Omitted: keep the stored MEMORY.md. An empty string deletes it. */
