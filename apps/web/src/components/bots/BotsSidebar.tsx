@@ -1,5 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
-import { EnvironmentId, botAvatarOrDefault, type Bot } from "@t3tools/contracts";
+import { botAvatarOrDefault, type Bot, type OrchestrationV2ThreadShell } from "@t3tools/contracts";
+import { Atom } from "effect/reactivity";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { T, useGT, useMessages } from "gt-react";
 import { PlusIcon } from "lucide-react";
@@ -18,6 +19,10 @@ import { SidebarSectionSwitch } from "../sidebar/SidebarSectionSwitch";
 import { BotAvatar } from "./BotAvatar";
 import { botActivity, filterBots, sortBotsForSidebar, type BotActivity } from "./botPage.logic";
 import { useBotsEnvironment } from "./useBotsEnvironment";
+
+const EMPTY_THREAD_SHELLS_ATOM = Atom.make<ReadonlyArray<OrchestrationV2ThreadShell>>(
+  Object.freeze([]),
+).pipe(Atom.withLabel("bots-sidebar-thread-shells:empty"));
 
 const botSearch = (env: string | undefined, bot?: string, create?: true) => ({
   ...(env === undefined ? {} : { env }),
@@ -53,7 +58,9 @@ export function BotsSidebar() {
     messages,
   );
   const shells = useAtomValue(
-    environmentThreadShells.environmentThreadsAtom(environmentId ?? EnvironmentId.make("")),
+    environmentId === null
+      ? EMPTY_THREAD_SHELLS_ATOM
+      : environmentThreadShells.environmentThreadsAtom(environmentId),
   );
 
   const bots = botsQuery.data?.bots ?? [];

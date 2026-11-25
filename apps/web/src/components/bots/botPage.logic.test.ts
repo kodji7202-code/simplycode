@@ -31,12 +31,14 @@ const bot: Bot = {
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
   soulBytes: 4,
+  memoryBytes: 0,
+  skills: [],
   threadTag: "bot:night-watch",
 };
 
 describe("botToDraft", () => {
   it("round-trips an upsert", () => {
-    const draft = botToDraft(bot, "soul text");
+    const draft = botToDraft(bot, "soul text", "memory text");
     const input = draftToBotUpsertInput(draft, "main");
     expect(input).toMatchObject({
       id: "night-watch",
@@ -48,6 +50,7 @@ describe("botToDraft", () => {
       approvalMode: "auto-safe",
       workspaceStrategy: { type: "root" },
       soul: "soul text",
+      memory: "memory text",
       limits: { maxStepsPerRun: 25 },
     });
   });
@@ -78,7 +81,7 @@ describe("botToDraft", () => {
 
   it("builds a worktree strategy with the resolved base ref", () => {
     const draft = {
-      ...botToDraft(bot, ""),
+      ...botToDraft(bot, "", ""),
       workspaceMode: "worktree" as const,
     };
     const input = draftToBotUpsertInput(draft, "origin/main");
@@ -90,7 +93,7 @@ describe("botToDraft", () => {
   });
 
   it("clears optional fields with empty strings", () => {
-    const draft = { ...botToDraft(bot, ""), role: " ", description: "" };
+    const draft = { ...botToDraft(bot, "", ""), role: " ", description: "" };
     const input = draftToBotUpsertInput(draft, "main");
     expect(input?.role).toBe("");
     expect(input?.description).toBe("");
@@ -98,7 +101,7 @@ describe("botToDraft", () => {
 
   it("falls back to the stable default avatar for a bot without one", () => {
     const { avatar: _avatar, ...withoutAvatar } = bot;
-    const draft = botToDraft(withoutAvatar as Bot, "");
+    const draft = botToDraft(withoutAvatar as Bot, "", "");
     expect(draft.avatar).toEqual(botAvatarOrDefault(withoutAvatar as Bot));
   });
 });

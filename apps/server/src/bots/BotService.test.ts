@@ -237,7 +237,7 @@ it.effect("runNow launches with the wrapped prompt, bot mode and a bot tag", () 
       expect(launch?.runtimeMode).toBe("auto");
       expect(launch?.title).toBe("Night Watch: Check it.");
       expect(launch?.text).toBe(
-        'You are "Night Watch", a SimplyCode bot. Follow these standing instructions:\n\nAlways be terse.\n\n--- end of standing instructions ---\n\nCheck it.',
+        'You are "Night Watch", a SimplyCode bot. Follow these standing instructions:\n\nAlways be terse.\n\n## Your memory\nThis is your MEMORY.md, kept between runs. When you learn something worth keeping (a user preference, a project fact, a lesson from a mistake), save it with the update_bot_memory tool (on the t3-code MCP server; if your MCP tools are listed separately, look there). Keep it short and current.\n\n(empty)\n\n--- end of standing instructions ---\n\nCheck it.',
       );
       const tag = seen.dispatches.find((command) => command.type === "thread.tag.set");
       expect(tag?.tag).toBe("bot:night-watch");

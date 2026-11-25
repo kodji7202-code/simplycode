@@ -8,6 +8,7 @@ const DIRECT_TOOLS: ReadonlySet<string> = new Set([
   "orchestrator_capabilities",
   "delegate_task",
   "delegate_to_bot",
+  "update_bot_memory",
   "task_status",
   TOOL_SEARCH,
 ]);

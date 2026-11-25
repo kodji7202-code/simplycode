@@ -7,6 +7,7 @@ import {
 } from "@t3tools/contracts";
 import { botPrompt } from "@t3tools/shared/botPrompt";
 
+import { botInstructions, type BotInstructionsSkills } from "./botInstructions.ts";
 import { runtimeModeRank } from "../mcp/delegatedTaskModes.ts";
 
 /**
@@ -18,15 +19,17 @@ import { runtimeModeRank } from "../mcp/delegatedTaskModes.ts";
 export function botDelegateTaskInput(input: {
   readonly bot: Bot;
   readonly soul: string;
+  readonly memory: string;
+  readonly skills: BotInstructionsSkills;
   readonly input: BotsMcpDelegateToBotInput;
   readonly callerRuntimeMode: RuntimeMode;
 }): OrchestratorMcpDelegateTaskInput {
-  const { bot, soul, input: request, callerRuntimeMode } = input;
+  const { bot, soul, memory, skills, input: request, callerRuntimeMode } = input;
   const botMode = botRuntimeMode(bot.approvalMode);
   const runtimeMode =
     runtimeModeRank(botMode) <= runtimeModeRank(callerRuntimeMode) ? botMode : callerRuntimeMode;
   return {
-    task: botPrompt(bot, soul, request.task),
+    task: botPrompt(bot, botInstructions({ soul, memory, skills }), request.task),
     target: {
       providerInstanceId: bot.modelSelection.instanceId,
       model: bot.modelSelection.model,

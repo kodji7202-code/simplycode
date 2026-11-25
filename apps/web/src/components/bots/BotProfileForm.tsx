@@ -3,6 +3,7 @@ import {
   AuthOrchestrationOperateScope,
   BOT_AVATAR_COLORS,
   BOT_AVATAR_SHAPES,
+  BOT_MEMORY_MAX_BYTES,
   BOT_SOUL_MAX_BYTES,
   type Bot,
   type EnvironmentId,
@@ -13,6 +14,12 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import { scheduledTaskWorktreeBaseRef } from "@t3tools/client-runtime/scheduled-task-worktree";
+import {
+  dedupeProviderSkillsByName,
+  isProviderSkillUserInvocable,
+  resolveProviderSkillsForCwd,
+  resolveProviderSkillSourceKind,
+} from "@t3tools/client-runtime/providerSkills";
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { createModelSelection } from "@t3tools/shared/model";
 import { T, useGT, useMessages } from "gt-react";
@@ -20,6 +27,7 @@ import { type ReactNode, useRef, useState } from "react";
 
 import { cn } from "../../lib/utils";
 
+import { requestConfirmDialog } from "../../confirmDialog";
 import { useEnvironmentSettings } from "../../hooks/useSettings";
 import { m } from "../../i18n/messages";
 import { getCustomModelOptionsByInstance, selectsPlanAgent } from "../../modelSelection";
@@ -41,6 +49,7 @@ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../
 import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
 import { stackedThreadToast, toastManager } from "../ui/toast";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { usePaginatedBranches } from "../../state/queries";
 import {
   APPROVAL_MODE_RUNTIME_LABELS,
@@ -48,6 +57,7 @@ import {
   BOT_APPROVAL_MODES,
   BOT_AVATAR_COLOR_LABELS,
   BOT_AVATAR_SHAPE_LABELS,
+  BOT_SKILL_SOURCE_LABELS,
   botToDraft,
   draftToBotUpsertInput,
   EMPTY_BOT_DRAFT,
@@ -94,17 +104,17 @@ export function BotProfileForm(props: {
     messages,
   );
   const [draft, setDraft] = useState<BotDraft>(() =>
-    bot === null ? EMPTY_BOT_DRAFT : botToDraft(bot, ""),
+    bot === null ? EMPTY_BOT_DRAFT : botToDraft(bot, "", ""),
   );
   // Baseline for the panel's dirty/Revert state: the draft as loaded or last saved.
   const [baseline, setBaseline] = useState<BotDraft>(draft);
-  // The soul only exists in bots.get; fill the draft once it arrives.
+  // The soul and memory only exist in bots.get; fill the draft once it arrives.
   const [soulSeeded, setSoulSeeded] = useState(false);
   if (editing && !soulSeeded && detail.data !== null) {
-    const { soul } = detail.data;
+    const { soul, memory } = detail.data;
     setSoulSeeded(true);
-    setDraft((current) => ({ ...current, soul }));
-    setBaseline((current) => ({ ...current, soul }));
+    setDraft((current) => ({ ...current, soul, memory }));
+    setBaseline((current) => ({ ...current, soul, memory }));
   }
   const [saving, setSaving] = useState(false);
   const submissionPending = useRef(false);
@@ -168,6 +178,14 @@ export function BotProfileForm(props: {
       : null;
 
   const soulBytes = soulByteLength(draft.soul);
+  const memoryBytes = soulByteLength(draft.memory);
+  const [skillBusy, setSkillBusy] = useState(false);
+  const installBotSkill = useAtomCommand(serverEnvironment.installBotSkill, {
+    label: "bot install skill",
+  });
+  const removeBotSkill = useAtomCommand(serverEnvironment.removeBotSkill, {
+    label: "bot remove skill",
+  });
   const reportFailure = (title: string, error: unknown) => {
     toastManager.add(
       stackedThreadToast({
@@ -192,6 +210,13 @@ export function BotProfileForm(props: {
       reportFailure(
         gt("Soul is too long"),
         gt("Keep it under {max} bytes.", { max: BOT_SOUL_MAX_BYTES }),
+      );
+      return;
+    }
+    if (memoryBytes > BOT_MEMORY_MAX_BYTES) {
+      reportFailure(
+        gt("Memory is too long"),
+        gt("Keep it under {max} bytes.", { max: BOT_MEMORY_MAX_BYTES }),
       );
       return;
     }
@@ -227,6 +252,58 @@ export function BotProfileForm(props: {
   };
 
   const revert = () => setDraft(baseline);
+
+  const installedSkillNames = new Set<string>((bot?.skills ?? []).map((skill) => skill.name));
+  const activeProvider = providers.find((provider) => provider.instanceId === activeInstanceId);
+  const installableSkills =
+    activeProvider === undefined
+      ? []
+      : dedupeProviderSkillsByName(
+          resolveProviderSkillsForCwd(
+            activeProvider,
+            selectedProject?.workspaceRoot ?? null,
+          ).filter(isProviderSkillUserInvocable),
+        ).filter((skill) => !installedSkillNames.has(skill.name));
+
+  const installSkill = async (sourcePath: string) => {
+    if (bot === null || skillBusy) return;
+    if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) {
+      reportFailure(
+        gt("Could not install skill"),
+        gt("This session cannot change orchestration settings."),
+      );
+      return;
+    }
+    setSkillBusy(true);
+    const result = await installBotSkill({ environmentId, input: { id: bot.id, sourcePath } });
+    setSkillBusy(false);
+    if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+      reportFailure(gt("Could not install skill"), squashAtomCommandFailure(result));
+    }
+  };
+
+  const removeSkill = async (name: Bot["skills"][number]["name"]) => {
+    if (bot === null || skillBusy) return;
+    if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) {
+      reportFailure(
+        gt("Could not remove skill"),
+        gt("This session cannot change orchestration settings."),
+      );
+      return;
+    }
+    setSkillBusy(true);
+    const result = await removeBotSkill({ environmentId, input: { id: bot.id, name } });
+    setSkillBusy(false);
+    if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+      reportFailure(gt("Could not remove skill"), squashAtomCommandFailure(result));
+    }
+  };
+
+  const clearMemory = async () => {
+    const message = gt("Clear this bot's memory?");
+    const confirmed = (await requestConfirmDialog(message)) ?? window.confirm(message);
+    if (confirmed) setDraft((current) => ({ ...current, memory: "" }));
+  };
 
   const fields = (
     <fieldset disabled={saving} className="min-w-0 space-y-5">
@@ -452,6 +529,111 @@ export function BotProfileForm(props: {
           {gt("{used} / {max} bytes", { used: soulBytes, max: BOT_SOUL_MAX_BYTES })}
         </p>
       </Field>
+
+      <Field label={gt("Memory (MEMORY.md)")} htmlFor="bot-memory">
+        <Textarea
+          id="bot-memory"
+          className="max-h-48 overflow-y-auto"
+          placeholder={gt("Facts and lessons this bot keeps between runs.")}
+          value={draft.memory}
+          onChange={(event) => setDraft((current) => ({ ...current, memory: event.target.value }))}
+        />
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <p
+            className={cn(
+              "text-2xs",
+              memoryBytes > BOT_MEMORY_MAX_BYTES ? "text-destructive" : "text-muted-foreground",
+            )}
+          >
+            {gt("{used} / {max} bytes", { used: memoryBytes, max: BOT_MEMORY_MAX_BYTES })}
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={draft.memory.length === 0}
+            onClick={() => void clearMemory()}
+          >
+            <T>Clear</T>
+          </Button>
+        </div>
+      </Field>
+
+      {bot !== null ? (
+        <Field label={gt("Skills")}>
+          <div className="space-y-2">
+            {bot.skills.length === 0 ? (
+              <p className="text-2xs text-muted-foreground">
+                <T>No skills installed.</T>
+              </p>
+            ) : (
+              <ul className="space-y-1.5">
+                {bot.skills.map((skill) => (
+                  <li
+                    key={skill.name}
+                    className="flex items-start justify-between gap-2 rounded-md border border-border/60 px-2.5 py-1.5"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={<p className="truncate text-xs font-medium">{skill.name}</p>}
+                        />
+                        <TooltipPopup>{skill.name}</TooltipPopup>
+                      </Tooltip>
+                      {skill.description !== undefined ? (
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <p className="line-clamp-2 text-2xs text-muted-foreground">
+                                {skill.description}
+                              </p>
+                            }
+                          />
+                          <TooltipPopup>{skill.description}</TooltipPopup>
+                        </Tooltip>
+                      ) : null}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={skillBusy}
+                      onClick={() => void removeSkill(skill.name)}
+                    >
+                      <T>Remove</T>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {installableSkills.length > 0 ? (
+              <Select
+                value=""
+                onValueChange={(value) => {
+                  if (value !== null) void installSkill(value);
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={gt("Add a skill")} />
+                </SelectTrigger>
+                <SelectPopup>
+                  {installableSkills.map((skill) => (
+                    <SelectItem key={skill.path} value={skill.path} label={skill.name}>
+                      <span className="block truncate">
+                        {skill.name}
+                        <span className="text-muted-foreground">
+                          {`: ${skill.description ?? gt("no description")} (${
+                            skill.scope ??
+                            m(BOT_SKILL_SOURCE_LABELS[resolveProviderSkillSourceKind(skill)])
+                          })`}
+                        </span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectPopup>
+              </Select>
+            ) : null}
+          </div>
+        </Field>
+      ) : null}
 
       <div className="flex gap-3">
         <Field label={gt("Max steps per run")} htmlFor="bot-max-steps" className="flex-1">

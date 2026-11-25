@@ -25,6 +25,7 @@ export const BotId = Schema.String.check(Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,
 export type BotId = typeof BotId.Type;
 
 export const BOT_SOUL_MAX_BYTES = 24_000;
+export const BOT_MEMORY_MAX_BYTES = 16_000;
 
 export const BotApprovalMode = Schema.Literals(["ask", "auto-safe", "full"]);
 export type BotApprovalMode = typeof BotApprovalMode.Type;
@@ -112,10 +113,26 @@ export const BotProfile = Schema.Struct({
 });
 export type BotProfile = typeof BotProfile.Type;
 
-/** The wire item carries the soul's size only; the text itself is fetched with `bots.get`. */
+/**
+ * An installed skill: a `skills/<name>/` folder with a SKILL.md. The name is
+ * the folder slug, so it follows the BotId pattern.
+ */
+export const BotSkill = Schema.Struct({
+  name: BotId,
+  description: Schema.optional(TrimmedNonEmptyString),
+});
+export type BotSkill = typeof BotSkill.Type;
+
+/** The wire item carries the soul's and memory's sizes only; the texts are fetched with `bots.get`. */
 export const Bot = Schema.Struct({
   ...BotProfile.fields,
   soulBytes: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  memoryBytes: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(0)),
+  ),
+  skills: ForwardCompatibleArray(BotSkill).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed([] as ReadonlyArray<BotSkill>)),
+  ),
   threadTag: TrimmedNonEmptyString,
 });
 export type Bot = typeof Bot.Type;
@@ -143,6 +160,7 @@ export type BotGetInput = typeof BotGetInput.Type;
 export const BotGetResult = Schema.Struct({
   bot: Bot,
   soul: Schema.String,
+  memory: Schema.String.pipe(Schema.withDecodingDefaultKey(Effect.succeed(""))),
 });
 export type BotGetResult = typeof BotGetResult.Type;
 
@@ -165,6 +183,8 @@ export const BotUpsertInput = Schema.Struct({
   limits: Schema.optional(BotLimits),
   /** Omitted: keep the stored SOUL.md (or no soul for a new bot). */
   soul: Schema.optional(Schema.String.check(Schema.isMaxLength(BOT_SOUL_MAX_BYTES))),
+  /** Omitted: keep the stored MEMORY.md. An empty string deletes it. */
+  memory: Schema.optional(Schema.String.check(Schema.isMaxLength(BOT_MEMORY_MAX_BYTES))),
 });
 export type BotUpsertInput = typeof BotUpsertInput.Type;
 
@@ -188,6 +208,19 @@ export const BotDeleteResult = Schema.Struct({
   id: BotId,
 });
 export type BotDeleteResult = typeof BotDeleteResult.Type;
+
+export const BotInstallSkillInput = Schema.Struct({
+  id: BotId,
+  /** A SKILL.md file, or a folder containing one; copied into the bot's skills folder. */
+  sourcePath: TrimmedNonEmptyString,
+});
+export type BotInstallSkillInput = typeof BotInstallSkillInput.Type;
+
+export const BotRemoveSkillInput = Schema.Struct({
+  id: BotId,
+  name: BotId,
+});
+export type BotRemoveSkillInput = typeof BotRemoveSkillInput.Type;
 
 export const BotRunNowInput = Schema.Struct({
   id: BotId,
@@ -228,3 +261,15 @@ export const BotsMcpListResult = Schema.Struct({
   bots: Schema.Array(BotsMcpListedBot),
 });
 export type BotsMcpListResult = typeof BotsMcpListResult.Type;
+
+export const BotsMcpUpdateMemoryInput = Schema.Struct({
+  mode: Schema.Literals(["append", "replace"]),
+  text: Schema.String,
+});
+export type BotsMcpUpdateMemoryInput = typeof BotsMcpUpdateMemoryInput.Type;
+
+export const BotsMcpUpdateMemoryResult = Schema.Struct({
+  botId: BotId,
+  memoryBytes: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+});
+export type BotsMcpUpdateMemoryResult = typeof BotsMcpUpdateMemoryResult.Type;

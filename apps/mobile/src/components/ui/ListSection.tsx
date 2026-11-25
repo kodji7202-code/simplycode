@@ -9,7 +9,7 @@ export function ListSection(props: {
   readonly titleIcon?: ReactNode;
   readonly trailing?: ReactNode;
   readonly children: ReactNode;
-  readonly footer?: string;
+  readonly footer?: ReactNode;
 }) {
   return (
     <View className="gap-2">
