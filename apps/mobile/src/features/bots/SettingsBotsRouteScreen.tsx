@@ -1048,16 +1048,20 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
                       key={skill.name}
                       className={
                         index === 0
-                          ? "min-h-14 flex-row items-center gap-3 px-4 py-3"
-                          : "min-h-14 flex-row items-center gap-3 border-t border-border-subtle px-4 py-3"
+                          ? "min-h-14 flex-row items-start gap-3 px-4 py-3"
+                          : "min-h-14 flex-row items-start gap-3 border-t border-border-subtle px-4 py-3"
                       }
                     >
                       <View className="min-w-0 flex-1">
-                        <Text textRole="body" className="text-foreground">
+                        <Text textRole="body" className="text-foreground" numberOfLines={1}>
                           {skill.name}
                         </Text>
                         {skill.description !== undefined ? (
-                          <Text textRole="footnote" className="text-foreground-muted">
+                          <Text
+                            textRole="footnote"
+                            className="text-foreground-muted"
+                            numberOfLines={2}
+                          >
                             {skill.description}
                           </Text>
                         ) : null}

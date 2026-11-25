@@ -369,6 +369,14 @@ it.effect("rejects a folder without SKILL.md and overwrites on reinstall", () =>
       const failure = yield* expectBotError(store.installSkill(BotId.make("night-watch"), empty));
       expect(failure?.message).toContain("SKILL.md");
 
+      const wrongCase = path.join(sourceRoot, "case-skill");
+      yield* fs.makeDirectory(wrongCase, { recursive: true });
+      yield* fs.writeFileString(path.join(wrongCase, "skill.md"), "# Lower\n");
+      const caseFailure = yield* expectBotError(
+        store.installSkill(BotId.make("night-watch"), wrongCase),
+      );
+      expect(caseFailure?.message).toContain("SKILL.md");
+
       const folder = yield* seedSkill(sourceRoot, "deploy", "v1");
       yield* store.installSkill(BotId.make("night-watch"), folder);
       yield* fs.writeFileString(path.join(folder, "SKILL.md"), "v2");

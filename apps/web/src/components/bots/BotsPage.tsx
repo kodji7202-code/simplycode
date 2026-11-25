@@ -14,6 +14,7 @@ import {
 } from "@t3tools/client-runtime/state/runtime";
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { DateTime } from "effect";
+import { Atom } from "effect/reactivity";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { T, useGT, useLocale, useMessages } from "gt-react";
 import {
@@ -62,6 +63,14 @@ import { BotProfileForm } from "./BotProfileForm";
 import { APPROVAL_MODE_RUNTIME_LABELS, botActivity, botAutomationCount } from "./botPage.logic";
 import { scheduleLabel } from "../settings/scheduledTasksSettings.logic";
 import { useBotsEnvironment } from "./useBotsEnvironment";
+
+const EMPTY_THREAD_SHELLS_ATOM = Atom.make<ReadonlyArray<OrchestrationV2ThreadShell>>(
+  Object.freeze([]),
+).pipe(Atom.withLabel("bots-page-thread-shells:empty"));
+
+const DENIED_PERMISSION_ATOM = Atom.make(false).pipe(
+  Atom.withLabel("bots-page-upsert-permission:denied"),
+);
 
 const reportFailure = (title: string, error: unknown) => {
   toastManager.add(
@@ -465,10 +474,14 @@ export function BotsPage() {
     messages,
   );
   const shells = useAtomValue(
-    environmentThreadShells.environmentThreadsAtom(environmentId ?? EnvironmentId.make("")),
+    environmentId === null
+      ? EMPTY_THREAD_SHELLS_ATOM
+      : environmentThreadShells.environmentThreadsAtom(environmentId),
   );
   const canOperate = useAtomValue(
-    serverEnvironment.upsertBot.permissionAtom(environmentId ?? EnvironmentId.make("")),
+    environmentId === null
+      ? DENIED_PERMISSION_ATOM
+      : serverEnvironment.upsertBot.permissionAtom(environmentId),
   );
   const [editProfile, setEditProfile] = useState(false);
   const tasks = tasksQuery.data?.tasks ?? [];

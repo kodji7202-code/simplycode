@@ -49,6 +49,7 @@ import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../
 import { Switch } from "../ui/switch";
 import { Textarea } from "../ui/textarea";
 import { stackedThreadToast, toastManager } from "../ui/toast";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { usePaginatedBranches } from "../../state/queries";
 import {
   APPROVAL_MODE_RUNTIME_LABELS,
@@ -539,7 +540,7 @@ export function BotProfileForm(props: {
         />
         <div className="mt-1 flex items-center justify-between gap-2">
           <p className="text-2xs text-muted-foreground">
-            {gt("{used} / {max} KB", { used: memoryBytes, max: BOT_MEMORY_MAX_BYTES / 1024 })}
+            {gt("{used} / {max} bytes", { used: memoryBytes, max: BOT_MEMORY_MAX_BYTES })}
           </p>
           <Button
             variant="ghost"
@@ -564,14 +565,26 @@ export function BotProfileForm(props: {
                 {bot.skills.map((skill) => (
                   <li
                     key={skill.name}
-                    className="flex items-center justify-between gap-2 rounded-md border border-border/60 px-2.5 py-1.5"
+                    className="flex items-start justify-between gap-2 rounded-md border border-border/60 px-2.5 py-1.5"
                   >
-                    <div className="min-w-0">
-                      <span className="text-xs font-medium">{skill.name}</span>
+                    <div className="min-w-0 flex-1">
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={<p className="truncate text-xs font-medium">{skill.name}</p>}
+                        />
+                        <TooltipPopup>{skill.name}</TooltipPopup>
+                      </Tooltip>
                       {skill.description !== undefined ? (
-                        <span className="ml-2 text-2xs text-muted-foreground">
-                          {skill.description}
-                        </span>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <p className="line-clamp-2 text-2xs text-muted-foreground">
+                                {skill.description}
+                              </p>
+                            }
+                          />
+                          <TooltipPopup>{skill.description}</TooltipPopup>
+                        </Tooltip>
                       ) : null}
                     </div>
                     <Button

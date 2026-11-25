@@ -503,7 +503,7 @@ export const layer = Layer.effect(
         } else if (
           Result.isSuccess(info) &&
           info.success.type === "File" &&
-          path.basename(sourcePath).toLowerCase() === SKILL_FILE.toLowerCase()
+          path.basename(sourcePath) === SKILL_FILE
         ) {
           sourceDir = path.dirname(sourcePath);
         } else {
@@ -512,10 +512,7 @@ export const layer = Layer.effect(
           });
         }
         const contents = yield* fileSystem.readDirectory(sourceDir).pipe(Effect.result);
-        if (
-          Result.isFailure(contents) ||
-          !contents.success.some((entry) => entry.toLowerCase() === SKILL_FILE.toLowerCase())
-        ) {
+        if (Result.isFailure(contents) || !contents.success.some((entry) => entry === SKILL_FILE)) {
           return yield* botError("The skill folder does not contain a SKILL.md.", { botId: id });
         }
         const slug = path.basename(sourceDir);
