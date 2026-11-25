@@ -265,6 +265,7 @@ describe("applyBotToDraft", () => {
     approvalMode: "auto-safe",
     interactionMode: "plan",
     canManageBots: false,
+    stayInProject: true,
     limits: {},
     soulBytes: 10,
     memoryBytes: 0,

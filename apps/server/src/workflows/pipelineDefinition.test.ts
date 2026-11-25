@@ -255,6 +255,11 @@ it.effect("a pipeline that reviews clean passes on the first round", () =>
   Effect.gen(function* () {
     const stores = emptyStores();
     seed(stores);
+    // dev keeps the default (confined); reviewer is not.
+    stores.bots.get("reviewer")!.bot = bot("reviewer", {
+      name: "Reviewer",
+      stayInProject: false,
+    });
     const { agents, boot } = yield* harness(stores);
     yield* boot(
       Effect.gen(function* () {
@@ -266,6 +271,7 @@ it.effect("a pipeline that reviews clean passes on the first round", () =>
         assert.equal(dev.title, "Dev: Dev");
         assert.equal(dev.project, "project-1");
         assert.deepStrictEqual(dev.tags, ["bot:dev"]);
+        assert.equal(dev.launch?.workspaceConfined, true);
         assert.equal(dev.model?.instanceId, "replay");
         assert.equal(dev.model?.model, "echo");
         assert.equal(dev.launch?.runtimeMode, "auto");
@@ -284,6 +290,7 @@ it.effect("a pipeline that reviews clean passes on the first round", () =>
         assert.equal(review.thread, undefined);
         assert.equal(review.title, "Reviewer: Review");
         assert.deepStrictEqual(review.tags, ["bot:reviewer"]);
+        assert.equal(review.launch?.workspaceConfined, false);
         assert.deepStrictEqual(review.outputSchema?.required, ["verdict", "findings"]);
         assert.isTrue(review.prompt.endsWith(reviewBrief(1, "Added the endpoint.")));
         yield* agents.end(runId, "review@1/0", {

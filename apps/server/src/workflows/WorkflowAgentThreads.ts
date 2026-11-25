@@ -217,6 +217,7 @@ const make = Effect.gen(function* () {
           runtimeMode: input.launch?.runtimeMode ?? defaults.defaultRuntimeMode,
           interactionMode: input.launch?.interactionMode ?? "default",
           workspaceStrategy: input.launch?.workspace ?? { type: "root" },
+          workspaceConfined: input.launch?.workspaceConfined === true,
           initialMessage: { messageId, text: input.prompt, attachments: [], ...outputSchema },
           createdBy: "system",
           creationSource: "server",

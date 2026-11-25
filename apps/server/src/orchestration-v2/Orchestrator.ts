@@ -4140,6 +4140,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         ? {}
         : { delegatedFrom: command.delegatedFrom }),
       ...(command.workflowRun === undefined ? {} : { workflowRun: command.workflowRun }),
+      ...(command.workspaceConfined === true ? { workspaceConfined: true } : {}),
       lineage: {
         parentThreadId: null,
         relationshipToParent: null,
@@ -10139,6 +10140,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         runtimeMode: command.runtimeMode,
         interactionMode: command.interactionMode,
         ...(command.workspaceStrategy === undefined ? {} : { branch: null, worktreePath: null }),
+        ...(command.workspaceConfined === true ? { workspaceConfined: true } : {}),
       };
       const task: OrchestrationV2Subagent = {
         id: taskNodeId,

@@ -90,6 +90,7 @@ interface Harness {
     readonly text: string;
     readonly runtimeMode: string;
     readonly title: string;
+    readonly workspaceConfined: boolean | undefined;
   }>;
   readonly dispatches: Array<Record<string, unknown>>;
   readonly threadByCommandId: Map<string, string>;
@@ -161,6 +162,7 @@ const withService = <A, E>(
             text: input.initialMessage?.text ?? "",
             runtimeMode: input.runtimeMode,
             title: input.title,
+            workspaceConfined: input.workspaceConfined,
           });
           return { threadId } as unknown as ThreadLaunchService.ThreadLaunchResult;
         }),
@@ -226,6 +228,14 @@ it.effect("creates a bot with a slug id and keeps the soul on update", () =>
       expect(got.bot.description).toBe("Stays.");
       expect(got.bot.pinned).toBe(true);
       expect(got.bot.role).toBe("");
+
+      // stayInProject defaults on for a new bot, and an update that leaves it
+      // out keeps the stored value rather than resetting it.
+      expect(created.bot.stayInProject).toBe(true);
+      yield* service.upsert(upsertInput({ id: created.bot.id, stayInProject: false }));
+      yield* service.upsert(upsertInput({ id: created.bot.id, role: "Watcher" }));
+      const stayed = yield* service.get({ id: created.bot.id });
+      expect(stayed.bot.stayInProject).toBe(false);
     }),
   ),
 );
@@ -263,6 +273,7 @@ it.effect("runNow launches with the wrapped prompt, bot mode and a bot tag", () 
       expect(result.threadId).toBe("thread-1");
       const launch = seen.launches[0];
       expect(launch?.runtimeMode).toBe("auto");
+      expect(launch?.workspaceConfined).toBe(true);
       expect(launch?.title).toBe("Night Watch: Check it.");
       expect(launch?.text).toBe(
         'You are "Night Watch", a SimplyCode bot. Follow these standing instructions:\n\nAlways be terse.\n\n## Your memory\nThis is your MEMORY.md, kept between runs. When you learn something worth keeping (a user preference, a project fact, a lesson from a mistake), save it with the update_bot_memory tool (on the t3-code MCP server; if your MCP tools are listed separately, look there). Keep it short and current.\n\n(empty)\n\n--- end of standing instructions ---\n\nCheck it.',
@@ -270,6 +281,11 @@ it.effect("runNow launches with the wrapped prompt, bot mode and a bot tag", () 
       const tag = seen.dispatches.find((command) => command.type === "thread.tag.set");
       expect(tag?.tag).toBe("bot:night-watch");
       expect(tag?.tagged).toBe(true);
+
+      // A bot that stays out of its project launches an unconfined thread.
+      yield* store.write({ ...profileFixture("nomad"), stayInProject: false });
+      yield* service.runNow({ id: "nomad" as never, prompt: "Roam." });
+      expect(seen.launches[1]?.workspaceConfined).toBe(false);
     }),
   );
 });

@@ -28,6 +28,7 @@ import { BotStore } from "../../../bots/BotStore.ts";
 import { PipelineService } from "../../../bots/PipelineService.ts";
 import { TeamService } from "../../../bots/TeamService.ts";
 import { TeamStore } from "../../../bots/TeamStore.ts";
+import * as ProjectStore from "../../../orchestration-v2/ProjectStore.ts";
 import * as ProviderRegistry from "../../../provider/ProviderRegistry.ts";
 import * as Orchestrator from "../../../orchestration-v2/Orchestrator.ts";
 import * as ThreadManagement from "../../../orchestration-v2/ThreadManagementService.ts";
@@ -172,6 +173,9 @@ const layerToolkit = (input: {
   readonly memories?: ReadonlyMap<BotId, string>;
   readonly callerTags?: ReadonlyArray<string>;
   readonly callerRuntimeMode?: "approval-required" | "auto" | "full-access";
+  /** The caller thread's project folder; worktreePath wins over the project root when set. */
+  readonly callerWorkspaceRoot?: string;
+  readonly callerWorktreePath?: string;
   readonly providers?: ReadonlyArray<ServerProvider>;
   readonly teams?: ReadonlyArray<Team>;
   readonly pipelines?: ReadonlyArray<Pipeline>;
@@ -297,8 +301,8 @@ const layerToolkit = (input: {
     getProviders: Effect.succeed(input.providers ?? []),
   });
   const layerService = Layer.mock(OrchestratorMcpService.OrchestratorMcpService)({
-    delegateTask: (callScope, callInput) => {
-      calls.push({ scope: callScope, input: callInput });
+    delegateTask: (callScope, callInput, options) => {
+      calls.push({ scope: callScope, input: callInput, options });
       return Effect.succeed(delegateResult);
     },
   });
@@ -308,6 +312,13 @@ const layerToolkit = (input: {
       return Effect.succeed({ sequence: 1, storedEvents: [] });
     },
   });
+  const layerProjects = Layer.mock(ProjectStore.ProjectStoreV2)({
+    get: (projectId) =>
+      Effect.succeedSome({
+        workspaceRoot: input.callerWorkspaceRoot ?? "/project",
+        projectId,
+      } as unknown as ProjectStore.ProjectRow),
+  });
   const layerThreads = Layer.mock(ThreadManagement.ThreadManagementService)({
     getThreadShell: (id) =>
       Effect.succeed({
@@ -315,6 +326,9 @@ const layerToolkit = (input: {
           runtimeMode: input.callerRuntimeMode ?? "full-access",
         }),
         ...(input.callerTags === undefined ? {} : { tags: [...input.callerTags] }),
+        ...(input.callerWorktreePath === undefined
+          ? {}
+          : { worktreePath: input.callerWorktreePath }),
       }),
   });
   return {
@@ -330,6 +344,7 @@ const layerToolkit = (input: {
       Layer.provide(layerTeamService),
       Layer.provide(layerPipelineService),
       Layer.provide(layerProviders),
+      Layer.provide(layerProjects),
       Layer.provide(layerService),
       Layer.provide(layerOrchestrator),
       Layer.provide(layerThreads),
@@ -840,7 +855,7 @@ it.effect("install_bot_skill works on self and editable targets, refuses manager
 
     const selfResult = yield* callTool("install_bot_skill", {
       botId: "manager",
-      sourcePath: "/skills/a",
+      sourcePath: "/project/skills/a",
     }).pipe(Effect.provide(layer));
     expect(selfResult.isError).not.toBe(true);
     expect(selfResult.structuredContent).toMatchObject({
@@ -850,7 +865,7 @@ it.effect("install_bot_skill works on self and editable targets, refuses manager
 
     const targetResult = yield* callTool("install_bot_skill", {
       botId: "worker",
-      sourcePath: "/skills/b",
+      sourcePath: "/project/skills/b",
     }).pipe(Effect.provide(layer));
     expect(targetResult.isError).not.toBe(true);
     expect(
@@ -871,7 +886,7 @@ it.effect("install_bot_skill works on self and editable targets, refuses manager
       declaredFailure(
         yield* callTool("install_bot_skill", {
           botId: "other-manager",
-          sourcePath: "/skills/c",
+          sourcePath: "/project/skills/c",
         }).pipe(Effect.provide(managerTarget)),
       ),
     ).toMatchObject({
@@ -880,6 +895,91 @@ it.effect("install_bot_skill works on self and editable targets, refuses manager
     });
   }),
 );
+
+const KNOWN_SKILL_REFUSAL =
+  "install_bot_skill only installs skills from your project folder or from skills this server already knows.";
+
+const providerWithSkill = (path: string) =>
+  ({
+    skills: [{ name: "a-skill", path, enabled: true }],
+    workspaceSnapshots: [],
+  }) as unknown as ServerProvider;
+
+it.effect("install_bot_skill confines the source path to the project or a known skill", () =>
+  Effect.gen(function* () {
+    const { calls, layer } = layerToolkit({
+      bots: [managerBot()],
+      ...managerCaller,
+      providers: [providerWithSkill("/providers/skills/known")],
+    });
+    const install = (sourcePath: string) =>
+      callTool("install_bot_skill", { botId: "manager", sourcePath }).pipe(Effect.provide(layer));
+
+    // Inside the caller's project folder: allowed.
+    expect((yield* install("/project/skills/mine")).isError).not.toBe(true);
+    expect((yield* install("skills/relative")).isError).not.toBe(true);
+    // A skill path a provider already reported, folder or its SKILL.md: allowed.
+    expect((yield* install("/providers/skills/known")).isError).not.toBe(true);
+    expect((yield* install("/providers/skills/known/SKILL.md")).isError).not.toBe(true);
+    // Anywhere else on disk: refused before the service is called.
+    for (const sourcePath of ["/skills/a", "../skills/escape", "/project/../outside/x"]) {
+      expect(declaredFailure(yield* install(sourcePath))).toMatchObject({
+        code: "invalid_request",
+        message: KNOWN_SKILL_REFUSAL,
+      });
+    }
+    expect(
+      calls.filter(
+        (call): call is { type: "installSkill" } =>
+          typeof call === "object" &&
+          call !== null &&
+          "type" in call &&
+          call.type === "installSkill",
+      ),
+    ).toHaveLength(4);
+
+    // A worktree, not the project row's root, is what confines the path.
+    const { layer: worktree } = layerToolkit({
+      bots: [managerBot()],
+      ...managerCaller,
+      callerWorkspaceRoot: "/project",
+      callerWorktreePath: "/worktrees/wt-1",
+    });
+    expect(
+      declaredFailure(
+        yield* callTool("install_bot_skill", {
+          botId: "manager",
+          sourcePath: "/project/skills/a",
+        }).pipe(Effect.provide(worktree)),
+      ),
+    ).toMatchObject({ code: "invalid_request", message: KNOWN_SKILL_REFUSAL });
+    expect(
+      (yield* callTool("install_bot_skill", {
+        botId: "manager",
+        sourcePath: "/worktrees/wt-1/skills/a",
+      }).pipe(Effect.provide(worktree))).isError,
+    ).not.toBe(true);
+  }),
+);
+
+it.effect("delegate_to_bot confines the child thread to the bot's stayInProject", () => {
+  const { calls, layer } = layerToolkit({
+    bots: [plannerBot(), plannerBot({ id: "nomad", stayInProject: false })],
+  });
+  return Effect.gen(function* () {
+    for (const [botId, workspaceConfined] of [
+      ["planner", true],
+      ["nomad", false],
+    ] as const) {
+      yield* callTool("delegate_to_bot", { botId, task: "Look around" });
+      const delegation = calls.findLast(
+        (call): call is { input: unknown; options: { workspaceConfined?: boolean } | undefined } =>
+          typeof call === "object" && call !== null && "options" in call,
+      );
+      expect(delegation?.options).toEqual({ workspaceConfined });
+    }
+  }).pipe(Effect.provide(layer));
+});
 
 it.effect("list_teams returns each team with its members and pipelines in stage order", () => {
   const { layer } = layerToolkit({

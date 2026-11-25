@@ -34,6 +34,8 @@ export interface AgentLaunch {
   readonly workspace?: OrchestrationV2ThreadLaunchWorkspaceStrategy | undefined;
   readonly runtimeMode?: RuntimeMode | undefined;
   readonly interactionMode?: ProviderInteractionMode | undefined;
+  /** A bot thread confined to its project's files. Fixed at launch; a continued thread keeps its own. */
+  readonly workspaceConfined?: boolean | undefined;
 }
 
 export const AgentTurn = Schema.Struct({

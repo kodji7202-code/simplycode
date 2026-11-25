@@ -486,6 +486,7 @@ describe("bot binding", () => {
     approvalMode: "auto-safe",
     interactionMode: "plan",
     canManageBots: false,
+    stayInProject: true,
     limits: {},
     createdAt: "2026-09-17T00:00:00.000Z",
     updatedAt: "2026-09-17T00:00:00.000Z",

@@ -326,6 +326,8 @@ export interface ScheduledTaskBotHookShape {
   ) => Effect.Effect<string>;
   /** Runs after a run launched a new thread, such as tagging it `bot:<id>`. */
   readonly afterLaunch: (task: ScheduledTask, threadId: ThreadId) => Effect.Effect<void>;
+  /** Whether the bot's new thread is confined to its project's files; false for tasks with no bot. */
+  readonly workspaceConfined: (task: ScheduledTask) => Effect.Effect<boolean>;
   /** The reason the task cannot run because of its bot, or undefined when it can. */
   readonly blocked: (task: ScheduledTask) => Effect.Effect<string | undefined>;
   readonly botExists: (id: BotId) => Effect.Effect<boolean>;
@@ -337,6 +339,7 @@ export class ScheduledTaskBotHook extends Context.Reference<ScheduledTaskBotHook
     defaultValue: (): ScheduledTaskBotHookShape => ({
       prompt: (_task, prompt) => Effect.succeed(prompt),
       afterLaunch: () => Effect.void,
+      workspaceConfined: () => Effect.succeed(false),
       blocked: () => Effect.undefined,
       botExists: () => Effect.succeed(true),
     }),
@@ -1190,6 +1193,7 @@ export const layer = Layer.effect(
                     runtimeMode: active.runtimeMode,
                     interactionMode: active.interactionMode,
                     workspaceStrategy: active.workspaceStrategy,
+                    workspaceConfined: yield* botHook.workspaceConfined(active),
                     initialMessage: {
                       messageId,
                       scheduledTaskId: active.id,

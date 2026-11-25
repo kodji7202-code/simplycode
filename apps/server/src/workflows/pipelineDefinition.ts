@@ -260,6 +260,7 @@ export const makePipelineDefinition = (deps: PipelineDefinitionDeps): WorkflowDe
                       ? payload.runtimeCeiling
                       : botRuntimeMode(snap.bot.approvalMode),
                   interactionMode: snap.bot.interactionMode,
+                  workspaceConfined: snap.bot.stayInProject,
                   tags: [botThreadTag(snap.bot.id)],
                 }
               : { thread: prior }),

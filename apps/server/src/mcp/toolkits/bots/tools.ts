@@ -31,6 +31,7 @@ import { BotStore } from "../../../bots/BotStore.ts";
 import { PipelineService } from "../../../bots/PipelineService.ts";
 import { TeamService } from "../../../bots/TeamService.ts";
 import { TeamStore } from "../../../bots/TeamStore.ts";
+import * as ProjectStore from "../../../orchestration-v2/ProjectStore.ts";
 import * as ProviderRegistry from "../../../provider/ProviderRegistry.ts";
 import * as Orchestrator from "../../../orchestration-v2/Orchestrator.ts";
 import * as ThreadManagementService from "../../../orchestration-v2/ThreadManagementService.ts";
@@ -47,6 +48,7 @@ const dependencies = [
   TeamService,
   PipelineService,
   ProviderRegistry.ProviderRegistry,
+  ProjectStore.ProjectStoreV2,
   Orchestrator.OrchestratorV2,
 ];
 

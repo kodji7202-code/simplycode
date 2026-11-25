@@ -155,6 +155,7 @@ export const layer = Layer.effect(
         limits: bot.limits ?? {},
         // An imported bot can never arrive as a bot manager; the user opts in per bot.
         canManageBots: false,
+        stayInProject: bot.stayInProject ?? true,
         createdAt: now,
         updatedAt: now,
         ...(bot.avatar === undefined ? {} : { avatar: bot.avatar }),

@@ -127,6 +127,8 @@ export interface ThreadLaunchInput {
   readonly delegatedFrom?: OrchestrationV2DelegatedFrom;
   /** The workflow run this thread is an agent step of. */
   readonly workflowRun?: OrchestrationV2WorkflowOrigin;
+  /** A bot thread confined to its project's files. Fixed at launch; cannot change later. */
+  readonly workspaceConfined?: boolean;
 }
 
 type PreparationInput = Pick<
@@ -1500,6 +1502,7 @@ const make = Effect.gen(function* () {
                   ? {}
                   : { delegatedFrom: input.delegatedFrom }),
                 ...(input.workflowRun === undefined ? {} : { workflowRun: input.workflowRun }),
+                ...(input.workspaceConfined === true ? { workspaceConfined: true } : {}),
                 createdBy: input.createdBy,
                 creationSource: input.creationSource,
                 ...(initialMessage === undefined

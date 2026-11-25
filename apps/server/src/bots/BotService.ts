@@ -101,6 +101,13 @@ export const botHookLayer = Layer.unwrap(
         );
     });
 
+    const workspaceConfined: ScheduledTasks.ScheduledTaskBotHookShape["workspaceConfined"] =
+      Effect.fn("ScheduledTaskBotHook.workspaceConfined")(function* (task) {
+        if (task.botId === undefined) return false;
+        const bot = yield* store.find(task.botId);
+        return bot?.stayInProject ?? false;
+      });
+
     const blocked: ScheduledTasks.ScheduledTaskBotHookShape["blocked"] = Effect.fn(
       "ScheduledTaskBotHook.blocked",
     )(function* (task) {
@@ -117,6 +124,7 @@ export const botHookLayer = Layer.unwrap(
     return Layer.succeed(ScheduledTasks.ScheduledTaskBotHook, {
       prompt,
       afterLaunch,
+      workspaceConfined,
       blocked,
       botExists,
     });
@@ -207,6 +215,7 @@ export const layer = Layer.effect(
           updatedAt: now,
           pinned: input.pinned ?? existing?.pinned ?? false,
           canManageBots: input.canManageBots ?? existing?.canManageBots ?? false,
+          stayInProject: input.stayInProject ?? existing?.stayInProject ?? true,
           ...(input.avatar === undefined ? {} : { avatar: input.avatar }),
           ...(input.role === undefined ? {} : { role: input.role }),
           ...(input.description === undefined ? {} : { description: input.description }),
@@ -286,6 +295,7 @@ export const layer = Layer.effect(
             runtimeMode: botRuntimeMode(bot.approvalMode),
             interactionMode: bot.interactionMode,
             workspaceStrategy: bot.workspaceStrategy,
+            workspaceConfined: bot.stayInProject,
             initialMessage: {
               messageId: MessageId.make(`bot-message:${commandId}`),
               text: botPrompt(
