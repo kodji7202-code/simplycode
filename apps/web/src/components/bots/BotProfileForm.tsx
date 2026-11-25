@@ -474,6 +474,27 @@ export function BotProfileForm(props: {
         </Select>
       </Field>
 
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <Label htmlFor="bot-manage-bots">
+            <T>Can create and edit other bots</T>
+          </Label>
+          <Switch
+            id="bot-manage-bots"
+            checked={draft.canManageBots}
+            onCheckedChange={(canManageBots) =>
+              setDraft((current) => ({ ...current, canManageBots }))
+            }
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          <T>
+            Gives this bot tools to create bots and change other bots' instructions, model and
+            approval mode, never above its own.
+          </T>
+        </p>
+      </div>
+
       <Field label={gt("Workspace")} htmlFor="bot-workspace">
         <Select
           value={draft.workspaceMode}
