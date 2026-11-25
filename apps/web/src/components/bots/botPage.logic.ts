@@ -90,6 +90,7 @@ export interface BotDraft {
   readonly approvalMode: BotApprovalMode;
   readonly interactionMode: ProviderInteractionMode;
   readonly canManageBots: boolean;
+  readonly stayInProject: boolean;
   readonly soul: string;
   readonly memory: string;
   readonly maxStepsPerRun: string;
@@ -110,6 +111,7 @@ export const EMPTY_BOT_DRAFT: BotDraft = {
   approvalMode: "ask",
   interactionMode: "default",
   canManageBots: false,
+  stayInProject: true,
   soul: "",
   memory: "",
   maxStepsPerRun: "",
@@ -131,6 +133,7 @@ export function botToDraft(bot: Bot, soul: string, memory: string): BotDraft {
     approvalMode: bot.approvalMode,
     interactionMode: bot.interactionMode,
     canManageBots: bot.canManageBots,
+    stayInProject: bot.stayInProject,
     soul,
     memory,
     maxStepsPerRun: bot.limits.maxStepsPerRun?.toString() ?? "",
@@ -182,6 +185,7 @@ export function draftToBotUpsertInput(
     approvalMode: draft.approvalMode,
     interactionMode: draft.interactionMode,
     canManageBots: draft.canManageBots,
+    stayInProject: draft.stayInProject,
     limits: {
       ...(Number.isSafeInteger(steps) && steps >= 1 ? { maxStepsPerRun: steps } : {}),
       ...(Number.isFinite(cost) && cost > 0 ? { maxCostUsd: cost } : {}),
