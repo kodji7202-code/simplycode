@@ -19,6 +19,7 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { T, useGT, useLocale, useMessages } from "gt-react";
 import {
   BotIcon,
+  DownloadIcon,
   EllipsisIcon,
   PencilIcon,
   PlusIcon,
@@ -59,6 +60,7 @@ import {
 import { WorkspacePageHeader } from "../WorkspacePageHeader";
 import { BotAvatar } from "./BotAvatar";
 import { BotEditorDialog } from "./BotEditorDialog";
+import { exportBotsToFile } from "./BotImportDialog";
 import { BotProfileForm } from "./BotProfileForm";
 import { APPROVAL_MODE_RUNTIME_LABELS, botActivity, botAutomationCount } from "./botPage.logic";
 import { scheduleLabel } from "../settings/scheduledTasksSettings.logic";
@@ -93,6 +95,7 @@ function useBotActions(environmentId: EnvironmentId, canOperate: boolean) {
   });
   const deleteBot = useAtomCommand(serverEnvironment.deleteBot, { label: "bot delete" });
   const runNow = useAtomCommand(serverEnvironment.runBotNow, { label: "bot run now" });
+  const exportBots = useAtomCommand(serverEnvironment.exportBots, { label: "bot export" });
   const [busy, setBusy] = useState<"toggle" | "run" | "delete" | null>(null);
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
 
@@ -170,7 +173,14 @@ function useBotActions(environmentId: EnvironmentId, canOperate: boolean) {
     }
   };
 
-  return { busy, busyTaskId, toggle, remove, run, toggleTask, requireOperate };
+  const exportOne = (bot: Bot) =>
+    exportBotsToFile(
+      (input) => exportBots({ environmentId, input }),
+      [bot.id],
+      (error) => reportFailure(gt("Export failed"), error),
+    );
+
+  return { busy, busyTaskId, toggle, remove, run, toggleTask, requireOperate, exportOne };
 }
 
 function BotAutomations(props: {
@@ -281,7 +291,7 @@ function BotDetail(props: {
   const { environmentId, bot, shells, tasks, timeZone, canOperate, onEdit, onDeleted } = props;
   const gt = useGT();
   const navigate = useNavigate();
-  const { busy, busyTaskId, toggle, remove, run, toggleTask } = useBotActions(
+  const { busy, busyTaskId, toggle, remove, run, toggleTask, exportOne } = useBotActions(
     environmentId,
     canOperate,
   );
@@ -363,6 +373,10 @@ function BotDetail(props: {
                 <DropdownMenuItem onClick={onEdit}>
                   <PencilIcon className="size-3.5" />
                   <T>Edit profile</T>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => void exportOne(bot)}>
+                  <DownloadIcon className="size-3.5" />
+                  <T>Export bot</T>
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => {

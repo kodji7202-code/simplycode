@@ -9,6 +9,7 @@ import {
   draftToBotUpsertInput,
   EMPTY_BOT_DRAFT,
   filterBots,
+  importModelLine,
   sortBotsForSidebar,
   soulByteLength,
   type BotActivity,
@@ -210,5 +211,43 @@ describe("filterBots", () => {
     expect(filterBots([reviewer, cleaner], "CLEAN")).toEqual([cleaner]);
     expect(filterBots([reviewer, cleaner], "  ")).toHaveLength(2);
     expect(filterBots([reviewer, cleaner], "zzz")).toHaveLength(0);
+  });
+});
+
+describe("importModelLine", () => {
+  const candidate = {
+    key: "k1",
+    name: "Dev",
+    approvalMode: "ask" as const,
+    soulBytes: 0,
+    memoryBytes: 0,
+    skills: [],
+    automations: [],
+    warnings: [],
+  };
+  const fallback = { instanceId: "claude-1", model: "sonnet" };
+
+  it("shows the mapped selection when present", () => {
+    expect(
+      importModelLine(
+        {
+          ...candidate,
+          modelSelection: { instanceId: "devin", model: "swe-2-high" },
+        } as never,
+        fallback,
+      ),
+    ).toBe("swe-2-high (devin)");
+  });
+
+  it("names the source model and fallback when unmapped", () => {
+    expect(importModelLine({ ...candidate, sourceModel: "swe-2-high" }, fallback)).toBe(
+      "swe-2-high, not available here, will use sonnet (claude-1)",
+    );
+  });
+
+  it("labels a missing source model as unknown", () => {
+    expect(importModelLine(candidate, fallback)).toBe(
+      "Unknown model, not available here, will use sonnet (claude-1)",
+    );
   });
 });
