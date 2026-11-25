@@ -832,8 +832,6 @@ type BotDraft = {
   readonly stayInProject: boolean;
   readonly soul: string | null;
   readonly memory: string | null;
-  readonly maxSteps: string;
-  readonly maxCost: string;
 };
 
 function draftForNewBot(
@@ -855,8 +853,6 @@ function draftForNewBot(
     stayInProject: true,
     soul: "",
     memory: "",
-    maxSteps: "",
-    maxCost: "",
   };
 }
 
@@ -877,8 +873,6 @@ function draftForBot(bot: Bot, soul: string, memory: string): BotDraft {
     stayInProject: bot.stayInProject,
     soul,
     memory,
-    maxSteps: bot.limits.maxStepsPerRun === undefined ? "" : String(bot.limits.maxStepsPerRun),
-    maxCost: bot.limits.maxCostUsd === undefined ? "" : String(bot.limits.maxCostUsd),
   };
 }
 
@@ -1079,10 +1073,6 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
     const name = form.name.trim();
     const soul = form.soul ?? "";
     const memory = form.memory ?? "";
-    const maxSteps = form.maxSteps.trim();
-    const maxCost = form.maxCost.trim();
-    const stepsNumber = maxSteps === "" ? undefined : Number(maxSteps);
-    const costNumber = maxCost === "" ? undefined : Number(maxCost);
     if (!name || !form.projectId || !form.modelSelection) {
       Dialog.alert(gt("Incomplete bot"), gt("Add a name, project, and model before saving."));
       return;
@@ -1099,13 +1089,6 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
         gt("Memory too long"),
         gt("Keep it under {max} bytes.", { max: BOT_MEMORY_MAX_BYTES }),
       );
-      return;
-    }
-    if (
-      (stepsNumber !== undefined && (!Number.isInteger(stepsNumber) || stepsNumber < 1)) ||
-      (costNumber !== undefined && (!Number.isFinite(costNumber) || costNumber <= 0))
-    ) {
-      Dialog.alert(gt("Invalid limits"), gt("Limits must be positive numbers, or blank."));
       return;
     }
     const input: BotUpsertInput = {
@@ -1131,10 +1114,6 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
       canManageBots: form.canManageBots,
       stayInProject: form.stayInProject,
       interactionMode: existing.data?.bot.interactionMode ?? "default",
-      limits: {
-        ...(stepsNumber !== undefined ? { maxStepsPerRun: stepsNumber } : {}),
-        ...(costNumber !== undefined ? { maxCostUsd: costNumber } : {}),
-      },
       ...(botId === null || soul !== existing.data?.soul ? { soul } : {}),
       ...(botId === null || memory !== existing.data?.memory ? { memory } : {}),
     };
@@ -1584,23 +1563,6 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
                 />
               </SettingsSection>
             ) : null}
-            <SettingsSection title={gt("Limits")}>
-              <FormField
-                label={gt("Max steps per run")}
-                value={form.maxSteps}
-                keyboardType="decimal-pad"
-                disabled={!canOperate || saving}
-                onChange={(maxSteps) => set({ maxSteps })}
-              />
-              <FormField
-                label={gt("Max cost (USD)")}
-                value={form.maxCost}
-                keyboardType="decimal-pad"
-                disabled={!canOperate || saving}
-                borderTop
-                onChange={(maxCost) => set({ maxCost })}
-              />
-            </SettingsSection>
             <SettingsSection>
               <View className="min-h-14 flex-row items-center gap-3 px-4 py-3">
                 <Text textRole="body" className="min-w-0 flex-1 text-foreground">
