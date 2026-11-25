@@ -41,7 +41,7 @@ import {
   modelSelectionLabel,
 } from "./botPage.logic";
 
-type SourceKind = "openbot" | "folder" | "package";
+type SourceKind = "openbot" | "openmausbot" | "folder" | "package";
 
 export function BotImportDialog(props: {
   readonly environmentId: EnvironmentId;
@@ -104,6 +104,7 @@ export function BotImportDialog(props: {
 
   const source = (): BotImportSource | null => {
     if (sourceKind === "openbot") return { type: "openbot" };
+    if (sourceKind === "openmausbot") return { type: "openmausbot" };
     if (sourceKind === "folder") {
       return folderPath.trim() === "" ? null : { type: "folder", path: folderPath.trim() };
     }
@@ -137,6 +138,7 @@ export function BotImportDialog(props: {
     setResult(null);
     setScanError(null);
     if (kind === "openbot") void runScan({ type: "openbot" });
+    else if (kind === "openmausbot") void runScan({ type: "openmausbot" });
   };
 
   const apply = async () => {
@@ -219,7 +221,7 @@ export function BotImportDialog(props: {
               <T>Source</T>
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {(["openbot", "folder", "package"] as const).map((kind) => (
+              {(["openbot", "openmausbot", "folder", "package"] as const).map((kind) => (
                 <Button
                   key={kind}
                   size="sm"
@@ -228,6 +230,8 @@ export function BotImportDialog(props: {
                 >
                   {kind === "openbot" ? (
                     <T>OpenBot (this computer)</T>
+                  ) : kind === "openmausbot" ? (
+                    <T>OpenMausBot (this computer)</T>
                   ) : kind === "folder" ? (
                     <T>Agent folder</T>
                   ) : (

@@ -466,7 +466,7 @@ function EnvironmentBots(props: {
   );
 }
 
-type ImportSourceKind = "openbot" | "folder" | "package";
+type ImportSourceKind = "openbot" | "openmausbot" | "folder" | "package";
 
 function ImportBotsPanel(props: {
   readonly environmentId: EnvironmentId;
@@ -522,6 +522,7 @@ function ImportBotsPanel(props: {
 
   const source = (): BotImportSource | null => {
     if (sourceKind === "openbot") return { type: "openbot" };
+    if (sourceKind === "openmausbot") return { type: "openmausbot" };
     if (sourceKind === "folder") {
       return folderPath.trim() === "" ? null : { type: "folder", path: folderPath.trim() };
     }
@@ -552,6 +553,7 @@ function ImportBotsPanel(props: {
     setSourceKind(kind);
     setResult(null);
     if (kind === "openbot") void runScan({ type: "openbot" });
+    else if (kind === "openmausbot") void runScan({ type: "openmausbot" });
   };
 
   const pickPackage = async () => {
@@ -611,15 +613,22 @@ function ImportBotsPanel(props: {
         value={
           sourceKind === "openbot"
             ? gt("OpenBot (this computer)")
-            : sourceKind === "folder"
-              ? gt("Agent folder")
-              : gt("SimplyCode file")
+            : sourceKind === "openmausbot"
+              ? gt("OpenMausBot (this computer)")
+              : sourceKind === "folder"
+                ? gt("Agent folder")
+                : gt("SimplyCode file")
         }
         actions={[
           {
             id: "openbot",
             title: gt("OpenBot (this computer)"),
             state: sourceKind === "openbot" ? "on" : undefined,
+          },
+          {
+            id: "openmausbot",
+            title: gt("OpenMausBot (this computer)"),
+            state: sourceKind === "openmausbot" ? "on" : undefined,
           },
           {
             id: "folder",
@@ -633,7 +642,7 @@ function ImportBotsPanel(props: {
           },
         ]}
         onSelect={(id) => {
-          if (id === "openbot" || id === "folder" || id === "package") {
+          if (id === "openbot" || id === "openmausbot" || id === "folder" || id === "package") {
             pickSourceKind(id);
           }
         }}

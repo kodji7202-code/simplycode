@@ -15,6 +15,7 @@ import {
   type ScheduledTaskUpsertSchedule,
 } from "@t3tools/contracts";
 import * as NodeSqlite from "node:sqlite";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
@@ -613,6 +614,284 @@ const scheduleLabel = (schedule: ScheduledTaskUpsertSchedule | undefined): strin
   }
 };
 
+// OpenMausBot keeps its data under ~/.openmausbot (or ~/.opengrokbot on older
+// installs, or OMB_DATA_DIR). We read bots.json, routines.json, SOUL.md
+// mirrors and workspace memory only: config.json, secrets files, keychain
+// stores and memory-journal/ hold credentials and are never opened.
+const openMausBotDataDir = Effect.fnUntraced(function* () {
+  const home = yield* HostProcess.HomeDirectory;
+  const env = yield* HostProcess.Environment;
+  const fileSystem = yield* FileSystem.FileSystem;
+  if (env.OMB_DATA_DIR !== undefined && env.OMB_DATA_DIR.trim() !== "") {
+    return env.OMB_DATA_DIR;
+  }
+  for (const dir of [`${home}/.openmausbot`, `${home}/.opengrokbot`]) {
+    if (yield* fileSystem.exists(dir).pipe(Effect.orElseSucceed(() => false))) return dir;
+  }
+  return `${home}/.openmausbot`;
+});
+
+interface OpenMausBotRecord {
+  readonly id: string;
+  readonly name?: string;
+  readonly title?: string;
+  readonly description?: string;
+  readonly soul?: string;
+  readonly color?: string;
+  readonly approvalMode?: string;
+  readonly modelSelection?: { instanceId?: string; model?: string };
+}
+
+interface OpenMausBotRoutine {
+  readonly name?: string;
+  readonly prompt?: string;
+  readonly target?: string;
+  readonly botId?: string;
+  readonly runOn?: string;
+  readonly schedule?: {
+    type?: string;
+    expression?: string;
+    at?: number;
+    time?: string;
+    weekdays?: number[];
+    everyMinutes?: number;
+    window?: { start: string; end: string };
+  };
+}
+
+// OpenMausBot palette names onto our eight avatar colors.
+const OPENMAUSBOT_COLORS: Readonly<Record<string, string>> = {
+  green: "#00d47e",
+  blue: "#3b82f6",
+  yellow: "#f59e0b",
+  orange: "#f59e0b",
+  amber: "#f59e0b",
+  purple: "#a855f7",
+  violet: "#a855f7",
+  pink: "#ec4899",
+  teal: "#06b6d4",
+  cyan: "#06b6d4",
+  red: "#ef4444",
+  lime: "#84cc16",
+};
+
+const openMausBotSchedule = (
+  schedule: OpenMausBotRoutine["schedule"],
+): { schedule: ScheduledTaskUpsertSchedule | undefined; label: string; importable: boolean } => {
+  if (schedule === undefined || typeof schedule.type !== "string") {
+    return { schedule: undefined, label: "No schedule", importable: false };
+  }
+  if (schedule.type === "daily" && typeof schedule.time === "string") {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(schedule.time)) {
+      return { schedule: undefined, label: "Unsupported schedule (daily)", importable: false };
+    }
+    const weekdays =
+      schedule.weekdays === undefined
+        ? undefined
+        : schedule.weekdays.filter((day) => day >= 0 && day <= 6);
+    const result: ScheduledTaskUpsertSchedule = {
+      type: "fixed_time",
+      timeOfDay: schedule.time,
+      ...(weekdays === undefined ? {} : { weekdays }),
+    };
+    return { schedule: result, label: scheduleLabel(result), importable: true };
+  }
+  if (schedule.type === "once" && typeof schedule.at === "number") {
+    const result: ScheduledTaskUpsertSchedule = {
+      type: "once",
+      runAt: DateTime.formatIso(DateTime.makeUnsafe(schedule.at)),
+    };
+    return { schedule: result, label: scheduleLabel(result), importable: true };
+  }
+  if (schedule.type === "interval" && typeof schedule.everyMinutes === "number") {
+    if (schedule.weekdays !== undefined || schedule.window !== undefined) {
+      return {
+        schedule: undefined,
+        label: "Unsupported schedule (interval with limits)",
+        importable: false,
+      };
+    }
+    const result: ScheduledTaskUpsertSchedule = {
+      type: "interval",
+      everyMs: Math.round(schedule.everyMinutes * 60_000),
+    };
+    return { schedule: result, label: scheduleLabel(result), importable: true };
+  }
+  return {
+    schedule: undefined,
+    label: `Unsupported schedule (${schedule.type})`,
+    importable: false,
+  };
+};
+
+// Exported for tests, which point it at a fixture data dir.
+export const scanOpenMausBotDir = Effect.fnUntraced(function* (
+  dataDir: string,
+): Effect.fn.Return<
+  ScannedSource,
+  BotImportSourceError | PlatformError.PlatformError,
+  FileSystem.FileSystem | Path.Path
+> {
+  const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  if (!(yield* fileSystem.exists(dataDir).pipe(Effect.orElseSucceed(() => false)))) {
+    return yield* sourceError("OpenMausBot was not found on this computer.");
+  }
+  const formatText = yield* readTextFile(path.join(dataDir, "data-format.json"));
+  if (formatText !== undefined) {
+    const format = (() => {
+      try {
+        return JSON.parse(formatText) as { format?: unknown };
+      } catch {
+        return undefined;
+      }
+    })();
+    if (typeof format?.format === "number" && format.format > 2) {
+      return yield* sourceError("This OpenMausBot data is newer than SimplyCode can read.");
+    }
+  }
+  const botsText = yield* readTextFile(path.join(dataDir, "bots.json"));
+  if (botsText === undefined) {
+    return yield* sourceError("OpenMausBot was not found on this computer.");
+  }
+  const records = (() => {
+    try {
+      const parsed: unknown = JSON.parse(botsText);
+      return Array.isArray(parsed) ? (parsed as ReadonlyArray<OpenMausBotRecord>) : undefined;
+    } catch {
+      return undefined;
+    }
+  })();
+  if (records === undefined) {
+    return yield* sourceError("The OpenMausBot bots.json could not be read.");
+  }
+  const routinesText = yield* readTextFile(path.join(dataDir, "routines.json"));
+  const routines = ((): ReadonlyArray<OpenMausBotRoutine> => {
+    if (routinesText === undefined) return [];
+    try {
+      const parsed = JSON.parse(routinesText) as { routines?: unknown };
+      return Array.isArray(parsed.routines)
+        ? (parsed.routines as ReadonlyArray<OpenMausBotRoutine>)
+        : [];
+    } catch {
+      return [];
+    }
+  })();
+
+  const bots: ScannedBot[] = [];
+  for (const record of records) {
+    if (typeof record.id !== "string" || record.id.length === 0) continue;
+    const warnings: string[] = [];
+    const workspace = path.join(dataDir, "workspaces", record.id);
+    const soulMirror = yield* readTextFile(path.join(dataDir, "bots", record.id, "SOUL.md"));
+    const soul = record.soul ?? soulMirror ?? "";
+
+    // Memory is MEMORY.md plus each top-level topic file under memory/.
+    const memoryParts: string[] = [];
+    const indexText = yield* readTextFile(path.join(workspace, "MEMORY.md"));
+    if (indexText !== undefined && indexText.trim().length > 0) memoryParts.push(indexText);
+    const memoryDir = path.join(workspace, "memory");
+    const memoryEntries = yield* fileSystem.readDirectory(memoryDir).pipe(Effect.result);
+    if (Result.isSuccess(memoryEntries)) {
+      for (const entry of memoryEntries.success.toSorted()) {
+        if (!entry.endsWith(".md")) continue;
+        const info = yield* fileSystem.stat(path.join(memoryDir, entry)).pipe(Effect.result);
+        if (Result.isFailure(info) || info.success.type !== "File") continue;
+        const topic = yield* readTextFile(path.join(memoryDir, entry));
+        if (topic === undefined) continue;
+        memoryParts.push(`## ${entry.slice(0, -".md".length)}\n\n${topic}`);
+      }
+    }
+
+    const automations = routines
+      .filter((routine) => routine.target === "bot" && routine.botId === record.id)
+      .map((routine) => {
+        const name = routine.name ?? "Routine";
+        if (routine.runOn === "cloud") {
+          warnings.push(`Routine "${name}" was skipped: runs on a cloud computer.`);
+          return {
+            name,
+            prompt: routine.prompt ?? "",
+            schedule: undefined,
+            scheduleLabel: "Runs on a cloud computer",
+            importable: false,
+          };
+        }
+        const { schedule, label, importable } = openMausBotSchedule(routine.schedule);
+        if (!importable) {
+          warnings.push(`Routine "${name}" was skipped: ${label.toLowerCase()}.`);
+        }
+        return {
+          name,
+          prompt: routine.prompt ?? "",
+          schedule,
+          scheduleLabel: label,
+          importable,
+        };
+      });
+
+    const skills = yield* readSkills([
+      path.join(workspace, ".agents", "skills"),
+      path.join(workspace, ".claude", "skills"),
+      path.join(workspace, "skills"),
+    ]);
+
+    const clippedName = clipProfileField(record.name ?? humanize(record.id), 100);
+    if (clippedName.warning !== undefined) warnings.push(`Name ${clippedName.warning}`);
+    const clippedRole = clipProfileField(record.title, 60);
+    if (clippedRole.warning !== undefined) warnings.push(`Role ${clippedRole.warning}`);
+    const clippedDescription = clipProfileField(record.description, 1000);
+    if (clippedDescription.warning !== undefined)
+      warnings.push(`Description ${clippedDescription.warning}`);
+
+    const approvalMode: BotApprovalMode = record.approvalMode === "full" ? "full" : "ask";
+    if (record.approvalMode === undefined) {
+      warnings.push("No approval mode was stored; it was set to ask.");
+    } else if (record.approvalMode !== "full" && record.approvalMode !== "ask") {
+      warnings.push(
+        `Approval mode "${record.approvalMode}" is not available here; it was set to ask.`,
+      );
+    }
+
+    const color = record.color === undefined ? undefined : OPENMAUSBOT_COLORS[record.color];
+    bots.push({
+      key: record.id,
+      name: clippedName.value ?? humanize(record.id),
+      role: clippedRole.value,
+      description: clippedDescription.value,
+      avatar:
+        color === undefined
+          ? botAvatarOrDefault({ id: record.id })
+          : {
+              shape: botAvatarOrDefault({ id: record.id }).shape,
+              color,
+            },
+      sourceProvider: record.modelSelection?.instanceId,
+      sourceModelSlug: record.modelSelection?.model,
+      sourceModel:
+        record.modelSelection?.model === undefined
+          ? undefined
+          : `${record.modelSelection.model} (${record.modelSelection.instanceId ?? "unknown"})`,
+      approvalMode,
+      interactionMode: undefined,
+      limits: undefined,
+      soul: cutSoul(soul, warnings),
+      memory: cutMemory(memoryParts.join("\n\n"), warnings),
+      skills,
+      automations,
+      warnings,
+    });
+  }
+  if (bots.length === 0) {
+    return yield* sourceError("The OpenMausBot data folder has no bots to import.");
+  }
+  return { sourceLabel: "OpenMausBot", bots, warnings: [] };
+});
+
+const scanOpenMausBot = Effect.fnUntraced(function* () {
+  return yield* scanOpenMausBotDir(yield* openMausBotDataDir());
+});
+
 const PackageFile = Schema.Union([
   Schema.Struct({ path: Schema.String, text: Schema.String }),
   Schema.Struct({ path: Schema.String, base64: Schema.String }),
@@ -791,6 +1070,8 @@ export const scanSource = (
   switch (source.type) {
     case "openbot":
       return scanOpenBot();
+    case "openmausbot":
+      return scanOpenMausBot();
     case "folder":
       return scanFolder(source.path);
     case "package":

@@ -25,7 +25,7 @@ import * as ProviderRegistry from "../../provider/ProviderRegistry.ts";
 import * as ScheduledTasks from "../../scheduledTasks/ScheduledTaskService.ts";
 import { BotStore, layer as botStoreLayer } from "../BotStore.ts";
 import { BotImportService, layer as botImportLayer } from "./BotImportService.ts";
-import { scanFolderSource, scanOpenBotDb } from "./sources.ts";
+import { scanFolderSource, scanOpenBotDb, scanOpenMausBotDir } from "./sources.ts";
 
 const decodeProfile = Schema.decodeUnknownSync(BotProfile);
 const parseJson = (text: string): unknown => JSON.parse(text);
@@ -468,4 +468,216 @@ it.effect("name collisions get suffixed ids", () =>
       expect(second.bots[0]!.id).toBe("dev-3");
     }),
   ),
+);
+
+// Builds a fixture `~/.openmausbot` data dir from the format-1 bots.json shape.
+const writeMausFixture = Effect.fnUntraced(function* (
+  dir: string,
+  bots: ReadonlyArray<Record<string, unknown>>,
+  opts?: { routines?: ReadonlyArray<Record<string, unknown>>; format?: number },
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  yield* fs.makeDirectory(dir, { recursive: true });
+  yield* fs.writeFileString(path.join(dir, "bots.json"), stringify(bots));
+  // config.json holds API keys; the reader must never open it. Make it throw
+  // if it were parsed, so a read would fail the test.
+  yield* fs.writeFileString(path.join(dir, "config.json"), "{not json");
+  if (opts?.format !== undefined) {
+    yield* fs.writeFileString(
+      path.join(dir, "data-format.json"),
+      stringify({ format: opts.format, writtenBy: "test", writtenAt: "2026-01-01T00:00:00Z" }),
+    );
+  }
+  if (opts?.routines !== undefined) {
+    yield* fs.writeFileString(
+      path.join(dir, "routines.json"),
+      stringify({ routines: opts.routines }),
+    );
+  }
+});
+
+const mausBot = (over: Record<string, unknown>): Record<string, unknown> => ({
+  id: "bot-1",
+  threadId: "t-1",
+  name: "Ada",
+  title: "Researcher",
+  description: "Reads papers",
+  soul: "Be brief.",
+  color: "green",
+  unread: false,
+  modelSelection: { instanceId: "devin", model: "swe-2-high" },
+  resumeCursors: {},
+  createdAt: 1794819600000,
+  tasks: [],
+  ...over,
+});
+
+it.effect("reads an OpenMausBot data folder: soul, color, approval, memory, skills", () =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const dir = yield* fs.makeTempDirectoryScoped({ prefix: "openmausbot-fixture-" });
+    const ws = path.join(dir, "workspaces", "bot-1");
+    yield* fs.makeDirectory(path.join(ws, "memory", "log"), { recursive: true });
+    yield* fs.makeDirectory(path.join(ws, "memory", "threads"), { recursive: true });
+    yield* fs.makeDirectory(path.join(ws, ".agents", "skills", "helper"), { recursive: true });
+    yield* fs.writeFileString(path.join(ws, "MEMORY.md"), "The index.");
+    yield* fs.writeFileString(path.join(ws, "memory", "alpha.md"), "Alpha notes.");
+    yield* fs.writeFileString(path.join(ws, "memory", "beta.md"), "Beta notes.");
+    yield* fs.writeFileString(path.join(ws, "memory", "log", "2026-01-01.md"), "A log day.");
+    yield* fs.writeFileString(path.join(ws, "memory", "threads", "t-1.md"), "Thread notes.");
+    yield* fs.writeFileString(path.join(ws, ".agents", "skills", "helper", "SKILL.md"), "Help.");
+    yield* fs.makeDirectory(path.join(dir, "bots", "bot-2"), { recursive: true });
+    yield* fs.writeFileString(path.join(dir, "bots", "bot-2", "SOUL.md"), "Mirror soul.");
+    yield* writeMausFixture(dir, [
+      mausBot({ id: "bot-1", approvalMode: "full" }),
+      mausBot({ id: "bot-2", name: "NoSoul", soul: undefined, color: "chartreuse" }),
+    ]);
+
+    const result = yield* scanOpenMausBotDir(dir);
+    expect(result.sourceLabel).toBe("OpenMausBot");
+    expect(result.bots).toHaveLength(2);
+
+    const ada = result.bots[0]!;
+    expect(ada.name).toBe("Ada");
+    expect(ada.role).toBe("Researcher");
+    expect(ada.description).toBe("Reads papers");
+    expect(ada.soul).toBe("Be brief.");
+    expect(ada.approvalMode).toBe("full");
+    expect(ada.avatar?.color).toBe("#00d47e");
+    expect(ada.sourceProvider).toBe("devin");
+    expect(ada.sourceModelSlug).toBe("swe-2-high");
+    expect(ada.sourceModel).toBe("swe-2-high (devin)");
+    expect(ada.memory).toBe("The index.\n\n## alpha\n\nAlpha notes.\n\n## beta\n\nBeta notes.");
+    expect(ada.memory).not.toContain("A log day.");
+    expect(ada.memory).not.toContain("Thread notes.");
+    expect(ada.skills.map((skill) => skill.name)).toEqual(["helper"]);
+
+    // soul falls back to the SOUL.md mirror; unknown color gets the default avatar.
+    const noSoul = result.bots[1]!;
+    expect(noSoul.soul).toBe("Mirror soul.");
+    expect(noSoul.approvalMode).toBe("ask");
+    expect(noSoul.warnings.some((w) => w.includes("approval mode"))).toBe(true);
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
+it.effect("maps OpenMausBot routines and marks cloud/cron/limited ones non-importable", () =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const dir = yield* fs.makeTempDirectoryScoped({ prefix: "openmausbot-routines-" });
+    yield* writeMausFixture(dir, [mausBot({ id: "bot-1" })], {
+      routines: [
+        {
+          name: "Daily brief",
+          prompt: "Write the brief",
+          target: "bot",
+          botId: "bot-1",
+          runOn: "maus",
+          schedule: { type: "daily", time: "08:44", weekdays: [1, 2, 3, 4, 5] },
+        },
+        {
+          name: "One off",
+          prompt: "Do it once",
+          target: "bot",
+          botId: "bot-1",
+          runOn: "maus",
+          schedule: { type: "once", at: 1_800_000_000_000 },
+        },
+        {
+          name: "Ticker",
+          prompt: "Tick",
+          target: "bot",
+          botId: "bot-1",
+          runOn: "maus",
+          schedule: { type: "interval", everyMinutes: 30 },
+        },
+        {
+          name: "Weekday ticker",
+          prompt: "Tick on weekdays",
+          target: "bot",
+          botId: "bot-1",
+          runOn: "maus",
+          schedule: { type: "interval", everyMinutes: 30, weekdays: [1, 2, 3, 4, 5] },
+        },
+        {
+          name: "Cron job",
+          prompt: "Cron",
+          target: "bot",
+          botId: "bot-1",
+          runOn: "maus",
+          schedule: { type: "cron", expression: "0 9 * * 1", timeZone: "UTC" },
+        },
+        {
+          name: "Cloud job",
+          prompt: "Runs in the cloud",
+          target: "bot",
+          botId: "bot-1",
+          runOn: "cloud",
+          schedule: { type: "daily", time: "09:00" },
+        },
+        {
+          name: "Limit reset",
+          prompt: "Wait for reset",
+          target: "bot",
+          botId: "bot-1",
+          runOn: "maus",
+          schedule: { type: "limit-reset" },
+        },
+        {
+          name: "Other bot's routine",
+          prompt: "Not mine",
+          target: "bot",
+          botId: "bot-9",
+          runOn: "maus",
+          schedule: { type: "daily", time: "09:00" },
+        },
+      ],
+    });
+
+    const result = yield* scanOpenMausBotDir(dir);
+    const bot = result.bots[0]!;
+    expect(bot.automations).toHaveLength(7);
+    const [daily, once, interval, weekdayInterval, cron, cloud, limitReset] = bot.automations;
+    expect(daily).toMatchObject({
+      importable: true,
+      schedule: { type: "fixed_time", timeOfDay: "08:44", weekdays: [1, 2, 3, 4, 5] },
+    });
+    expect(once).toMatchObject({
+      importable: true,
+      schedule: { type: "once", runAt: "2027-01-15T08:00:00.000Z" },
+    });
+    expect(interval).toMatchObject({
+      importable: true,
+      schedule: { type: "interval", everyMs: 30 * 60_000 },
+    });
+    expect(weekdayInterval).toMatchObject({ importable: false, schedule: undefined });
+    expect(cron).toMatchObject({ importable: false, schedule: undefined });
+    expect(cloud).toMatchObject({ importable: false, schedule: undefined });
+    expect(limitReset).toMatchObject({ importable: false, schedule: undefined });
+    expect(bot.warnings.some((w) => w.includes('"Cron job"'))).toBe(true);
+    expect(bot.warnings.some((w) => w.includes('"Cloud job"'))).toBe(true);
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
+it.effect("refuses OpenMausBot data newer than format 2 and missing installs", () =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const dir = yield* fs.makeTempDirectoryScoped({ prefix: "openmausbot-format-" });
+    yield* writeMausFixture(dir, [mausBot({})], { format: 3 });
+    const newer = yield* scanOpenMausBotDir(dir).pipe(Effect.result);
+    expect(newer._tag).toBe("Failure");
+    if (newer._tag === "Failure") {
+      expect(newer.failure.message).toBe(
+        "This OpenMausBot data is newer than SimplyCode can read.",
+      );
+    }
+
+    const empty = yield* scanOpenMausBotDir(path.join(dir, "does-not-exist")).pipe(Effect.result);
+    expect(empty._tag).toBe("Failure");
+    if (empty._tag === "Failure") {
+      expect(empty.failure.message).toBe("OpenMausBot was not found on this computer.");
+    }
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 );

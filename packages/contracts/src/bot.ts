@@ -261,7 +261,7 @@ export type BotRunNowResult = typeof BotRunNowResult.Type;
 /** Where a bot import reads candidates from. Package content is sent again on apply. */
 export const BotImportSource = Schema.Union([
   Schema.Struct({ type: Schema.Literal("openbot") }),
-
+  Schema.Struct({ type: Schema.Literal("openmausbot") }),
   Schema.Struct({ type: Schema.Literal("folder"), path: TrimmedNonEmptyString }),
   Schema.Struct({ type: Schema.Literal("package"), content: Schema.String }),
 ]);
