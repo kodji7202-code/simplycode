@@ -134,6 +134,7 @@ import * as ThreadMessageIntake from "./orchestration-v2/ThreadMessageIntake.ts"
 import * as DocumentText from "./provider/DocumentText.ts";
 import * as ScheduledTasks from "./scheduledTasks/ScheduledTaskService.ts";
 import * as BotService from "./bots/BotService.ts";
+import * as BotImportService from "./bots/import/BotImportService.ts";
 import * as Workflows from "./workflows/Workflows.ts";
 import * as WorkflowRuntime from "./workflows/WorkflowRuntime.ts";
 import * as SecretRequests from "./secrets/SecretRequests.ts";
@@ -1505,6 +1506,7 @@ export const layerWsRpc = (
       const providerSessionManager = yield* ProviderSessionManager.ProviderSessionManagerV2;
       const scheduledTasks = yield* ScheduledTasks.ScheduledTaskService;
       const bots = yield* BotService.BotService;
+      const botImport = yield* BotImportService.BotImportService;
       const workflows = yield* Workflows.Workflows;
       const workflowDefinitions = yield* WorkflowRuntime.WorkflowDefinitions;
       // The service's messages are built from its own attributes, so they are safe to send.
@@ -2465,6 +2467,9 @@ export const layerWsRpc = (
           Effect.annotateCurrentSpan({ "bot.id": input.id }).pipe(
             Effect.andThen(bots.removeSkill(input)),
           ),
+        [WS_METHODS.botsImportScan]: (input) => botImport.scan(input),
+        [WS_METHODS.botsImportApply]: (input) => botImport.apply(input),
+        [WS_METHODS.botsExport]: (input) => botImport.exportBots(input),
         [WS_METHODS.serverProbe]: (_input) =>
           Effect.map(DateTime.now, (now) => ({ serverTime: DateTime.formatIso(now) })),
         [WS_METHODS.serverGetConfig]: (_input) =>

@@ -36,6 +36,7 @@ import * as LegacyV1ThreadImporter from "./legacy/LegacyV1ThreadImporter.ts";
 import * as Orchestrator from "./Orchestrator.ts";
 import * as BotStore from "../bots/BotStore.ts";
 import * as BotService from "../bots/BotService.ts";
+import * as BotImportService from "../bots/import/BotImportService.ts";
 import * as ProjectionStore from "./ProjectionStore.ts";
 import * as ProjectionMaintenance from "./ProjectionMaintenance.ts";
 import * as ProjectStore from "./ProjectStore.ts";
@@ -364,6 +365,13 @@ const layerBotServiceProvided = BotService.layer.pipe(
     ),
   ),
 );
+// The provider registry is ambient (provideMerge'd at the server layer), so
+// it propagates here as a requirement instead of being provided explicitly.
+const layerBotImportProvided = BotImportService.layer.pipe(
+  Layer.provide(
+    Layer.mergeAll(layerBotStoreProvided, layerScheduledTaskProvided, ProjectStore.layer),
+  ),
+);
 const layerScratchThreadPromotionProvided = ScratchThreadPromotion.layer.pipe(
   Layer.provide(
     Layer.mergeAll(
@@ -461,6 +469,7 @@ export const layerProduction = Layer.mergeAll(
   // Exported, not just provided to the bot layers: the /mcp bots toolkit resolves it per call.
   layerBotStoreProvided,
   layerBotServiceProvided,
+  layerBotImportProvided,
   layerWorkflowsProvided,
   layerScratchThreadPromotionProvided,
   layerSecretRequestsProvided,
