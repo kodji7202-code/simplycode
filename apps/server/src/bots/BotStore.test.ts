@@ -244,6 +244,45 @@ it.live("reloads when the bots folder changes on disk", () =>
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 );
 
+it.live("reloads when MEMORY.md inside a bot folder changes on disk", () =>
+  Effect.gen(function* () {
+    const realFs = yield* FileSystem.FileSystem;
+    const baseDir = yield* realFs.makeTempDirectoryScoped({ prefix: "simplycode-bots-" });
+    yield* Effect.gen(function* () {
+      const store = yield* BotStore.BotStore;
+      const path = yield* Path.Path;
+      const config = yield* ServerConfig.ServerConfig;
+      const fs = yield* FileSystem.FileSystem;
+      const dir = path.join(config.botsDir, "watched-bot");
+      yield* seedFolder(dir, JSON.stringify(profile("watched-bot")));
+
+      const subscribed = yield* Deferred.make<void>();
+      const next = yield* store.subscribeList().pipe(
+        Stream.tap(() => Deferred.succeed(subscribed, undefined)),
+        Stream.take(2),
+        Stream.runCollect,
+        Effect.forkChild,
+      );
+      yield* Deferred.await(subscribed);
+      yield* store.watchReady;
+      yield* fs.writeFileString(path.join(dir, "MEMORY.md"), "The project codename is Aurora.");
+      const emissions = yield* Effect.timeoutOption(Fiber.join(next), Duration.seconds(15));
+      expect(Option.isSome(emissions)).toBe(true);
+      const last = Option.isSome(emissions) ? emissions.value.at(-1) : undefined;
+      const listedBot = last?.bots.find((bot) => bot.id === "watched-bot");
+      expect(listedBot?.memoryBytes).toBe(
+        Buffer.byteLength("The project codename is Aurora.", "utf8"),
+      );
+      const got = yield* store.get(BotId.make("watched-bot"));
+      expect(got.memory).toBe("The project codename is Aurora.");
+    }).pipe(
+      Effect.provide(
+        BotStore.layer.pipe(Layer.provideMerge(ServerConfig.layerTest(process.cwd(), baseDir))),
+      ),
+    );
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
 it.effect("writes, reloads and clears a bot's memory", () =>
   withStore(
     Effect.gen(function* () {
@@ -261,7 +300,7 @@ it.effect("writes, reloads and clears a bot's memory", () =>
   ),
 );
 
-it.effect("reports an over-cap MEMORY.md as a load error", () =>
+it.effect("keeps an over-cap MEMORY.md loadable and truncated at the cap", () =>
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "simplycode-bots-" });
@@ -271,13 +310,23 @@ it.effect("reports an over-cap MEMORY.md as a load error", () =>
       const config = yield* ServerConfig.ServerConfig;
       const dir = path.join(config.botsDir, "night-watch");
       yield* seedFolder(dir, JSON.stringify(profile("night-watch")));
-      yield* fs.writeFileString(path.join(dir, "MEMORY.md"), "x".repeat(16_001));
+      // The last character is a 2-byte é straddling the cap, so the cut must
+      // back off to the code-point boundary rather than split it.
+      const overCap = "x".repeat(15_999) + "é" + "y".repeat(10);
+      yield* fs.writeFileString(path.join(dir, "MEMORY.md"), overCap);
       yield* store.write(profile("other-bot"));
       const listed = yield* store.list();
-      expect(listed.bots.map((bot) => bot.id)).toEqual(["other-bot"]);
-      expect(listed.loadErrors).toEqual([
-        { folder: "night-watch", message: "MEMORY.md exceeds the 16 KB limit." },
-      ]);
+      expect(listed.loadErrors).toEqual([]);
+      const listedBot = listed.bots.find((bot) => bot.id === "night-watch");
+      expect(listedBot?.memoryBytes).toBe(Buffer.byteLength(overCap, "utf8"));
+
+      const got = yield* store.get(BotId.make("night-watch"));
+      const kept = got.memory.split("\n\n(Memory is over")[0] ?? "";
+      expect(kept).toBe("x".repeat(15_999));
+      expect(got.memory.endsWith("Condense it with update_bot_memory in replace mode.)")).toBe(
+        true,
+      );
+      expect(got.memory).not.toContain("�");
     }).pipe(
       Effect.provide(
         BotStore.layer.pipe(Layer.provideMerge(ServerConfig.layerTest(process.cwd(), baseDir))),

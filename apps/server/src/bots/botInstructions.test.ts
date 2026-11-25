@@ -7,7 +7,7 @@ it("puts a soul, then the memory section with the (empty) marker", () => {
   expect(text).toBe(
     "Be terse.\n\n" +
       "## Your memory\n" +
-      "This is your MEMORY.md, kept between runs. When you learn something worth keeping (a user preference, a project fact, a lesson from a mistake), save it with the update_bot_memory tool. Keep it short and current.\n\n" +
+      "This is your MEMORY.md, kept between runs. When you learn something worth keeping (a user preference, a project fact, a lesson from a mistake), save it with the update_bot_memory tool (on the t3-code MCP server; if your MCP tools are listed separately, look there). Keep it short and current.\n\n" +
       "(empty)",
   );
 });

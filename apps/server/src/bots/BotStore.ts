@@ -38,6 +38,20 @@ const SKILLS_DIR = "skills";
 const SKILL_FILE = "SKILL.md";
 const SKILL_MAX_FILES = 200;
 const SKILL_MAX_BYTES = 2 * 1024 * 1024;
+const MEMORY_OVER_LIMIT_NOTE =
+  "\n\n(Memory is over its 16 KB limit and was cut off here. Condense it with update_bot_memory in replace mode.)";
+
+// Cuts to maxBytes on a code-point boundary so a bot that wrote past the cap
+// still loads; the bot's own tool can then rewrite the file within the limit.
+const truncateMemoryToLimit = (memory: string): string => {
+  const bytes = Buffer.from(memory, "utf8");
+  if (bytes.length <= BOT_MEMORY_MAX_BYTES) return memory;
+  let end = BOT_MEMORY_MAX_BYTES;
+  // buf[end] is the byte after the cut; stepping back off continuation bytes
+  // (10xxxxxx) leaves the slice ending at a code-point boundary.
+  while (end > 0 && ((bytes.at(end) ?? 0) & 0xc0) === 0x80) end--;
+  return bytes.subarray(0, end).toString("utf8") + MEMORY_OVER_LIMIT_NOTE;
+};
 
 /** A skill on disk: its wire fields plus the absolute SKILL.md path for prompts. */
 export interface BotInstalledSkill extends BotSkill {
@@ -209,11 +223,9 @@ export const layer = Layer.effect(
       const memoryRaw = yield* fileSystem
         .readFileString(path.join(directory, folder, MEMORY_FILE))
         .pipe(Effect.result);
-      const memory = Result.isSuccess(memoryRaw) ? memoryRaw.success : "";
-      const memoryBytes = Buffer.byteLength(memory, "utf8");
-      if (memoryBytes > BOT_MEMORY_MAX_BYTES) {
-        return { folder, message: `${MEMORY_FILE} exceeds the 16 KB limit.` };
-      }
+      const memoryFull = Result.isSuccess(memoryRaw) ? memoryRaw.success : "";
+      const memoryBytes = Buffer.byteLength(memoryFull, "utf8");
+      const memory = truncateMemoryToLimit(memoryFull);
       const skills: Array<BotInstalledSkill> = [];
       const skillEntries = yield* fileSystem
         .readDirectory(path.join(directory, folder, SKILLS_DIR))
@@ -295,7 +307,7 @@ export const layer = Layer.effect(
 
     const watcherReady = yield* Deferred.make<void>();
     const markWatcherReady = () => Deferred.doneUnsafe(watcherReady, Exit.void);
-    yield* fileSystem.watch(directory, { onReady: markWatcherReady }).pipe(
+    yield* fileSystem.watch(directory, { recursive: true, onReady: markWatcherReady }).pipe(
       Stream.debounce(WATCH_SETTLE),
       Stream.runForEach(() => reload),
       Effect.catchCause((cause) =>

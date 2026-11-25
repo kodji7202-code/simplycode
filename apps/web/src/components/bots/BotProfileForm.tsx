@@ -539,7 +539,12 @@ export function BotProfileForm(props: {
           onChange={(event) => setDraft((current) => ({ ...current, memory: event.target.value }))}
         />
         <div className="mt-1 flex items-center justify-between gap-2">
-          <p className="text-2xs text-muted-foreground">
+          <p
+            className={cn(
+              "text-2xs",
+              memoryBytes > BOT_MEMORY_MAX_BYTES ? "text-destructive" : "text-muted-foreground",
+            )}
+          >
             {gt("{used} / {max} bytes", { used: memoryBytes, max: BOT_MEMORY_MAX_BYTES })}
           </p>
           <Button

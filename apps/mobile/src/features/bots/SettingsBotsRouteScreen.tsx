@@ -1010,10 +1010,21 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
             </SettingsSection>
             <SettingsSection
               title={gt("Memory")}
-              footer={gt("{bytes} / {max} KB", {
-                bytes: memoryBytes,
-                max: BOT_MEMORY_MAX_BYTES / 1024,
-              })}
+              footer={
+                <Text
+                  textRole="footnote"
+                  className={
+                    memoryBytes > BOT_MEMORY_MAX_BYTES
+                      ? "text-danger-foreground"
+                      : "text-foreground-muted"
+                  }
+                >
+                  {gt("{bytes} of {max} bytes", {
+                    bytes: memoryBytes,
+                    max: BOT_MEMORY_MAX_BYTES,
+                  })}
+                </Text>
+              }
             >
               <FormField
                 label={gt("MEMORY.md")}
