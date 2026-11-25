@@ -3,7 +3,7 @@ import { botAvatarOrDefault, type Bot, type OrchestrationV2ThreadShell } from "@
 import { Atom } from "effect/reactivity";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { T, useGT, useMessages } from "gt-react";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, UsersIcon } from "lucide-react";
 import { useState } from "react";
 
 import { cn } from "../../lib/utils";
@@ -244,6 +244,26 @@ export function BotsSidebar() {
           </li>
         ) : null}
       </ul>
+      <div className="mt-auto border-t border-border/50 px-2 py-2">
+        <button
+          type="button"
+          onClick={() =>
+            void navigate({
+              to: "/bots",
+              search: { ...(search.env === undefined ? {} : { env: search.env }), teams: true },
+            })
+          }
+          className={cn(
+            "flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left text-xs font-medium",
+            search.teams === true
+              ? "bg-brand/10 ring-1 ring-inset ring-brand/40"
+              : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+          )}
+        >
+          <UsersIcon className="size-3.5" aria-hidden />
+          <T>Teams and pipelines</T>
+        </button>
+      </div>
     </SidebarContent>
   );
 }

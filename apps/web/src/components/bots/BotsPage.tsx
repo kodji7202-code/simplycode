@@ -64,6 +64,7 @@ import { exportBotsToFile } from "./BotImportDialog";
 import { BotProfileForm } from "./BotProfileForm";
 import { APPROVAL_MODE_RUNTIME_LABELS, botActivity, botAutomationCount } from "./botPage.logic";
 import { scheduleLabel } from "../settings/scheduledTasksSettings.logic";
+import { TeamsPipelinesPage } from "./TeamsPipelinesPage";
 import { useBotsEnvironment } from "./useBotsEnvironment";
 
 const EMPTY_THREAD_SHELLS_ATOM = Atom.make<ReadonlyArray<OrchestrationV2ThreadShell>>(
@@ -503,6 +504,10 @@ export function BotsPage() {
   const selected =
     search.bot === undefined ? null : (bots.find((bot) => bot.id === search.bot) ?? null);
   const createOpen = search.create === true;
+
+  if (search.teams === true) {
+    return <TeamsPipelinesPage connected={connected} environmentId={environmentId} />;
+  }
 
   const navigateSearch = (patch: { bot?: string; create?: true }) =>
     void navigate({
