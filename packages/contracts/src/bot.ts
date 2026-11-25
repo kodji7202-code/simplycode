@@ -24,6 +24,29 @@ export const BotId = Schema.String.check(Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,
 );
 export type BotId = typeof BotId.Type;
 
+/**
+ * A skill's folder slug under `bots/<id>/skills/`: lowercase, 64 chars like
+ * Claude's limit, path-safe on every filesystem the server runs on.
+ */
+export const BotSkillName = Schema.String.check(Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,63}$/)).pipe(
+  Schema.brand("BotSkillName"),
+);
+export type BotSkillName = typeof BotSkillName.Type;
+
+/**
+ * Turns any source folder or package name into a valid skill slug; undefined
+ * when nothing usable remains.
+ */
+export function normalizeBotSkillName(value: string): BotSkillName | undefined {
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64)
+    .replace(/-+$/g, "");
+  return slug.length === 0 ? undefined : BotSkillName.make(slug);
+}
+
 export const BOT_SOUL_MAX_BYTES = 24_000;
 export const BOT_MEMORY_MAX_BYTES = 16_000;
 
@@ -115,10 +138,10 @@ export type BotProfile = typeof BotProfile.Type;
 
 /**
  * An installed skill: a `skills/<name>/` folder with a SKILL.md. The name is
- * the folder slug, so it follows the BotId pattern.
+ * the folder slug, so it follows the BotSkillName pattern.
  */
 export const BotSkill = Schema.Struct({
-  name: BotId,
+  name: BotSkillName,
   description: Schema.optional(TrimmedNonEmptyString),
 });
 export type BotSkill = typeof BotSkill.Type;
@@ -218,7 +241,7 @@ export type BotInstallSkillInput = typeof BotInstallSkillInput.Type;
 
 export const BotRemoveSkillInput = Schema.Struct({
   id: BotId,
-  name: BotId,
+  name: BotSkillName,
 });
 export type BotRemoveSkillInput = typeof BotRemoveSkillInput.Type;
 
@@ -238,6 +261,7 @@ export type BotRunNowResult = typeof BotRunNowResult.Type;
 /** Where a bot import reads candidates from. Package content is sent again on apply. */
 export const BotImportSource = Schema.Union([
   Schema.Struct({ type: Schema.Literal("openbot") }),
+
   Schema.Struct({ type: Schema.Literal("folder"), path: TrimmedNonEmptyString }),
   Schema.Struct({ type: Schema.Literal("package"), content: Schema.String }),
 ]);

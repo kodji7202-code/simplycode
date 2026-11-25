@@ -50,7 +50,7 @@ const handlers = {
       const store = yield* BotStore;
       const orchestrator = yield* Orchestrator.OrchestratorV2;
       const { scope, caller } = yield* readCaller();
-      const { bot, soul, memory, skills } = yield* store
+      const { bot, soul, memory, skills, skillsDir } = yield* store
         .get(input.botId)
         .pipe(Effect.mapError(() => invalidRequest("Bot not found.")));
       if (!bot.enabled) return yield* invalidRequest("Bot is disabled.");
@@ -67,6 +67,7 @@ const handlers = {
           soul,
           memory,
           skills,
+          skillsDir,
           input,
           callerRuntimeMode: caller.runtimeMode,
         }),

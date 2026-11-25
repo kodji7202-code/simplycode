@@ -71,6 +71,7 @@ export const botHookLayer = Layer.unwrap(
           soul: entry.success.soul,
           memory: entry.success.memory,
           skills: entry.success.skills,
+          skillsDir: entry.success.skillsDir,
         }),
         text,
       );
@@ -239,7 +240,7 @@ export const layer = Layer.effect(
 
     const runNow: BotService["Service"]["runNow"] = Effect.fn("BotService.runNow")(
       function* (input) {
-        const { bot, soul, memory, skills } = yield* store.get(input.id);
+        const { bot, soul, memory, skills, skillsDir } = yield* store.get(input.id);
         if (!bot.enabled) return yield* botError("Bot is disabled.", { botId: input.id });
         yield* requireProject(bot.projectId, input.id);
         const commandId =
@@ -257,7 +258,11 @@ export const layer = Layer.effect(
             workspaceStrategy: bot.workspaceStrategy,
             initialMessage: {
               messageId: MessageId.make(`bot-message:${commandId}`),
-              text: botPrompt(bot, botInstructions({ soul, memory, skills }), input.prompt),
+              text: botPrompt(
+                bot,
+                botInstructions({ soul, memory, skills, skillsDir }),
+                input.prompt,
+              ),
               attachments: [],
             },
             createdBy: "user",

@@ -551,15 +551,20 @@ export const scanOpenBotDb = Effect.fnUntraced(function* (
           ]);
     const clippedName = clipProfileField(agent.name ?? humanize(agent.id), 100);
     if (clippedName.warning !== undefined) warnings.push(`Name ${clippedName.warning}`);
-    const clippedRole = clipProfileField(agent.title, 60);
-    if (clippedRole.warning !== undefined) warnings.push(`Role ${clippedRole.warning}`);
-    const clippedDescription = clipProfileField(agent.description, 1000);
+    // OpenBot keeps an agent's standing instructions in `description`;
+    // `title` is its one-line tagline, which becomes our description.
+    const clippedDescription = clipProfileField(agent.title, 1000);
     if (clippedDescription.warning !== undefined)
       warnings.push(`Description ${clippedDescription.warning}`);
+    const soulParts: string[] = [];
+    if (agent.description !== undefined && agent.description.trim().length > 0) {
+      soulParts.push(agent.description.trim());
+    }
+    if (instructions.length > 0) soulParts.push(instructions);
     bots.push({
       key: agent.id,
       name: clippedName.value ?? humanize(agent.id),
-      role: clippedRole.value,
+      role: undefined,
       description: clippedDescription.value,
       avatar:
         agent.avatarHue === undefined || agent.avatarHue === null
@@ -579,7 +584,7 @@ export const scanOpenBotDb = Effect.fnUntraced(function* (
       approvalMode: agent.access === "full" ? "full" : "ask",
       interactionMode: undefined,
       limits: undefined,
-      soul: cutSoul(instructions, warnings),
+      soul: cutSoul(soulParts.join("\n\n"), warnings),
       memory: cutMemory(memory, warnings),
       skills,
       automations,
@@ -591,6 +596,22 @@ export const scanOpenBotDb = Effect.fnUntraced(function* (
   }
   return { sourceLabel: "OpenBot", bots, warnings: [] };
 });
+
+const scheduleLabel = (schedule: ScheduledTaskUpsertSchedule | undefined): string => {
+  if (schedule === undefined) return "Unsupported schedule";
+  switch (schedule.type) {
+    case "interval":
+      return `Every ${Math.round(schedule.everyMs / 60_000)} min`;
+    case "fixed_time":
+      return schedule.weekdays === undefined
+        ? `Daily at ${schedule.timeOfDay}`
+        : `At ${schedule.timeOfDay} on ${schedule.weekdays.length === 7 ? "every day" : `${schedule.weekdays.length} day(s)`}`;
+    case "once":
+      return `Once at ${schedule.runAt}`;
+    default:
+      return "Unsupported schedule";
+  }
+};
 
 const PackageFile = Schema.Union([
   Schema.Struct({ path: Schema.String, text: Schema.String }),
@@ -669,22 +690,6 @@ const isSafeSkillPath = (filePath: string): boolean =>
   !filePath.includes("\\") &&
   !/^[a-zA-Z]:/.test(filePath) &&
   !filePath.split("/").some((segment) => segment === ".." || segment === "");
-
-const scheduleLabel = (schedule: ScheduledTaskUpsertSchedule | undefined): string => {
-  if (schedule === undefined) return "Unsupported schedule";
-  switch (schedule.type) {
-    case "interval":
-      return `Every ${Math.round(schedule.everyMs / 60_000)} min`;
-    case "fixed_time":
-      return schedule.weekdays === undefined
-        ? `Daily at ${schedule.timeOfDay}`
-        : `At ${schedule.timeOfDay} on ${schedule.weekdays.length === 7 ? "every day" : `${schedule.weekdays.length} day(s)`}`;
-    case "once":
-      return `Once at ${schedule.runAt}`;
-    default:
-      return "Unsupported schedule";
-  }
-};
 
 const parsePackage = (content: string): BotPackage | undefined => {
   try {

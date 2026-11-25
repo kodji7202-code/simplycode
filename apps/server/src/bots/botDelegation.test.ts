@@ -30,7 +30,7 @@ const input = (overrides?: Partial<BotsMcpDelegateToBotInput>): BotsMcpDelegateT
   ...overrides,
 });
 
-const EMPTY_INSTRUCTIONS = { memory: "", skills: [] as const };
+const EMPTY_INSTRUCTIONS = { memory: "", skills: [] as const, skillsDir: "/bots/planner/skills" };
 
 it("wraps the task with the bot's SOUL instructions", () => {
   const built = botDelegateTaskInput({
@@ -64,12 +64,16 @@ it("includes memory and skills in the preamble", () => {
     bot: makeBot(),
     soul: "Always think in graphs.",
     memory: "The user prefers short plans.",
-    skills: [{ name: "deploy", path: "/bots/planner/skills/deploy/SKILL.md" }],
+    skills: [{ name: "deploy" }],
+    skillsDir: "/bots/planner/skills",
     input: input(),
     callerRuntimeMode: "full-access",
   });
   expect(built.task).toContain("The user prefers short plans.");
-  expect(built.task).toContain("- deploy: no description (/bots/planner/skills/deploy/SKILL.md)");
+  expect(built.task).toContain(
+    "Your skills are in /bots/planner/skills. Each one is a folder with a SKILL.md.",
+  );
+  expect(built.task).toContain("- deploy: no description");
 });
 
 it("targets the bot's modelSelection and passes options through", () => {

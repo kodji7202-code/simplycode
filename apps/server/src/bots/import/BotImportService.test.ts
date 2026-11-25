@@ -3,6 +3,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import {
   BotId,
   BotProfile,
+  BotSkillName,
   type ModelSelection,
   ProviderDriverKind,
   ProviderInstanceId,
@@ -156,6 +157,7 @@ it.effect("reads agents, memories, skills and routines from an OpenBot database 
       CREATE TABLE agent_memory_selections (memory_id TEXT, inclusion TEXT);
       CREATE TABLE projection_agent_routines (routine_id TEXT, agent_id TEXT, name TEXT, instruction TEXT, active INTEGER, timezone TEXT);
       CREATE TABLE projection_routine_triggers (routine_id TEXT, schedule_json TEXT);`);
+    const chiefInstructions = `You are Chief. Your one job: ${"coordinate the team, ".repeat(30)}never code yourself.`;
     const insertAgent = db.prepare("INSERT INTO projection_agents VALUES (?, ?, ?)");
     insertAgent.run(
       "a1",
@@ -163,7 +165,7 @@ it.effect("reads agents, memories, skills and routines from an OpenBot database 
         id: "a1",
         name: "Chief",
         title: "The Boss",
-        description: "Leads.",
+        description: chiefInstructions,
         model: "swe-2-high",
         provider: "devin",
         access: "full",
@@ -207,11 +209,12 @@ it.effect("reads agents, memories, skills and routines from an OpenBot database 
     const chief = result.bots[0]!;
     expect(chief.key).toBe("a1");
     expect(chief.name).toBe("Chief");
-    expect(chief.role).toBe("The Boss");
-    expect(chief.description).toBe("Leads.");
+    expect(chief.role).toBeUndefined();
+    // The agent's long `description` is its instructions; `title` becomes ours.
+    expect(chief.description).toBe("The Boss");
     expect(chief.approvalMode).toBe("full");
     expect(chief.sourceModel).toBe("swe-2-high (devin)");
-    expect(chief.soul).toBe("Be helpful.");
+    expect(chief.soul).toBe(`${chiefInstructions}\n\nBe helpful.`);
     // Essential first, then by created_at.
     expect(chief.memory).toBe("- Codes in the dark\n- Likes coffee");
     expect(chief.skills.map((skill) => skill.name)).toEqual(["helper"]);
@@ -288,7 +291,7 @@ it.effect("exports and re-imports a bot with soul, memory, skills and automation
     ({ svc, store, calls }) =>
       Effect.gen(function* () {
         yield* store.write(profile("dev", "Dev"), "Be dev.", "remember me");
-        yield* store.installSkillFiles(BotId.make("dev"), BotId.make("helper"), [
+        yield* store.installSkillFiles(BotId.make("dev"), BotSkillName.make("helper"), [
           { path: "SKILL.md", data: Buffer.from("---\nname: helper\n---\nHelp.") },
           { path: "blob.bin", data: Uint8Array.from([0, 1, 2, 255]) },
         ]);

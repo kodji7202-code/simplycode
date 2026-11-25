@@ -9,7 +9,9 @@ import {
   BotError,
   BotId,
   BotProfile,
+  BotSkillName,
   botThreadTag,
+  normalizeBotSkillName,
   type BotLoadError,
   type BotListResult,
   type BotSkill,
@@ -75,6 +77,7 @@ const EMPTY: BotState = {
 };
 
 const decodeBotId = Schema.decodeUnknownOption(BotId);
+const decodeBotSkillName = Schema.decodeUnknownOption(BotSkillName);
 const decodeProfile = Schema.decodeUnknownEffect(BotProfile);
 
 // A profile is a schema-decoded plain object, so these cannot throw on valid
@@ -130,10 +133,14 @@ export class BotStore extends Context.Service<
     readonly list: () => Effect.Effect<BotListResult>;
     readonly subscribeList: () => Stream.Stream<BotListResult>;
     readonly find: (id: BotId) => Effect.Effect<Bot | undefined>;
-    readonly get: (
-      id: BotId,
-    ) => Effect.Effect<
-      { bot: Bot; soul: string; memory: string; skills: ReadonlyArray<BotInstalledSkill> },
+    readonly get: (id: BotId) => Effect.Effect<
+      {
+        bot: Bot;
+        soul: string;
+        memory: string;
+        skills: ReadonlyArray<BotInstalledSkill>;
+        skillsDir: string;
+      },
       BotError
     >;
     readonly write: (
@@ -156,10 +163,10 @@ export class BotStore extends Context.Service<
      */
     readonly installSkillFiles: (
       id: BotId,
-      name: BotId,
+      name: BotSkillName,
       files: ReadonlyArray<{ readonly path: string; readonly data: Uint8Array }>,
     ) => Effect.Effect<Bot, BotError>;
-    readonly removeSkill: (id: BotId, name: BotId) => Effect.Effect<Bot, BotError>;
+    readonly removeSkill: (id: BotId, name: BotSkillName) => Effect.Effect<Bot, BotError>;
     readonly allocateId: (name: string) => Effect.Effect<BotId>;
     /** The bot's soul text for prompt assembly; empty when absent. */
     readonly soul: (id: BotId) => Effect.Effect<string | undefined>;
@@ -245,7 +252,7 @@ export const layer = Layer.effect(
           const skillDir = path.join(directory, folder, SKILLS_DIR, entry);
           const entryInfo = yield* fileSystem.stat(skillDir).pipe(Effect.result);
           if (Result.isFailure(entryInfo) || entryInfo.success.type !== "Directory") continue;
-          const name = decodeBotId(entry);
+          const name = decodeBotSkillName(entry);
           if (name._tag === "None") continue;
           const skillFile = path.join(skillDir, SKILL_FILE);
           const skillText = yield* fileSystem.readFileString(skillFile).pipe(Effect.result);
@@ -355,6 +362,7 @@ export const layer = Layer.effect(
         soul: current.souls.get(id) ?? "",
         memory: current.memories.get(id) ?? "",
         skills: current.skills.get(id) ?? [],
+        skillsDir: skillsDir(id),
       };
     });
 
@@ -554,10 +562,13 @@ export const layer = Layer.effect(
         if (Result.isFailure(contents) || !contents.success.some((entry) => entry === SKILL_FILE)) {
           return yield* botError("The skill folder does not contain a SKILL.md.", { botId: id });
         }
-        const slug = path.basename(sourceDir);
-        const name = decodeBotId(slug);
-        if (name._tag === "None") {
-          return yield* botError(`"${slug}" is not a valid skill name.`, { botId: id });
+        // The source folder name becomes the slug after normalization;
+        // only a name with no usable characters is rejected.
+        const slug = normalizeBotSkillName(path.basename(sourceDir));
+        if (slug === undefined) {
+          return yield* botError(`"${path.basename(sourceDir)}" is not a valid skill name.`, {
+            botId: id,
+          });
         }
         yield* checkSkillSource(sourceDir, id);
         // Stage next to the target, then swap, so a failed copy leaves nothing.

@@ -1,6 +1,6 @@
 import { expect, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { BotId, BotError, BotProfile } from "@t3tools/contracts";
+import { BotId, BotError, BotProfile, BotSkillName } from "@t3tools/contracts";
 import { symlinksSupported } from "@t3tools/shared/testing/symlinks";
 import * as Deferred from "effect/Deferred";
 import * as Duration from "effect/Duration";
@@ -389,11 +389,43 @@ it.effect("installs a skill from a folder and from a SKILL.md path, then removes
       );
       expect(fromFile.skills.map((skill) => skill.name).sort()).toEqual(["deploy", "triage"]);
 
-      const removed = yield* store.removeSkill(BotId.make("night-watch"), BotId.make("deploy"));
+      const removed = yield* store.removeSkill(
+        BotId.make("night-watch"),
+        BotSkillName.make("deploy"),
+      );
       expect(removed.skills.map((skill) => skill.name)).toEqual(["triage"]);
       expect(yield* fs.exists(path.join(config.botsDir, "night-watch", "skills", "deploy"))).toBe(
         false,
       );
+    }).pipe(
+      Effect.provide(
+        BotStore.layer.pipe(Layer.provideMerge(ServerConfig.layerTest(process.cwd(), baseDir))),
+      ),
+    );
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
+it.effect("normalizes source folder names into valid skill slugs", () =>
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "simplycode-bots-" });
+    const path = yield* Path.Path;
+    yield* Effect.gen(function* () {
+      const store = yield* BotStore.BotStore;
+      const sourceRoot = path.join(
+        path.dirname((yield* ServerConfig.ServerConfig).botsDir),
+        "skills-src",
+      );
+      yield* store.write(profile("night-watch"));
+
+      const longName = "a".repeat(56);
+      const long = yield* seedSkill(sourceRoot, longName, "# Long\n");
+      const installedLong = yield* store.installSkill(BotId.make("night-watch"), long);
+      expect(installedLong.skills.map((skill) => skill.name)).toEqual([longName]);
+
+      const odd = yield* seedSkill(sourceRoot, "My_Skill.v2", "# Odd\n");
+      const installed = yield* store.installSkill(BotId.make("night-watch"), odd);
+      expect(installed.skills.map((skill) => skill.name).sort()).toEqual([longName, "my-skill-v2"]);
     }).pipe(
       Effect.provide(
         BotStore.layer.pipe(Layer.provideMerge(ServerConfig.layerTest(process.cwd(), baseDir))),

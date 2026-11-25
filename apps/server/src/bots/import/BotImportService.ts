@@ -4,7 +4,7 @@
 // error lands in the result's warnings.
 import {
   BotError,
-  BotId,
+  normalizeBotSkillName,
   type Bot,
   type BotExportInput,
   type BotExportResult,
@@ -37,7 +37,6 @@ import * as ProviderRegistry from "../../provider/ProviderRegistry.ts";
 import { BotStore } from "../BotStore.ts";
 import { scanSource, type ScannedBot } from "./sources.ts";
 
-const decodeBotId = Schema.decodeUnknownOption(BotId);
 const decodeProfile = Schema.decodeUnknownEffect(BotProfile);
 const utf8Decoder = new NodeUtil.TextDecoder("utf-8", { fatal: true });
 
@@ -192,13 +191,13 @@ export const layer = Layer.effect(
       }
       if (input.include.skills) {
         for (const skill of bot.skills) {
-          const name = decodeBotId(skill.name);
-          if (name._tag === "None") {
+          const name = normalizeBotSkillName(skill.name);
+          if (name === undefined) {
             warnings.push(`"${bot.name}": skill "${skill.name}" is not a valid skill name.`);
             continue;
           }
           const installed = yield* store
-            .installSkillFiles(written.id, name.value, skill.files)
+            .installSkillFiles(written.id, name, skill.files)
             .pipe(Effect.result);
           if (Result.isFailure(installed)) {
             warnings.push(`"${bot.name}": ${installed.failure.message}`);
