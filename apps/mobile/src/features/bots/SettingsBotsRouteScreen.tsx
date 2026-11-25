@@ -825,6 +825,7 @@ type BotDraft = {
   readonly checkoutPath: string;
   readonly modelSelection: ModelSelection | null;
   readonly approvalMode: BotApprovalMode;
+  readonly canManageBots: boolean;
   readonly soul: string | null;
   readonly memory: string | null;
   readonly maxSteps: string;
@@ -846,6 +847,7 @@ function draftForNewBot(
     checkoutPath: "",
     modelSelection: model,
     approvalMode: "ask",
+    canManageBots: false,
     soul: "",
     memory: "",
     maxSteps: "",
@@ -866,6 +868,7 @@ function draftForBot(bot: Bot, soul: string, memory: string): BotDraft {
       bot.workspaceStrategy.type === "existing_worktree" ? bot.workspaceStrategy.worktreePath : "",
     modelSelection: bot.modelSelection,
     approvalMode: bot.approvalMode,
+    canManageBots: bot.canManageBots,
     soul,
     memory,
     maxSteps: bot.limits.maxStepsPerRun === undefined ? "" : String(bot.limits.maxStepsPerRun),
@@ -1119,6 +1122,7 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
               },
       modelSelection: form.modelSelection,
       approvalMode: form.approvalMode,
+      canManageBots: form.canManageBots,
       interactionMode: existing.data?.bot.interactionMode ?? "default",
       limits: {
         ...(stepsNumber !== undefined ? { maxStepsPerRun: stepsNumber } : {}),
@@ -1414,6 +1418,24 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
                   }
                 }}
               />
+              <View className="gap-1 border-t border-border-subtle px-4 py-3">
+                <View className="min-h-14 flex-row items-center gap-3">
+                  <Text textRole="body" className="min-w-0 flex-1 text-foreground">
+                    {gt("Can create and edit other bots")}
+                  </Text>
+                  <ThemedSwitch
+                    accessibilityLabel={gt("Can create and edit other bots")}
+                    value={form.canManageBots}
+                    disabled={!canOperate || saving}
+                    onValueChange={(canManageBots) => set({ canManageBots })}
+                  />
+                </View>
+                <Text className="text-sm text-foreground-muted">
+                  {gt(
+                    "Gives this bot tools to create bots and change other bots' instructions, model and approval mode, never above its own.",
+                  )}
+                </Text>
+              </View>
             </SettingsSection>
             <SettingsSection
               title={gt("Standing instructions")}

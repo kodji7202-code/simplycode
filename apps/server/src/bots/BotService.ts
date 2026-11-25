@@ -199,6 +199,7 @@ export const layer = Layer.effect(
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
           pinned: input.pinned ?? existing?.pinned ?? false,
+          canManageBots: input.canManageBots ?? existing?.canManageBots ?? false,
           ...(input.avatar === undefined ? {} : { avatar: input.avatar }),
           ...(input.role === undefined ? {} : { role: input.role }),
           ...(input.description === undefined ? {} : { description: input.description }),

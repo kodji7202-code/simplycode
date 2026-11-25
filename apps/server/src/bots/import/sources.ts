@@ -913,6 +913,7 @@ const PackageBot = Schema.Struct({
     approvalMode: Schema.optional(Schema.String),
     interactionMode: Schema.optional(Schema.String),
     limits: Schema.optional(Schema.Unknown),
+    canManageBots: Schema.optional(Schema.Boolean),
   }),
   soul: Schema.optional(Schema.String),
   memory: Schema.optional(Schema.String),
@@ -1027,6 +1028,12 @@ const scanPackage = Effect.fnUntraced(function* (
     if (name.length === 0) {
       warnings.push(`A bot with no name was skipped.`);
       return;
+    }
+    // Imported bots never arrive as managers; the flag is opt-in per bot.
+    if (bot.profile.canManageBots === true) {
+      botWarnings.push(
+        `Bot management was not carried over. Turn on "Can create and edit other bots" in the bot's profile to keep it.`,
+      );
     }
     const approvalMode = decodeApproval(bot.profile.approvalMode);
     const interactionMode = decodeInteraction(bot.profile.interactionMode);

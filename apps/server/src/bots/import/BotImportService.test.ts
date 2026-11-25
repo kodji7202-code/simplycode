@@ -470,6 +470,29 @@ it.effect("name collisions get suffixed ids", () =>
   ),
 );
 
+it.effect("a package canManageBots flag imports as false with a warning", () =>
+  withImport({}, ({ svc }) =>
+    Effect.gen(function* () {
+      const content = packageJson([{ profile: { name: "Boss", canManageBots: true }, soul: "s" }]);
+      const scanned = yield* svc.scan({ source: { type: "package", content } });
+      expect(scanned.candidates[0]!.warnings).toEqual(
+        expect.arrayContaining([expect.stringContaining("Bot management was not carried over")]),
+      );
+      const applied = yield* svc.apply({
+        source: { type: "package", content },
+        keys: ["bot-0"],
+        projectId: "project-1" as never,
+        fallbackModelSelection: fallbackModel,
+        include: { memory: false, skills: false, automations: false },
+      });
+      expect(applied.bots[0]!.canManageBots).toBe(false);
+      expect(applied.warnings).toEqual(
+        expect.arrayContaining([expect.stringContaining("Bot management was not carried over")]),
+      );
+    }),
+  ),
+);
+
 // Builds a fixture `~/.openmausbot` data dir from the format-1 bots.json shape.
 const writeMausFixture = Effect.fnUntraced(function* (
   dir: string,
