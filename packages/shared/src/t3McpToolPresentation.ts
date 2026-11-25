@@ -218,6 +218,10 @@ const T3_MCP_TOOLS: Readonly<Record<string, T3McpToolDefinition>> = {
   create_bot: tool(["Create", "Creating", "Created", "a bot"], "bot-manage"),
   update_bot: tool(["Update", "Updating", "Updated", "a bot"], "bot-manage"),
   install_bot_skill: tool(["Install", "Installing", "Installed", "a bot skill"], "bot-manage"),
+  list_teams: tool(["List", "Listing", "Listed", "bot teams"], "bot-manage"),
+  save_team: tool(["Save", "Saving", "Saved", "a bot team"], "bot-manage"),
+  save_pipeline: tool(["Save", "Saving", "Saved", "a bot pipeline"], "bot-manage"),
+  run_pipeline: tool(["Start", "Starting", "Started", "a bot pipeline run"], "bot-manage"),
   task_status: tool(["Get", "Getting", "Got", "delegated task status"], "task-status"),
   task_cancel: tool(
     ["Cancel", "Canceling", "Requested cancellation of", "a delegated task"],

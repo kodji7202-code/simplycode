@@ -12,6 +12,8 @@ import { AssetSigner } from "../assets/AssetSigner.ts";
 import { ServerSecretStore } from "../auth/ServerSecretStore.ts";
 import { BotService } from "../bots/BotService.ts";
 import { BotStore } from "../bots/BotStore.ts";
+import { PipelineService } from "../bots/PipelineService.ts";
+import { TeamService } from "../bots/TeamService.ts";
 import { TeamStore } from "../bots/TeamStore.ts";
 import { ServerConfig } from "../config.ts";
 import { DeviceService } from "../device/DeviceService.ts";
@@ -66,6 +68,8 @@ const toolHandlerServices = Layer.mergeAll(
   Layer.mock(BotService)({}),
   Layer.mock(BotStore)({}),
   Layer.mock(TeamStore)({}),
+  Layer.mock(TeamService)({}),
+  Layer.mock(PipelineService)({}),
   Layer.mock(DeviceService)({}),
   Layer.mock(DocumentText)({}),
   Layer.mock(EnvironmentThemeService)({}),

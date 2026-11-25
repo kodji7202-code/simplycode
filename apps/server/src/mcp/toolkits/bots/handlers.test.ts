@@ -8,10 +8,12 @@ import {
   botThreadTag,
   EnvironmentId,
   NodeId,
+  Pipeline,
   ProviderDriverKind,
   ProviderInstanceId,
   RunId,
   type ServerProvider,
+  Team,
   ThreadId,
   type OrchestrationV2ServerCommand,
   type OrchestratorMcpDelegateTaskResult,
@@ -23,6 +25,8 @@ import { McpSchema, McpServer } from "effect/ai";
 
 import { BotService } from "../../../bots/BotService.ts";
 import { BotStore } from "../../../bots/BotStore.ts";
+import { PipelineService } from "../../../bots/PipelineService.ts";
+import { TeamService } from "../../../bots/TeamService.ts";
 import { TeamStore } from "../../../bots/TeamStore.ts";
 import * as ProviderRegistry from "../../../provider/ProviderRegistry.ts";
 import * as Orchestrator from "../../../orchestration-v2/Orchestrator.ts";
@@ -35,6 +39,8 @@ import * as BotsHandlers from "./handlers.ts";
 import { BotsToolkit } from "./tools.ts";
 
 const decodeBot = Schema.decodeUnknownSync(Bot);
+const decodeTeam = Schema.decodeUnknownSync(Team);
+const decodePipeline = Schema.decodeUnknownSync(Pipeline);
 
 const plannerBot = (overrides?: Record<string, unknown>): Bot =>
   decodeBot({
@@ -50,6 +56,41 @@ const plannerBot = (overrides?: Record<string, unknown>): Bot =>
     updatedAt: "2026-01-01T00:00:00.000Z",
     soulBytes: 4,
     threadTag: "bot:planner",
+    ...overrides,
+  });
+
+const buildTeam = (overrides?: Record<string, unknown>): Team =>
+  decodeTeam({
+    id: "build",
+    name: "Build",
+    leadBotId: "planner",
+    memberBotIds: ["planner", "dev"],
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+  });
+
+const shipStages = () => [
+  { id: "dev", name: "Dev", botId: "dev", kind: "work" as const, instructions: "Do it." },
+  {
+    id: "review",
+    name: "Review",
+    botId: "planner",
+    kind: "review" as const,
+    instructions: "Check it.",
+    onFail: "dev",
+  },
+];
+
+const shipPipeline = (overrides?: Record<string, unknown>): Pipeline =>
+  decodePipeline({
+    id: "ship",
+    teamId: "build",
+    name: "Ship",
+    stages: shipStages(),
+    limits: { maxRounds: 3, stageTimeoutMinutes: 60 },
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides,
   });
 
@@ -132,11 +173,14 @@ const layerToolkit = (input: {
   readonly callerTags?: ReadonlyArray<string>;
   readonly callerRuntimeMode?: "approval-required" | "auto" | "full-access";
   readonly providers?: ReadonlyArray<ServerProvider>;
+  readonly teams?: ReadonlyArray<Team>;
+  readonly pipelines?: ReadonlyArray<Pipeline>;
 }) => {
   const calls: Array<unknown> = [];
   const storedMemories = new Map(input.memories ?? []);
   const layerStore = Layer.mock(BotStore)({
     list: () => Effect.succeed({ bots: [...input.bots], loadErrors: [] }),
+    find: (id) => Effect.succeed(input.bots.find((entry) => entry.id === id)),
     get: (id) => {
       const bot = input.bots.find((entry) => entry.id === id);
       return bot === undefined
@@ -193,6 +237,62 @@ const layerToolkit = (input: {
           });
     },
   });
+  const layerTeamService = Layer.mock(TeamService)({
+    list: () => Effect.succeed({ teams: [...(input.teams ?? [])], loadErrors: [] }),
+    upsert: (upsertInput) => {
+      calls.push({ type: "teamUpsert", input: upsertInput });
+      return Effect.succeed({
+        team: decodeTeam({
+          id: upsertInput.id ?? "new-team",
+          name: upsertInput.name,
+          memberBotIds: upsertInput.memberBotIds,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          ...(upsertInput.description === undefined
+            ? {}
+            : { description: upsertInput.description }),
+          ...(upsertInput.leadBotId === undefined ? {} : { leadBotId: upsertInput.leadBotId }),
+        }),
+      });
+    },
+  });
+  const layerPipelineService = Layer.mock(PipelineService)({
+    list: () => Effect.succeed({ pipelines: [...(input.pipelines ?? [])], loadErrors: [] }),
+    upsert: (upsertInput) => {
+      calls.push({ type: "pipelineUpsert", input: upsertInput });
+      // Enough of the real service's check to prove its errors surface.
+      for (const stage of upsertInput.stages) {
+        if (
+          stage.onFail !== undefined &&
+          !upsertInput.stages.some((candidate) => candidate.id === stage.onFail)
+        ) {
+          return Effect.fail(
+            new BotError({
+              message: `Stage "${stage.name}" goes back to "${stage.onFail}", which is not a stage of this pipeline.`,
+            }),
+          );
+        }
+      }
+      return Effect.succeed({
+        pipeline: decodePipeline({
+          id: upsertInput.id ?? "new-pipeline",
+          teamId: upsertInput.teamId,
+          name: upsertInput.name,
+          stages: upsertInput.stages,
+          limits: upsertInput.limits ?? { maxRounds: 3, stageTimeoutMinutes: 60 },
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          ...(upsertInput.description === undefined
+            ? {}
+            : { description: upsertInput.description }),
+        }),
+      });
+    },
+    run: (runInput) => {
+      calls.push({ type: "pipelineRun", input: runInput });
+      return Effect.succeed({ runId: "run-9" });
+    },
+  });
   const layerProviders = Layer.mock(ProviderRegistry.ProviderRegistry)({
     getProviders: Effect.succeed(input.providers ?? []),
   });
@@ -227,6 +327,8 @@ const layerToolkit = (input: {
         }),
       ),
       Layer.provide(layerBotService),
+      Layer.provide(layerTeamService),
+      Layer.provide(layerPipelineService),
       Layer.provide(layerProviders),
       Layer.provide(layerService),
       Layer.provide(layerOrchestrator),
@@ -456,6 +558,10 @@ it.effect("the bot-management tools refuse a caller that is not a bot thread", (
       ["create_bot", { name: "Worker", soul: "Do work." }],
       ["update_bot", { botId: "manager", name: "Renamed" }],
       ["install_bot_skill", { botId: "manager", sourcePath: "/skills/a" }],
+      ["list_teams", {}],
+      ["save_team", { name: "Docs", memberBotIds: ["manager"] }],
+      ["save_pipeline", { teamId: "build", name: "Ship", stages: shipStages() }],
+      ["run_pipeline", { pipelineId: "ship", task: "Do it." }],
     ] as const) {
       expect(declaredFailure(yield* callTool(name, args))).toMatchObject({
         code: "invalid_request",
@@ -772,5 +878,327 @@ it.effect("install_bot_skill works on self and editable targets, refuses manager
       code: "invalid_request",
       message: "You can't edit another bot that manages bots.",
     });
+  }),
+);
+
+it.effect("list_teams returns each team with its members and pipelines in stage order", () => {
+  const { layer } = layerToolkit({
+    bots: [
+      managerBot(),
+      plannerBot({ id: "planner" }),
+      plannerBot({ id: "dev", name: "Dev", role: "Coder" }),
+    ],
+    teams: [buildTeam()],
+    pipelines: [shipPipeline()],
+    ...managerCaller,
+  });
+  return Effect.gen(function* () {
+    const result = yield* callTool("list_teams", {});
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toMatchObject({
+      teams: [
+        {
+          id: "build",
+          name: "Build",
+          leadBotId: "planner",
+          members: [
+            { id: "planner", name: "Planner", role: "Plans work" },
+            { id: "dev", name: "Dev", role: "Coder" },
+          ],
+          pipelines: [
+            {
+              id: "ship",
+              name: "Ship",
+              stages: [
+                { id: "dev", name: "Dev", botId: "dev", kind: "work" },
+                {
+                  id: "review",
+                  name: "Review",
+                  botId: "planner",
+                  kind: "review",
+                  onFail: "dev",
+                },
+              ],
+              limits: { maxRounds: 3, stageTimeoutMinutes: 60 },
+            },
+          ],
+        },
+      ],
+    });
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("save_team creates a team, and a change keeps the fields it leaves out", () =>
+  Effect.gen(function* () {
+    const { calls, layer } = layerToolkit({
+      bots: [managerBot(), plannerBot({ id: "dev", name: "Dev" })],
+      ...managerCaller,
+    });
+    const created = yield* callTool("save_team", {
+      name: "Docs",
+      description: "Writes docs.",
+      leadBotId: "manager",
+      memberBotIds: ["manager", "dev"],
+    }).pipe(Effect.provide(layer));
+    expect(created.isError).not.toBe(true);
+    expect(created.structuredContent).toMatchObject({ teamId: "new-team" });
+    const createUpsert = calls.find(
+      (call): call is { type: "teamUpsert"; input: Record<string, unknown> } =>
+        typeof call === "object" && call !== null && "type" in call && call.type === "teamUpsert",
+    );
+    expect(createUpsert?.input).toMatchObject({
+      name: "Docs",
+      description: "Writes docs.",
+      leadBotId: "manager",
+      memberBotIds: ["manager", "dev"],
+    });
+
+    const { calls: updateCalls, layer: updateLayer } = layerToolkit({
+      bots: [managerBot(), plannerBot({ id: "dev", name: "Dev" })],
+      teams: [buildTeam({ description: "Builds." })],
+      ...managerCaller,
+    });
+    const updated = yield* callTool("save_team", { id: "build", name: "Build 2" }).pipe(
+      Effect.provide(updateLayer),
+    );
+    expect(updated.isError).not.toBe(true);
+    expect(updated.structuredContent).toMatchObject({ teamId: "build" });
+    const updateUpsert = updateCalls.find(
+      (call): call is { type: "teamUpsert"; input: Record<string, unknown> } =>
+        typeof call === "object" && call !== null && "type" in call && call.type === "teamUpsert",
+    );
+    expect(updateUpsert?.input).toMatchObject({
+      id: "build",
+      name: "Build 2",
+      description: "Builds.",
+      leadBotId: "planner",
+      memberBotIds: ["planner", "dev"],
+    });
+  }),
+);
+
+it.effect("save_team and save_pipeline say which fields a create is missing", () =>
+  Effect.gen(function* () {
+    const { layer } = layerToolkit({ bots: [managerBot()], ...managerCaller });
+    expect(
+      declaredFailure(
+        yield* callTool("save_team", { description: "No members." }).pipe(Effect.provide(layer)),
+      ),
+    ).toMatchObject({
+      code: "invalid_request",
+      message: "Creating a team needs `name` and `memberBotIds`.",
+    });
+    expect(
+      declaredFailure(yield* callTool("save_team", { name: "Docs" }).pipe(Effect.provide(layer))),
+    ).toMatchObject({
+      code: "invalid_request",
+      message: "Creating a team needs `memberBotIds`.",
+    });
+    expect(
+      declaredFailure(
+        yield* callTool("save_pipeline", { name: "Ship" }).pipe(Effect.provide(layer)),
+      ),
+    ).toMatchObject({
+      code: "invalid_request",
+      message: "Creating a pipeline needs `teamId` and `stages`.",
+    });
+    expect(
+      declaredFailure(
+        yield* callTool("save_team", { id: "ghost", name: "Docs" }).pipe(Effect.provide(layer)),
+      ),
+    ).toMatchObject({
+      code: "invalid_request",
+      message: 'Team "ghost" was not found.',
+    });
+  }),
+);
+
+it.effect("save_pipeline surfaces the service's stage validation", () => {
+  const { layer } = layerToolkit({ bots: [managerBot()], ...managerCaller });
+  return Effect.gen(function* () {
+    const failure = declaredFailure(
+      yield* callTool("save_pipeline", {
+        teamId: "build",
+        name: "Ship",
+        stages: [
+          { id: "dev", name: "Dev", botId: "dev", kind: "work", instructions: "Do it." },
+          {
+            id: "check",
+            name: "Check",
+            botId: "manager",
+            kind: "review",
+            instructions: "Check it.",
+            onFail: "ghost",
+          },
+        ],
+      }),
+    );
+    expect(failure).toMatchObject({
+      code: "invalid_request",
+      message: 'Stage "Check" goes back to "ghost", which is not a stage of this pipeline.',
+    });
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("save_pipeline replaces the whole stage list on a change", () => {
+  const next = [
+    { id: "solo", name: "Solo", botId: "planner", kind: "work", instructions: "Do it all." },
+  ];
+  const { calls, layer } = layerToolkit({
+    bots: [managerBot(), plannerBot({ id: "dev", name: "Dev" })],
+    teams: [buildTeam()],
+    pipelines: [shipPipeline({ description: "Ships." })],
+    ...managerCaller,
+  });
+  return Effect.gen(function* () {
+    const result = yield* callTool("save_pipeline", { id: "ship", stages: next });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toMatchObject({ pipelineId: "ship" });
+    const upsert = calls.find(
+      (call): call is { type: "pipelineUpsert"; input: Record<string, unknown> } =>
+        typeof call === "object" &&
+        call !== null &&
+        "type" in call &&
+        call.type === "pipelineUpsert",
+    );
+    expect(upsert?.input).toMatchObject({
+      id: "ship",
+      teamId: "build",
+      name: "Ship",
+      description: "Ships.",
+      limits: { maxRounds: 3, stageTimeoutMinutes: 60 },
+      stages: [
+        { id: "solo", name: "Solo", botId: "planner", kind: "work", instructions: "Do it all." },
+      ],
+    });
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("run_pipeline starts the run in the caller's project under its runtime ceiling", () => {
+  const { calls, layer } = layerToolkit({
+    bots: [managerBot()],
+    ...managerCaller,
+    callerRuntimeMode: "approval-required",
+  });
+  return Effect.gen(function* () {
+    const result = yield* callTool("run_pipeline", { pipelineId: "ship", task: "Do it." });
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toMatchObject({ runId: "run-9" });
+    const run = calls.find(
+      (call): call is { type: "pipelineRun"; input: Record<string, unknown> } =>
+        typeof call === "object" && call !== null && "type" in call && call.type === "pipelineRun",
+    );
+    expect(run?.input).toMatchObject({
+      pipelineId: "ship",
+      task: "Do it.",
+      projectId: "project:mcp-test",
+      runtimeCeiling: "approval-required",
+    });
+    expect(run?.input.commandId).toMatch(/^mcp:/);
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("run_pipeline takes an explicit project over the caller's", () => {
+  const { calls, layer } = layerToolkit({
+    bots: [managerBot()],
+    ...managerCaller,
+  });
+  return Effect.gen(function* () {
+    const result = yield* callTool("run_pipeline", {
+      pipelineId: "ship",
+      task: "Do it.",
+      projectId: "project:other",
+    });
+    expect(result.isError).not.toBe(true);
+    const run = calls.find(
+      (call): call is { type: "pipelineRun"; input: Record<string, unknown> } =>
+        typeof call === "object" && call !== null && "type" in call && call.type === "pipelineRun",
+    );
+    expect(run?.input).toMatchObject({ projectId: "project:other" });
+  }).pipe(Effect.provide(layer));
+});
+
+it.effect("save_team and save_pipeline refuse a bot above the caller's approval", () =>
+  Effect.gen(function* () {
+    const autoSafeManager = managerBot({ approvalMode: "auto-safe" });
+    const strongDev = plannerBot({ id: "dev", name: "Dev", approvalMode: "full" });
+    const stages = [
+      { id: "dev", name: "Dev", botId: "dev", kind: "work", instructions: "Do it." },
+      {
+        id: "check",
+        name: "Check",
+        botId: "manager",
+        kind: "review",
+        instructions: "Check it.",
+        onFail: "dev",
+      },
+    ];
+
+    // New members and new stage bots are checked.
+    const { layer: createLayer } = layerToolkit({
+      bots: [autoSafeManager, strongDev],
+      ...managerCaller,
+    });
+    expect(
+      declaredFailure(
+        yield* callTool("save_team", { name: "Docs", memberBotIds: ["dev"] }).pipe(
+          Effect.provide(createLayer),
+        ),
+      ),
+    ).toMatchObject({
+      code: "invalid_request",
+      message:
+        'You can\'t add "Dev" to a team: its approval mode ("full") is above your own ("auto-safe").',
+    });
+    expect(
+      declaredFailure(
+        yield* callTool("save_pipeline", { teamId: "build", name: "Ship", stages }).pipe(
+          Effect.provide(createLayer),
+        ),
+      ),
+    ).toMatchObject({
+      code: "invalid_request",
+      message:
+        'Stage "Dev" can\'t use "Dev": its approval mode ("full") is above your own ("auto-safe").',
+    });
+
+    // A change can't touch a team or pipeline that already holds such a bot.
+    const { calls, layer: updateLayer } = layerToolkit({
+      bots: [autoSafeManager, strongDev],
+      teams: [buildTeam()],
+      pipelines: [shipPipeline()],
+      ...managerCaller,
+    });
+    expect(
+      declaredFailure(
+        yield* callTool("save_team", { id: "build", name: "Renamed" }).pipe(
+          Effect.provide(updateLayer),
+        ),
+      ),
+    ).toMatchObject({
+      code: "invalid_request",
+      message:
+        'You can\'t add "Dev" to a team: its approval mode ("full") is above your own ("auto-safe").',
+    });
+    expect(
+      declaredFailure(
+        yield* callTool("save_pipeline", { id: "ship", name: "Renamed" }).pipe(
+          Effect.provide(updateLayer),
+        ),
+      ),
+    ).toMatchObject({
+      code: "invalid_request",
+      message:
+        'Stage "Dev" can\'t use "Dev": its approval mode ("full") is above your own ("auto-safe").',
+    });
+    expect(
+      calls.filter(
+        (call) =>
+          typeof call === "object" &&
+          call !== null &&
+          "type" in call &&
+          (call.type === "teamUpsert" || call.type === "pipelineUpsert"),
+      ),
+    ).toHaveLength(0);
   }),
 );

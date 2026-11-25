@@ -1,10 +1,12 @@
 import {
+  type Bot,
   BotId,
   BOT_MEMORY_MAX_BYTES,
   botThreadTag,
   CommandId,
   type ModelSelection,
   OrchestratorMcpFailure,
+  type PipelineStage,
   type ProviderInstanceId,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
@@ -14,10 +16,12 @@ import * as BotManagerPolicy from "../../../bots/botManagerPolicy.ts";
 import { BotService } from "../../../bots/BotService.ts";
 import { BotStore } from "../../../bots/BotStore.ts";
 import { teamsLedBy } from "../../../bots/botTeams.ts";
+import { PipelineService } from "../../../bots/PipelineService.ts";
+import { TeamService } from "../../../bots/TeamService.ts";
 import { TeamStore } from "../../../bots/TeamStore.ts";
 import * as ProviderRegistry from "../../../provider/ProviderRegistry.ts";
 import * as Orchestrator from "../../../orchestration-v2/Orchestrator.ts";
-import { loadCaller, readCaller } from "../../threadAccess.ts";
+import { loadCaller, newCommandId, readCaller, resolveProjectId } from "../../threadAccess.ts";
 import * as McpToolAccess from "../../McpToolAccess.ts";
 import * as OrchestratorMcpService from "../../OrchestratorMcpService.ts";
 import { BotsToolkit } from "./tools.ts";
@@ -71,6 +75,28 @@ const resolveModel = Effect.fn("resolveModel")(function* (
     return yield* invalidRequest(resolved.denial);
   }
   return resolved.modelSelection;
+});
+
+/** The bots behind `ids`; missing ones skip the check — the service reports them. */
+const loadBots = Effect.fn("loadBots")(function* (ids: ReadonlyArray<BotId>) {
+  const store = yield* BotStore;
+  const found = yield* Effect.forEach(ids, (id) =>
+    store.find(id).pipe(Effect.orElseSucceed(() => undefined)),
+  );
+  return found.filter((bot): bot is Bot => bot !== undefined);
+});
+
+const stageBots = Effect.fn("stageBots")(function* (stages: ReadonlyArray<PipelineStage>) {
+  const store = yield* BotStore;
+  const found = yield* Effect.forEach(stages, (stage) =>
+    store.find(stage.botId).pipe(
+      Effect.orElseSucceed(() => undefined),
+      Effect.map((bot) => ({ stage, bot })),
+    ),
+  );
+  return found
+    .filter((entry): entry is { stage: PipelineStage; bot: Bot } => entry.bot !== undefined)
+    .map((entry) => ({ stage: entry.stage.name, bot: entry.bot }));
 });
 
 const handlers = {
@@ -273,6 +299,165 @@ const handlers = {
         .installSkill({ id: target.id, sourcePath: input.sourcePath })
         .pipe(Effect.mapError((error) => invalidRequest(error.message)));
       return { botId: bot.id, skills: bot.skills.map((skill) => skill.name) };
+    }),
+  ),
+  list_teams: McpToolAccess.readsAsCaller(() =>
+    Effect.gen(function* () {
+      yield* loadCallerBot;
+      const teamService = yield* TeamService;
+      const pipelineService = yield* PipelineService;
+      const store = yield* BotStore;
+      const { teams } = yield* teamService.list({});
+      const { pipelines } = yield* pipelineService.list({});
+      const { bots } = yield* store.list();
+      const botById = new Map(bots.map((bot) => [bot.id, bot]));
+      return {
+        teams: teams.map((team) => ({
+          id: team.id,
+          name: team.name,
+          ...(team.description === undefined ? {} : { description: team.description }),
+          ...(team.leadBotId === undefined ? {} : { leadBotId: team.leadBotId }),
+          members: team.memberBotIds
+            .map((id) => botById.get(id))
+            .filter((bot): bot is Bot => bot !== undefined)
+            .map((bot) => ({
+              id: bot.id,
+              name: bot.name,
+              ...(bot.role === undefined ? {} : { role: bot.role }),
+            })),
+          pipelines: pipelines
+            .filter((pipeline) => pipeline.teamId === team.id)
+            .map((pipeline) => ({
+              id: pipeline.id,
+              name: pipeline.name,
+              ...(pipeline.description === undefined ? {} : { description: pipeline.description }),
+              stages: pipeline.stages.map((stage) => ({
+                id: stage.id,
+                name: stage.name,
+                botId: stage.botId,
+                kind: stage.kind,
+                ...(stage.onFail === undefined ? {} : { onFail: stage.onFail }),
+              })),
+              limits: pipeline.limits,
+            })),
+        })),
+      };
+    }),
+  ),
+  save_team: McpToolAccess.actsAsCaller((input) =>
+    Effect.gen(function* () {
+      const callerBot = yield* loadCallerBot;
+      const teamService = yield* TeamService;
+      const existing =
+        input.id === undefined
+          ? undefined
+          : (yield* teamService.list({})).teams.find((team) => team.id === input.id);
+      if (input.id !== undefined && existing === undefined) {
+        return yield* invalidRequest(`Team "${input.id}" was not found.`);
+      }
+      const missing = [
+        input.name === undefined ? "name" : undefined,
+        input.memberBotIds === undefined ? "memberBotIds" : undefined,
+      ].filter((field): field is string => field !== undefined);
+      if (existing === undefined && missing.length > 0) {
+        return yield* invalidRequest(
+          `Creating a team needs ${missing.map((field) => `\`${field}\``).join(" and ")}.`,
+        );
+      }
+      // A change can't touch a team that already holds a higher-approval bot,
+      // and the resulting member list is checked the same way.
+      if (existing !== undefined) {
+        const denial = BotManagerPolicy.teamDenial(
+          callerBot,
+          yield* loadBots(existing.memberBotIds),
+        );
+        if (denial !== undefined) {
+          return yield* invalidRequest(denial);
+        }
+      }
+      const memberBotIds = input.memberBotIds ?? existing?.memberBotIds ?? [];
+      const denial = BotManagerPolicy.teamDenial(callerBot, yield* loadBots(memberBotIds));
+      if (denial !== undefined) {
+        return yield* invalidRequest(denial);
+      }
+      const { team } = yield* teamService
+        .upsert({
+          id: input.id,
+          name: input.name ?? existing!.name,
+          description: input.description ?? existing?.description,
+          leadBotId: input.leadBotId ?? existing?.leadBotId,
+          memberBotIds,
+        })
+        .pipe(Effect.mapError((error) => invalidRequest(error.message)));
+      return { teamId: team.id };
+    }),
+  ),
+  save_pipeline: McpToolAccess.actsAsCaller((input) =>
+    Effect.gen(function* () {
+      const callerBot = yield* loadCallerBot;
+      const pipelineService = yield* PipelineService;
+      const existing =
+        input.id === undefined
+          ? undefined
+          : (yield* pipelineService.list({})).pipelines.find(
+              (pipeline) => pipeline.id === input.id,
+            );
+      if (input.id !== undefined && existing === undefined) {
+        return yield* invalidRequest(`Pipeline "${input.id}" was not found.`);
+      }
+      const missing = [
+        input.teamId === undefined ? "teamId" : undefined,
+        input.name === undefined ? "name" : undefined,
+        input.stages === undefined ? "stages" : undefined,
+      ].filter((field): field is string => field !== undefined);
+      if (existing === undefined && missing.length > 0) {
+        return yield* invalidRequest(
+          `Creating a pipeline needs ${missing.map((field) => `\`${field}\``).join(" and ")}.`,
+        );
+      }
+      if (existing !== undefined) {
+        const denial = BotManagerPolicy.pipelineDenial(
+          callerBot,
+          yield* stageBots(existing.stages),
+        );
+        if (denial !== undefined) {
+          return yield* invalidRequest(denial);
+        }
+      }
+      const stages = input.stages ?? existing?.stages ?? [];
+      const denial = BotManagerPolicy.pipelineDenial(callerBot, yield* stageBots(stages));
+      if (denial !== undefined) {
+        return yield* invalidRequest(denial);
+      }
+      const { pipeline } = yield* pipelineService
+        .upsert({
+          id: input.id,
+          teamId: input.teamId ?? existing!.teamId,
+          name: input.name ?? existing!.name,
+          description: input.description ?? existing?.description,
+          stages,
+          limits: input.limits ?? existing?.limits,
+        })
+        .pipe(Effect.mapError((error) => invalidRequest(error.message)));
+      return { pipelineId: pipeline.id };
+    }),
+  ),
+  run_pipeline: McpToolAccess.actsAsCaller((input) =>
+    Effect.gen(function* () {
+      yield* loadCallerBot;
+      const context = yield* readCaller();
+      const projectId = yield* resolveProjectId(context, input.projectId);
+      const pipelineService = yield* PipelineService;
+      const { runId } = yield* pipelineService
+        .run({
+          pipelineId: input.pipelineId,
+          task: input.task,
+          projectId,
+          commandId: yield* newCommandId(),
+          runtimeCeiling: context.limits.runtimeMode,
+        })
+        .pipe(Effect.mapError((error) => invalidRequest(error.message)));
+      return { runId };
     }),
   ),
 } satisfies McpToolAccess.Handlers<typeof BotsToolkit.tools>;
