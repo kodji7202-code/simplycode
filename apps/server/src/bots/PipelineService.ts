@@ -178,7 +178,14 @@ export const layer = Layer.effect(
         const started = yield* workflows
           .start(
             PIPELINE_WORKFLOW_NAME,
-            { pipelineId: pipeline.id, task: input.task, projectId },
+            {
+              pipelineId: pipeline.id,
+              task: input.task,
+              projectId,
+              ...(input.runtimeCeiling === undefined
+                ? {}
+                : { runtimeCeiling: input.runtimeCeiling }),
+            },
             { idempotencyKey: key },
           )
           .pipe(Effect.mapError((error) => pipelineError(error.message)));

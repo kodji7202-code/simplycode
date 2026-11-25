@@ -62,6 +62,42 @@ it.effect("start passes an explicit null payload through and defaults an omitted
   }),
 );
 
+it.effect("start refuses the reserved pipeline workflow; pipelines go through run_pipeline", () =>
+  Effect.gen(function* () {
+    let starts = 0;
+    const result = yield* Effect.gen(function* () {
+      const toolkit = yield* WorkflowToolkit;
+      return yield* toolkit
+        .handle("t3_workflow", {
+          action: "start",
+          workflow: "simplycode.pipeline",
+          idempotencyKey: "trial",
+          input: { pipelineId: "ship", task: "Do it.", projectId: "project-1" },
+        })
+        .pipe(
+          Stream.unwrap,
+          Stream.runCollect,
+          Effect.map((parts) => parts.at(-1)?.result),
+        );
+    }).pipe(
+      Effect.provide(
+        handlersWith({
+          start: () =>
+            Effect.sync(() => {
+              starts += 1;
+              return { runId: "run-1" };
+            }),
+        }),
+      ),
+    );
+    expect(result).toMatchObject({
+      code: "invalid_request",
+      message: "Start pipelines with run_pipeline.",
+    });
+    expect(starts).toBe(0);
+  }),
+);
+
 it.effect("signal refuses a run destination mixed with a channel destination", () =>
   Effect.gen(function* () {
     const delivered: Array<unknown> = [];

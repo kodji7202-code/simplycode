@@ -2,6 +2,7 @@ import { OrchestratorMcpFailure } from "@t3tools/contracts";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as Effect from "effect/Effect";
 
+import { PIPELINE_WORKFLOW_NAME } from "../../../workflows/pipelineDefinition.ts";
 import * as Workflows from "../../../workflows/Workflows.ts";
 import * as McpToolAccess from "../../McpToolAccess.ts";
 import { WORKFLOW_READ_ACTIONS, WorkflowToolkit } from "./tools.ts";
@@ -50,6 +51,10 @@ export const layer = McpToolAccess.toLayer(WorkflowToolkit, {
         }
         if (input.action === "start") {
           const name = yield* required(input.workflow, "workflow");
+          // Pipelines go through run_pipeline so the caller's access ceiling applies.
+          if (name === PIPELINE_WORKFLOW_NAME) {
+            return yield* invalid("Start pipelines with run_pipeline.");
+          }
           const idempotencyKey = yield* required(input.idempotencyKey, "idempotencyKey");
           const { runId } = yield* workflows
             .start(name, input.input === undefined ? {} : input.input, { idempotencyKey })

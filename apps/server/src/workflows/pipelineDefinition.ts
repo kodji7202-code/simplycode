@@ -11,6 +11,7 @@ import {
   Pipeline,
   type PipelineStage,
   ProjectId,
+  RuntimeMode,
   Team,
 } from "@t3tools/contracts";
 import { botPrompt } from "@t3tools/shared/botPrompt";
@@ -19,6 +20,7 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 
 import { botInstructions, type BotInstructionsTeam } from "../bots/botInstructions.ts";
+import { runtimeModeRank } from "../mcp/delegatedTaskModes.ts";
 import type { BotStore } from "../bots/BotStore.ts";
 import type { PipelineStore } from "../bots/PipelineStore.ts";
 import type { TeamStore } from "../bots/TeamStore.ts";
@@ -31,6 +33,8 @@ export const PipelinePayload = Schema.Struct({
   pipelineId: Pipeline.fields.id,
   task: Schema.String,
   projectId: ProjectId,
+  /** Stage threads launch with no more access than this; unset means each bot's own mode. */
+  runtimeCeiling: Schema.optional(RuntimeMode),
 });
 
 const StageBotSnapshot = Schema.Struct({
@@ -249,7 +253,12 @@ export const makePipelineDefinition = (deps: PipelineDefinitionDeps): WorkflowDe
                   },
                   project: payload.projectId,
                   title: `${snap.bot.name}: ${stage.name}`,
-                  runtimeMode: botRuntimeMode(snap.bot.approvalMode),
+                  runtimeMode:
+                    payload.runtimeCeiling !== undefined &&
+                    runtimeModeRank(payload.runtimeCeiling) <
+                      runtimeModeRank(botRuntimeMode(snap.bot.approvalMode))
+                      ? payload.runtimeCeiling
+                      : botRuntimeMode(snap.bot.approvalMode),
                   interactionMode: snap.bot.interactionMode,
                   tags: [botThreadTag(snap.bot.id)],
                 }

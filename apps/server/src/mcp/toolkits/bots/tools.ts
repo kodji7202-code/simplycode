@@ -9,6 +9,14 @@ import {
   BotsMcpInstallBotSkillResult,
   BotsMcpListInput,
   BotsMcpListResult,
+  BotsMcpListTeamsInput,
+  BotsMcpListTeamsResult,
+  BotsMcpRunPipelineInput,
+  BotsMcpRunPipelineResult,
+  BotsMcpSavePipelineInput,
+  BotsMcpSavePipelineResult,
+  BotsMcpSaveTeamInput,
+  BotsMcpSaveTeamResult,
   BotsMcpUpdateBotInput,
   BotsMcpUpdateBotResult,
   BotsMcpUpdateMemoryInput,
@@ -16,9 +24,12 @@ import {
   OrchestratorMcpFailure,
 } from "@t3tools/contracts";
 import { McpSchema, Tool, Toolkit } from "effect/ai";
+import * as SecureRandom from "effect/crypto/SecureRandom";
 
 import { BotService } from "../../../bots/BotService.ts";
 import { BotStore } from "../../../bots/BotStore.ts";
+import { PipelineService } from "../../../bots/PipelineService.ts";
+import { TeamService } from "../../../bots/TeamService.ts";
 import { TeamStore } from "../../../bots/TeamStore.ts";
 import * as ProviderRegistry from "../../../provider/ProviderRegistry.ts";
 import * as Orchestrator from "../../../orchestration-v2/Orchestrator.ts";
@@ -33,6 +44,8 @@ const dependencies = [
   BotStore,
   BotService,
   TeamStore,
+  TeamService,
+  PipelineService,
   ProviderRegistry.ProviderRegistry,
   Orchestrator.OrchestratorV2,
 ];
@@ -145,6 +158,70 @@ const InstallBotSkillTool = Tool.make("install_bot_skill", {
   .annotate(Tool.OpenWorld, true)
   .annotate(McpSchema.EnabledWhen, McpInvocationContext.hiddenFromOutsideClients);
 
+const ListTeamsTool = Tool.make("list_teams", {
+  description:
+    "List the bot teams on this server, with their lead, members and pipelines (stages in order). Only works when you are running as a bot allowed to manage bots.",
+  parameters: BotsMcpListTeamsInput,
+  success: BotsMcpListTeamsResult,
+  failure: OrchestratorMcpFailure,
+  failureMode: "return",
+  dependencies,
+})
+  .annotate(Tool.Title, "List teams")
+  .annotate(Tool.Readonly, true)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true)
+  .annotate(Tool.OpenWorld, false)
+  .annotate(McpSchema.EnabledWhen, McpInvocationContext.hiddenFromOutsideClients);
+
+const SaveTeamTool = Tool.make("save_team", {
+  description:
+    "Create a team, or change one when you pass its id. Members must be existing bots and the lead must be a member. You can't add a bot whose approval mode is above your own. Fields you leave out on a change stay as they are. Only works when you are running as a bot allowed to manage bots.",
+  parameters: BotsMcpSaveTeamInput,
+  success: BotsMcpSaveTeamResult,
+  failure: OrchestratorMcpFailure,
+  failureMode: "return",
+  dependencies,
+})
+  .annotate(Tool.Title, "Save a team")
+  .annotate(Tool.Readonly, false)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, false)
+  .annotate(Tool.OpenWorld, false)
+  .annotate(McpSchema.EnabledWhen, McpInvocationContext.hiddenFromOutsideClients);
+
+const SavePipelineTool = Tool.make("save_pipeline", {
+  description:
+    'Create a pipeline for a team, or change one when you pass its id. Stages run in order, each by a team member. A "work" stage returns a summary; a "review" stage returns pass or fail with findings, and its onFail names the earlier work stage that fixes them. Stage bots can\'t have an approval mode above yours. Only works when you are running as a bot allowed to manage bots.',
+  parameters: BotsMcpSavePipelineInput,
+  success: BotsMcpSavePipelineResult,
+  failure: OrchestratorMcpFailure,
+  failureMode: "return",
+  dependencies,
+})
+  .annotate(Tool.Title, "Save a pipeline")
+  .annotate(Tool.Readonly, false)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, false)
+  .annotate(Tool.OpenWorld, false)
+  .annotate(McpSchema.EnabledWhen, McpInvocationContext.hiddenFromOutsideClients);
+
+const RunPipelineTool = Tool.make("run_pipeline", {
+  description:
+    "Start a run of a pipeline on a task. Stage bots run with no more access than you have. Returns the run id; follow it with t3_workflow read, and answer its questions with t3_workflow signal. Only works when you are running as a bot allowed to manage bots.",
+  parameters: BotsMcpRunPipelineInput,
+  success: BotsMcpRunPipelineResult,
+  failure: OrchestratorMcpFailure,
+  failureMode: "return",
+  dependencies: [...dependencies, SecureRandom.SecureRandom],
+})
+  .annotate(Tool.Title, "Run a pipeline")
+  .annotate(Tool.Readonly, false)
+  .annotate(Tool.Destructive, true)
+  .annotate(Tool.Idempotent, false)
+  .annotate(Tool.OpenWorld, true)
+  .annotate(McpSchema.EnabledWhen, McpInvocationContext.hiddenFromOutsideClients);
+
 export const BotsToolkit = Toolkit.make(
   ListBotsTool,
   DelegateToBotTool,
@@ -153,4 +230,8 @@ export const BotsToolkit = Toolkit.make(
   CreateBotTool,
   UpdateBotTool,
   InstallBotSkillTool,
+  ListTeamsTool,
+  SaveTeamTool,
+  SavePipelineTool,
+  RunPipelineTool,
 );

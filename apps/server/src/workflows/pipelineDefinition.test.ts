@@ -2,7 +2,15 @@ import * as NodeCrypto from "@effect/platform-node/NodeCrypto";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
-import { Bot, BotError, BotId, botThreadTag, Pipeline, Team } from "@t3tools/contracts";
+import {
+  Bot,
+  BotError,
+  BotId,
+  botThreadTag,
+  Pipeline,
+  type RuntimeMode,
+  Team,
+} from "@t3tools/contracts";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -215,11 +223,16 @@ const status = (wanted: WorkflowRunStatus) => (run: { readonly status: string })
 
 const startRun = (
   workflows: Workflows.Workflows["Service"],
-  over: { readonly task?: string; readonly key?: string } = {},
+  over: { readonly task?: string; readonly key?: string; readonly ceiling?: RuntimeMode } = {},
 ) =>
   workflows.start(
     PIPELINE_WORKFLOW_NAME,
-    { pipelineId: "ship", task: over.task ?? "Add a health endpoint.", projectId: "project-1" },
+    {
+      pipelineId: "ship",
+      task: over.task ?? "Add a health endpoint.",
+      projectId: "project-1",
+      ...(over.ceiling === undefined ? {} : { runtimeCeiling: over.ceiling }),
+    },
     { idempotencyKey: over.key ?? "run-1" },
   );
 
@@ -464,6 +477,40 @@ it.effect("a run keeps the bots it snapshotted, however the bots are then edited
           rounds: 2,
           summary: "Tried.",
         });
+      }),
+    );
+  }).pipe(Effect.provide(NodeServices.layer), Effect.scoped),
+);
+
+it.effect("a runtime ceiling narrows every stage thread's mode", () =>
+  Effect.gen(function* () {
+    const stores = emptyStores();
+    seed(stores);
+    stores.bots.set("dev", {
+      bot: bot("dev", { name: "Dev", role: "Coder", approvalMode: "full" }),
+      soul: "You write code.",
+      memory: "",
+      skills: [],
+      skillsDir: "/bots/dev/skills",
+    });
+    const { agents, boot } = yield* harness(stores);
+    yield* boot(
+      Effect.gen(function* () {
+        const workflows = yield* Workflows.Workflows;
+        const { runId } = yield* startRun(workflows, { ceiling: "approval-required" });
+
+        // The dev bot is full-access, but the caller's ceiling keeps it at approval-required.
+        const dev = yield* agents.started(runId, "dev@1/0");
+        assert.equal(dev.launch?.runtimeMode, "approval-required");
+        yield* agents.end(runId, "dev@1/0", { output: { summary: "Added the endpoint." } });
+
+        // An auto-safe bot narrows the same way.
+        const review = yield* agents.started(runId, "review@1/0");
+        assert.equal(review.launch?.runtimeMode, "approval-required");
+        yield* agents.end(runId, "review@1/0", {
+          output: { verdict: "pass", findings: [] },
+        });
+        yield* workflows.waitFor(runId, status("completed"));
       }),
     );
   }).pipe(Effect.provide(NodeServices.layer), Effect.scoped),
