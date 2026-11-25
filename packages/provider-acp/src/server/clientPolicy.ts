@@ -1,8 +1,11 @@
 // @effect-diagnostics nodeBuiltinImport:off
 import type { RuntimeMode } from "@t3tools/contracts";
+import {
+  canonicalPathForContainment,
+  pathIsWithinRoot,
+  resolveContainedPath,
+} from "@t3tools/shared/pathContainment";
 import type * as EffectAcpSchema from "effect-acp/compat";
-import * as NodeFS from "node:fs";
-import * as NodePath from "node:path";
 
 export interface AcpRuntimePolicy {
   readonly runtimeMode: RuntimeMode;
@@ -18,55 +21,6 @@ export function unknownRecord(value: unknown): Record<string, unknown> | undefin
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined;
-}
-
-function resolveAcpPermissionPath(path: string, cwd: string | null): string | undefined {
-  const trimmed = path.trim();
-  if (trimmed.length === 0) return undefined;
-  if (NodePath.isAbsolute(trimmed)) return trimmed;
-  if (cwd === null || cwd.trim().length === 0) return undefined;
-  return `${cwd}${cwd.endsWith(NodePath.sep) ? "" : NodePath.sep}${trimmed}`;
-}
-
-function acpPathIsWithinRoot(path: string, root: string): boolean {
-  const relative = NodePath.relative(root, path);
-  return (
-    relative === "" ||
-    (relative !== ".." &&
-      !relative.startsWith(`..${NodePath.sep}`) &&
-      !NodePath.isAbsolute(relative))
-  );
-}
-
-// Canonicalize existing ancestors for symlink-aware checks of new paths; fail closed on errors.
-function acpCanonicalPathForContainment(path: string): string | undefined {
-  // realpath must resolve symlinks before ..; lexical normalization can hide traversal.
-  let candidate = path;
-  const missingSuffix: Array<string> = [];
-
-  while (true) {
-    try {
-      return NodePath.resolve(NodeFS.realpathSync.native(candidate), ...missingSuffix);
-    } catch (cause) {
-      if ((cause as NodeJS.ErrnoException | undefined)?.code !== "ENOENT") {
-        return undefined;
-      }
-    }
-
-    try {
-      NodeFS.lstatSync(candidate);
-      return undefined;
-    } catch (cause) {
-      if ((cause as NodeJS.ErrnoException | undefined)?.code !== "ENOENT") {
-        return undefined;
-      }
-    }
-
-    const parent = NodePath.dirname(candidate);
-    if (parent === candidate) return undefined;
-    missingSuffix.unshift(NodePath.basename(candidate));
-    candidate = parent;
-  }
 }
 
 interface AcpPolicyOperation {
@@ -105,11 +59,11 @@ function acpWorkspaceWriteAllowsMutation(
 ): boolean {
   const cwd =
     typeof runtimePolicy.cwd === "string" && runtimePolicy.cwd.trim().length > 0
-      ? (resolveAcpPermissionPath(runtimePolicy.cwd, process.cwd()) ?? null)
+      ? (resolveContainedPath(runtimePolicy.cwd, process.cwd()) ?? null)
       : null;
   const roots: Array<string> = [];
   if (cwd !== null) {
-    const canonicalCwd = acpCanonicalPathForContainment(cwd);
+    const canonicalCwd = canonicalPathForContainment(cwd);
     if (canonicalCwd !== undefined) roots.push(canonicalCwd);
   }
   const writableRoots = [
@@ -118,9 +72,9 @@ function acpWorkspaceWriteAllowsMutation(
   ];
   for (const writableRoot of writableRoots) {
     if (typeof writableRoot !== "string") continue;
-    const resolved = resolveAcpPermissionPath(writableRoot, cwd);
+    const resolved = resolveContainedPath(writableRoot, cwd);
     if (resolved === undefined) continue;
-    const canonicalRoot = acpCanonicalPathForContainment(resolved);
+    const canonicalRoot = canonicalPathForContainment(resolved);
     if (canonicalRoot !== undefined) roots.push(canonicalRoot);
   }
   if (roots.length === 0) return false;
@@ -129,17 +83,30 @@ function acpWorkspaceWriteAllowsMutation(
     return false;
   }
   for (const location of locations) {
-    const resolved = resolveAcpPermissionPath(location.path, cwd);
+    const resolved = resolveContainedPath(location.path, cwd);
     const canonicalPath =
-      resolved === undefined ? undefined : acpCanonicalPathForContainment(resolved);
+      resolved === undefined ? undefined : canonicalPathForContainment(resolved);
     if (
       canonicalPath === undefined ||
-      !roots.some((root) => acpPathIsWithinRoot(canonicalPath, root))
+      !roots.some((root) => pathIsWithinRoot(canonicalPath, root))
     ) {
       return false;
     }
   }
   return true;
+}
+
+/**
+ * The denial a `workspaceWrite` confinement refuse carries, attached to the permission response's
+ * `_meta` for an agent that surfaces it.
+ */
+export function acpWorkspaceWriteDenyReason(runtimePolicy: AcpRuntimePolicy): string | undefined {
+  if (unknownRecord(runtimePolicy.sandboxPolicy)?.type !== "workspaceWrite") return undefined;
+  const cwd =
+    typeof runtimePolicy.cwd === "string" && runtimePolicy.cwd.trim().length > 0
+      ? runtimePolicy.cwd
+      : "the project";
+  return `SimplyCode: this bot stays in its project. Writing outside ${cwd} is not allowed.`;
 }
 
 function acpOperationDisposition(
@@ -150,24 +117,33 @@ function acpOperationDisposition(
   if (isAcpReadKind(toolKind)) {
     return acpReadDisposition(runtimePolicy);
   }
+
+  const sandboxPolicy = unknownRecord(runtimePolicy.sandboxPolicy);
+  if (sandboxPolicy?.type === "workspaceWrite") {
+    // Confinement rides on top of the mode's own answers: a mutation inside the
+    // workspace or an execute gets what the mode would give anyway, and only a
+    // mutation escaping the writable roots is refused outright. One that names
+    // no location cannot be checked and fails closed the same way.
+    const normal = acpOperationDisposition(
+      { ...runtimePolicy, sandboxPolicy: undefined },
+      operation,
+    );
+    if (isAcpMutationKind(toolKind)) {
+      return acpWorkspaceWriteAllowsMutation(runtimePolicy, sandboxPolicy, operation.locations)
+        ? normal
+        : "deny";
+    }
+    return normal;
+  }
+
   if (acpPolicyRequiresApproval(runtimePolicy)) {
     return "ask";
   }
 
-  const sandboxPolicy = unknownRecord(runtimePolicy.sandboxPolicy);
   switch (sandboxPolicy?.type) {
     case "readOnly":
       return "deny";
     case "workspaceWrite":
-      if (isAcpMutationKind(toolKind)) {
-        return acpWorkspaceWriteAllowsMutation(
-          runtimePolicy,
-          sandboxPolicy ?? {},
-          operation.locations,
-        )
-          ? "allow"
-          : "deny";
-      }
       return "deny";
     case "dangerFullAccess":
     case "externalSandbox":

@@ -5140,6 +5140,29 @@ describe("OpenCodeAdapterV2", () => {
     });
   });
 
+  it("asks rather than confines writes for an interactive workspaceWrite thread", () => {
+    // A workspace-confined thread carries workspaceWrite in its runtime policy,
+    // but the writable-roots rules only engage for a non-interactive policy.
+    // Under auto-accept-edits an outside edit asks — it is not refused.
+    const confined = openCodePermissionRules(
+      runtimePolicy("auto-accept-edits", {
+        cwd: "/tmp/opencode-workspace",
+        sandboxPolicy: {
+          type: "workspaceWrite",
+          writableRoots: ["/tmp/opencode-workspace"],
+          networkAccess: false,
+        },
+      }),
+    );
+    assert.equal(permissionAction(confined, "edit"), "allow");
+    assert.equal(permissionAction(confined, "external_directory"), "ask");
+    assert.notDeepInclude(confined, {
+      permission: "external_directory",
+      pattern: "/tmp/opencode-workspace/*",
+      action: "allow",
+    });
+  });
+
   it("preserves OpenCode's recursion guard on task-created child sessions", () => {
     const childRules = openCodeChildPermissionRules(runtimePolicy("full-access"), [
       { permission: "task", pattern: "*", action: "deny" },

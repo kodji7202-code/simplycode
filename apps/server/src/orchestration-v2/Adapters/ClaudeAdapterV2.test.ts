@@ -26581,3 +26581,56 @@ describe("ClaudeAdapterV2 query message stream", () => {
     }),
   );
 });
+
+describe("claudeWorkspaceConfinementDenial", () => {
+  const confinedPolicy = (cwd: string) =>
+    ({
+      runtimeMode: "auto",
+      cwd,
+      sandboxPolicy: { type: "workspaceWrite", writableRoots: [cwd] },
+    }) as Parameters<typeof ClaudeAdapterV2.claudeWorkspaceConfinementDenial>[0];
+
+  it("denies confined writes outside the project and leaves the rest alone", () => {
+    const cwd = NodePath.resolve(process.cwd(), "confined-project");
+    const policy = confinedPolicy(cwd);
+
+    assert.isUndefined(
+      ClaudeAdapterV2.claudeWorkspaceConfinementDenial(policy, "Write", {
+        file_path: "src/inside.ts",
+      }),
+    );
+    assert.isUndefined(
+      ClaudeAdapterV2.claudeWorkspaceConfinementDenial(policy, "Edit", {
+        file_path: NodePath.join(cwd, "src", "inside.ts"),
+      }),
+    );
+    for (const [toolName, pathKey] of [
+      ["Write", "file_path"],
+      ["Edit", "file_path"],
+      ["MultiEdit", "file_path"],
+      ["NotebookEdit", "notebook_path"],
+    ] as const) {
+      const denial = ClaudeAdapterV2.claudeWorkspaceConfinementDenial(policy, toolName, {
+        [pathKey]: NodePath.resolve(cwd, "..", "outside.ts"),
+      });
+      assert.isString(denial);
+      assert.include(denial ?? "", "this bot stays in its project");
+      assert.include(denial ?? "", cwd);
+    }
+    // Not a write tool, no writable policy, or a full-access thread: untouched.
+    assert.isUndefined(
+      ClaudeAdapterV2.claudeWorkspaceConfinementDenial(policy, "Bash", {
+        command: "rm -rf /",
+      }),
+    );
+    assert.isUndefined(
+      ClaudeAdapterV2.claudeWorkspaceConfinementDenial(
+        { ...policy, sandboxPolicy: undefined, runtimeMode: "full-access" },
+        "Write",
+        { file_path: "C:/Windows/evil.dll" },
+      ),
+    );
+    // A malformed call with no path falls through to the tool's own validation.
+    assert.isUndefined(ClaudeAdapterV2.claudeWorkspaceConfinementDenial(policy, "Write", {}));
+  });
+});

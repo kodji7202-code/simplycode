@@ -218,6 +218,46 @@ it.layer(layerTest)("RuntimePolicyV2", (it) => {
       assert.notProperty(yield* resolve("/work"), "workspace");
     }),
   );
+
+  it.effect("sandboxes a confined thread unless it runs full-access", () =>
+    Effect.gen(function* () {
+      const policy = yield* RuntimePolicy.RuntimePolicyV2;
+      const now = yield* DateTime.now;
+      const resolve = (input: {
+        readonly runtimeMode: RuntimeMode;
+        readonly workspaceConfined?: boolean | undefined;
+      }) =>
+        policy.resolve({
+          thread: {
+            ...makeThread({ now, worktreePath: null, runtimeMode: input.runtimeMode }),
+            workspaceConfined: input.workspaceConfined,
+          },
+          modelSelection,
+        });
+
+      // cwd falls back to the project root; tracked folders join the writable roots.
+      const expected = {
+        type: "workspaceWrite",
+        writableRoots: ["/project-root", "/elsewhere/docs"],
+      };
+      for (const runtimeMode of ["approval-required", "auto-accept-edits", "auto"] as const) {
+        assert.deepEqual(
+          (yield* resolve({ runtimeMode, workspaceConfined: true })).sandboxPolicy,
+          expected,
+        );
+      }
+      assert.notProperty(
+        yield* resolve({ runtimeMode: "full-access", workspaceConfined: true }),
+        "sandboxPolicy",
+      );
+      for (const workspaceConfined of [undefined, false] as const) {
+        assert.notProperty(
+          yield* resolve({ runtimeMode: "auto", workspaceConfined }),
+          "sandboxPolicy",
+        );
+      }
+    }),
+  );
 });
 
 it.layer(layerTaskFolderPolicy)("RuntimePolicyV2 in a task folder", (it) => {

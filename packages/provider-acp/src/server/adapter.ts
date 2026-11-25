@@ -102,6 +102,7 @@ import {
   acpMcpToolApprovalElicitationDisposition,
   acpPermissionDisposition,
   type AcpPermissionDisposition,
+  acpWorkspaceWriteDenyReason,
   makeAcpClientPolicyGrants,
   unknownRecord,
 } from "./clientPolicy.ts";
@@ -7592,12 +7593,24 @@ export const makeAcpAdapterV2 = Effect.fn("makeAcpAdapterV2")(function* (
                   }
                   if (disposition === "deny") {
                     const optionId = selectPermissionOptionId(answerableParams, "decline");
+                    // ACP's permission answer has no text channel, so the
+                    // confinement refusal rides on `_meta` for agents that read it.
+                    const denyReason = acpWorkspaceWriteDenyReason(
+                      context?.input.runtimePolicy ?? latestRuntimePolicy,
+                    );
+                    const denyMeta =
+                      denyReason === undefined
+                        ? {}
+                        : { _meta: { "simplycode/denyReason": denyReason } };
                     return {
                       _tag: "Immediate" as const,
                       response:
                         optionId === undefined
-                          ? ({ outcome: { outcome: "cancelled" } } as const)
-                          : ({ outcome: { outcome: "selected", optionId } } as const),
+                          ? ({ outcome: { outcome: "cancelled" }, ...denyMeta } as const)
+                          : ({
+                              outcome: { outcome: "selected", optionId },
+                              ...denyMeta,
+                            } as const),
                     };
                   }
                   return {
