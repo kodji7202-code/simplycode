@@ -7,16 +7,26 @@ import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 
 import { cn } from "../../lib/utils";
+import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { useEnvironmentQuery } from "../../state/query";
 import { serverEnvironment } from "../../state/server";
+import { useAtomCommand } from "../../state/use-atom-command";
 import { environmentThreadShells } from "../../state/threads";
 import { formatRelativeTimeLabel } from "../../timestampFormat";
 import { Button } from "../ui/button";
+import { Dialog, DialogPopup } from "../ui/dialog";
 import { Input } from "../ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/menu";
 import { SidebarContent, SidebarGroup } from "../ui/sidebar";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
+import { stackedThreadToast, toastManager } from "../ui/toast";
 import { SidebarSectionSwitch } from "../sidebar/SidebarSectionSwitch";
 import { BotAvatar } from "./BotAvatar";
+import { BotImportDialog, exportBotsToFile } from "./BotImportDialog";
 import { botActivity, filterBots, sortBotsForSidebar, type BotActivity } from "./botPage.logic";
 import { useBotsEnvironment } from "./useBotsEnvironment";
 
@@ -52,6 +62,31 @@ export function BotsSidebar() {
   const messages = useMessages();
   const { environmentId } = useBotsEnvironment(search.env);
   const [query, setQuery] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
+  const exportBots = useAtomCommand(serverEnvironment.exportBots, { label: "bot export" });
+
+  const reportFailure = (title: string, error: unknown) => {
+    toastManager.add(
+      stackedThreadToast({
+        type: "error",
+        title,
+        description:
+          error instanceof Error
+            ? (thrownErrorMessage(error, messages) ?? error.message)
+            : String(error),
+      }),
+    );
+  };
+
+  const exportAll = () => {
+    const first = bots[0];
+    if (environmentId === null || first === undefined) return;
+    void exportBotsToFile(
+      (input) => exportBots({ environmentId, input }),
+      [first.id, ...bots.slice(1).map((bot) => bot.id)],
+      (error) => reportFailure(gt("Export failed"), error),
+    );
+  };
 
   const botsQuery = useEnvironmentQuery(
     environmentId === null ? null : serverEnvironment.botsLive({ environmentId, input: {} }),
@@ -111,26 +146,53 @@ export function BotsSidebar() {
             {filtered.length}
           </span>
         </span>
-        <Tooltip>
-          <TooltipTrigger
+        <DropdownMenu>
+          <DropdownMenuTrigger
             render={
               <Button
                 size="icon-xs"
                 variant="ghost"
-                aria-label={gt("New bot")}
-                onClick={() =>
-                  void navigate({ to: "/bots", search: botSearch(search.env, undefined, true) })
-                }
+                aria-label={gt("Bot menu")}
+                disabled={environmentId === null}
               />
             }
           >
             <PlusIcon className="size-3.5" />
-          </TooltipTrigger>
-          <TooltipPopup>
-            <T>New bot</T>
-          </TooltipPopup>
-        </Tooltip>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem
+              onClick={() =>
+                void navigate({ to: "/bots", search: botSearch(search.env, undefined, true) })
+              }
+            >
+              <T>New bot</T>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setImportOpen(true)}>
+              <T>Import bots</T>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={exportAll} disabled={bots.length === 0}>
+              <T>Export all bots</T>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogPopup className="sm:max-w-lg">
+          {importOpen && environmentId !== null ? (
+            <BotImportDialog
+              environmentId={environmentId}
+              onClose={() => setImportOpen(false)}
+              onImported={(imported) => {
+                setImportOpen(false);
+                const first = imported[0];
+                if (first !== undefined) {
+                  void navigate({ to: "/bots", search: botSearch(search.env, first.id) });
+                }
+              }}
+            />
+          ) : null}
+        </DialogPopup>
+      </Dialog>
       <ul className="flex flex-col gap-px px-2 pb-2">
         {filtered.map((bot) => {
           const activity = activityById.get(bot.id) ?? EMPTY_ACTIVITY;

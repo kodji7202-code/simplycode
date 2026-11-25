@@ -89,6 +89,9 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   [WS_METHODS.botsRunNow]: AuthOrchestrationOperateScope,
   [WS_METHODS.botsInstallSkill]: AuthOrchestrationOperateScope,
   [WS_METHODS.botsRemoveSkill]: AuthOrchestrationOperateScope,
+  [WS_METHODS.botsImportScan]: AuthOrchestrationOperateScope,
+  [WS_METHODS.botsImportApply]: AuthOrchestrationOperateScope,
+  [WS_METHODS.botsExport]: AuthOrchestrationOperateScope,
   [ORCHESTRATION_V2_WS_METHODS.stopWorkflow]: AuthOrchestrationOperateScope,
   // An answer, a resume and a cancel each decide what a run's agents do next.
   [WS_METHODS.workflowsAnswer]: AuthOrchestrationOperateScope,

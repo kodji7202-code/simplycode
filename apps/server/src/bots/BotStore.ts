@@ -9,7 +9,9 @@ import {
   BotError,
   BotId,
   BotProfile,
+  BotSkillName,
   botThreadTag,
+  normalizeBotSkillName,
   type BotLoadError,
   type BotListResult,
   type BotSkill,
@@ -75,6 +77,7 @@ const EMPTY: BotState = {
 };
 
 const decodeBotId = Schema.decodeUnknownOption(BotId);
+const decodeBotSkillName = Schema.decodeUnknownOption(BotSkillName);
 const decodeProfile = Schema.decodeUnknownEffect(BotProfile);
 
 // A profile is a schema-decoded plain object, so these cannot throw on valid
@@ -130,10 +133,14 @@ export class BotStore extends Context.Service<
     readonly list: () => Effect.Effect<BotListResult>;
     readonly subscribeList: () => Stream.Stream<BotListResult>;
     readonly find: (id: BotId) => Effect.Effect<Bot | undefined>;
-    readonly get: (
-      id: BotId,
-    ) => Effect.Effect<
-      { bot: Bot; soul: string; memory: string; skills: ReadonlyArray<BotInstalledSkill> },
+    readonly get: (id: BotId) => Effect.Effect<
+      {
+        bot: Bot;
+        soul: string;
+        memory: string;
+        skills: ReadonlyArray<BotInstalledSkill>;
+        skillsDir: string;
+      },
       BotError
     >;
     readonly write: (
@@ -149,7 +156,17 @@ export class BotStore extends Context.Service<
      * folder that contains one.
      */
     readonly installSkill: (id: BotId, sourcePath: string) => Effect.Effect<Bot, BotError>;
-    readonly removeSkill: (id: BotId, name: BotId) => Effect.Effect<Bot, BotError>;
+    /**
+     * Writes `files` (relative `/` paths, already path-checked by the caller)
+     * into `skills/<name>/` through a staging dir, under the same checks as
+     * `installSkill`.
+     */
+    readonly installSkillFiles: (
+      id: BotId,
+      name: BotSkillName,
+      files: ReadonlyArray<{ readonly path: string; readonly data: Uint8Array }>,
+    ) => Effect.Effect<Bot, BotError>;
+    readonly removeSkill: (id: BotId, name: BotSkillName) => Effect.Effect<Bot, BotError>;
     readonly allocateId: (name: string) => Effect.Effect<BotId>;
     /** The bot's soul text for prompt assembly; empty when absent. */
     readonly soul: (id: BotId) => Effect.Effect<string | undefined>;
@@ -235,7 +252,7 @@ export const layer = Layer.effect(
           const skillDir = path.join(directory, folder, SKILLS_DIR, entry);
           const entryInfo = yield* fileSystem.stat(skillDir).pipe(Effect.result);
           if (Result.isFailure(entryInfo) || entryInfo.success.type !== "Directory") continue;
-          const name = decodeBotId(entry);
+          const name = decodeBotSkillName(entry);
           if (name._tag === "None") continue;
           const skillFile = path.join(skillDir, SKILL_FILE);
           const skillText = yield* fileSystem.readFileString(skillFile).pipe(Effect.result);
@@ -345,6 +362,7 @@ export const layer = Layer.effect(
         soul: current.souls.get(id) ?? "",
         memory: current.memories.get(id) ?? "",
         skills: current.skills.get(id) ?? [],
+        skillsDir: skillsDir(id),
       };
     });
 
@@ -502,6 +520,23 @@ export const layer = Layer.effect(
       }
     });
 
+    // Swaps a fully populated staging dir onto `skills/<slug>/` and reloads.
+    const swapStagedSkill = Effect.fnUntraced(function* (id: BotId, slug: string, staging: string) {
+      const current = yield* SubscriptionRef.get(state);
+      const target = path.join(skillsDir(id), slug);
+      yield* fileSystem.remove(target, { recursive: true }).pipe(Effect.ignore);
+      yield* fileSystem
+        .rename(staging, target)
+        .pipe(
+          Effect.mapError((cause) =>
+            botError("Could not install the skill.", { botId: id, cause }),
+          ),
+        );
+      yield* reload;
+      const written = yield* find(id);
+      return written ?? { ...current.bots.get(id)!, skills: [] };
+    });
+
     const installSkill: BotStore["Service"]["installSkill"] = Effect.fn("BotStore.installSkill")(
       function* (id, sourcePath) {
         const current = yield* SubscriptionRef.get(state);
@@ -527,10 +562,13 @@ export const layer = Layer.effect(
         if (Result.isFailure(contents) || !contents.success.some((entry) => entry === SKILL_FILE)) {
           return yield* botError("The skill folder does not contain a SKILL.md.", { botId: id });
         }
-        const slug = path.basename(sourceDir);
-        const name = decodeBotId(slug);
-        if (name._tag === "None") {
-          return yield* botError(`"${slug}" is not a valid skill name.`, { botId: id });
+        // The source folder name becomes the slug after normalization;
+        // only a name with no usable characters is rejected.
+        const slug = normalizeBotSkillName(path.basename(sourceDir));
+        if (slug === undefined) {
+          return yield* botError(`"${path.basename(sourceDir)}" is not a valid skill name.`, {
+            botId: id,
+          });
         }
         yield* checkSkillSource(sourceDir, id);
         // Stage next to the target, then swap, so a failed copy leaves nothing.
@@ -541,19 +579,46 @@ export const layer = Layer.effect(
           yield* fileSystem.remove(staging, { recursive: true }).pipe(Effect.ignore);
           return yield* copied.failure;
         }
-        yield* fileSystem.remove(target, { recursive: true }).pipe(Effect.ignore);
-        yield* fileSystem
-          .rename(staging, target)
-          .pipe(
-            Effect.mapError((cause) =>
-              botError("Could not install the skill.", { botId: id, cause }),
-            ),
-          );
-        yield* reload;
-        const written = yield* find(id);
-        return written ?? { ...current.bots.get(id)!, skills: [] };
+        return yield* swapStagedSkill(id, slug, staging);
       },
     );
+
+    const installSkillFiles: BotStore["Service"]["installSkillFiles"] = Effect.fn(
+      "BotStore.installSkillFiles",
+    )(function* (id, name, files) {
+      const current = yield* SubscriptionRef.get(state);
+      if (!current.bots.has(id)) {
+        return yield* botError("Bot not found.", { botId: id });
+      }
+      if (!files.some((file) => file.path === SKILL_FILE)) {
+        return yield* botError("The skill folder does not contain a SKILL.md.", { botId: id });
+      }
+      const target = path.join(skillsDir(id), name);
+      const staging = `${target}.tmp-${process.pid}`;
+      const staged = yield* Effect.forEach(
+        files,
+        (file) => {
+          const full = path.join(staging, ...file.path.split("/"));
+          return fileSystem
+            .makeDirectory(path.dirname(full), { recursive: true })
+            .pipe(Effect.andThen(fileSystem.writeFile(full, file.data)));
+        },
+        { discard: true },
+      ).pipe(Effect.result);
+      if (Result.isFailure(staged)) {
+        yield* fileSystem.remove(staging, { recursive: true }).pipe(Effect.ignore);
+        return yield* botError("Could not write the skill files.", {
+          botId: id,
+          cause: staged.failure,
+        });
+      }
+      const checked = yield* checkSkillSource(staging, id).pipe(Effect.result);
+      if (Result.isFailure(checked)) {
+        yield* fileSystem.remove(staging, { recursive: true }).pipe(Effect.ignore);
+        return yield* checked.failure;
+      }
+      return yield* swapStagedSkill(id, name, staging);
+    });
 
     const removeSkill: BotStore["Service"]["removeSkill"] = Effect.fn("BotStore.removeSkill")(
       function* (id, name) {
@@ -618,6 +683,7 @@ export const layer = Layer.effect(
       writeMemory,
       remove,
       installSkill,
+      installSkillFiles,
       removeSkill,
       allocateId,
       soul,

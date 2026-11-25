@@ -122,6 +122,7 @@ const layerToolkit = (input: {
             soul: input.souls?.get(id) ?? "",
             memory: storedMemories.get(id) ?? "",
             skills: [],
+            skillsDir: `/bots/${id}/skills`,
           });
     },
     writeMemory: (id, memory) => {

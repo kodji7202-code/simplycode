@@ -1,12 +1,26 @@
 import * as Schema from "effect/Schema";
 import { describe, expect, it } from "vite-plus/test";
 
-import { Bot, BotId, BotProfile, BotUpsertInput, botRuntimeMode } from "./bot.ts";
+import {
+  Bot,
+  BotExportInput,
+  BotId,
+  BotImportApplyInput,
+  BotImportCandidate,
+  BotImportSource,
+  BotProfile,
+  BotUpsertInput,
+  botRuntimeMode,
+} from "./bot.ts";
 
 const decodeBotId = Schema.decodeUnknownSync(BotId);
 const decodeBot = Schema.decodeUnknownSync(Bot);
 const decodeProfile = Schema.decodeUnknownSync(BotProfile);
 const decodeUpsert = Schema.decodeUnknownSync(BotUpsertInput);
+const decodeCandidate = Schema.decodeUnknownSync(BotImportCandidate);
+const decodeSource = Schema.decodeUnknownSync(BotImportSource);
+const decodeApply = Schema.decodeUnknownSync(BotImportApplyInput);
+const decodeExport = Schema.decodeUnknownSync(BotExportInput);
 
 const validProfile = {
   id: "night-watch",
@@ -83,5 +97,46 @@ describe("botRuntimeMode", () => {
     expect(botRuntimeMode("ask")).toBe("approval-required");
     expect(botRuntimeMode("auto-safe")).toBe("auto");
     expect(botRuntimeMode("full")).toBe("full-access");
+  });
+});
+
+describe("BotImportCandidate", () => {
+  it("decodes a wire candidate with defaults", () => {
+    const candidate = decodeCandidate({
+      key: "a1",
+      name: "Chief",
+      approvalMode: "full",
+      soulBytes: 10,
+    });
+    expect(candidate.memoryBytes).toBe(0);
+    expect(candidate.skills).toEqual([]);
+    expect(candidate.automations).toEqual([]);
+    expect(candidate.warnings).toEqual([]);
+  });
+
+  it("decodes every source variant", () => {
+    expect(decodeSource({ type: "openbot" }).type).toBe("openbot");
+    expect(decodeSource({ type: "folder", path: "C:/agents" })).toMatchObject({
+      type: "folder",
+      path: "C:/agents",
+    });
+    expect(decodeSource({ type: "package", content: "{}" })).toMatchObject({
+      type: "package",
+    });
+  });
+
+  it("decodes an apply input", () => {
+    const input = decodeApply({
+      source: { type: "package", content: "{}" },
+      keys: ["bot-0"],
+      projectId: "project-1",
+      fallbackModelSelection: { instanceId: "devin", model: "swe-2-high" },
+      include: { memory: true, skills: true, automations: false },
+    });
+    expect(input.include.automations).toBe(false);
+  });
+
+  it("rejects an export input with no ids", () => {
+    expect(() => decodeExport({ ids: [], includeMemory: false })).toThrow();
   });
 });

@@ -4,6 +4,7 @@ import {
   type Bot,
   type BotApprovalMode,
   type BotAvatar,
+  type BotImportCandidate,
   type BotUpsertInput,
   type ModelSelection,
   type OrchestrationV2ThreadLaunchWorkspaceStrategy,
@@ -14,6 +15,8 @@ import {
 } from "@t3tools/contracts";
 import { DateTime } from "effect";
 import { msg } from "gt-react";
+
+import { m, type MessageResolver } from "../../i18n/messages";
 
 export const BOT_APPROVAL_MODES = [
   "ask",
@@ -255,4 +258,49 @@ export function filterBots(bots: ReadonlyArray<Bot>, query: string): Bot[] {
   return bots.filter(
     (bot) => bot.name.toLowerCase().includes(q) || (bot.role ?? "").toLowerCase().includes(q),
   );
+}
+
+/** "swe-2-high (devin)"-style label for a model selection. */
+export const modelSelectionLabel = (selection: {
+  readonly instanceId: string;
+  readonly model: string;
+}): string => `${selection.model} (${selection.instanceId})`;
+
+/**
+ * The preview's model line: the mapped selection's display label, or the source
+ * model with a note that the fallback will be used instead.
+ */
+export function importModelLine(
+  candidate: BotImportCandidate,
+  fallbackLabel: string,
+  resolve: MessageResolver = m,
+  selectionLabel: (selection: {
+    instanceId: string;
+    model: string;
+  }) => string = modelSelectionLabel,
+): string {
+  if (candidate.modelSelection !== undefined) {
+    return selectionLabel(candidate.modelSelection);
+  }
+  const source =
+    candidate.sourceModel === undefined ? resolve(msg("Unknown model")) : candidate.sourceModel;
+  return resolve(
+    msg("{model}, not available here, will use {fallback}", {
+      model: source,
+      fallback: fallbackLabel,
+    }),
+  );
+}
+
+export const importMemoryLabel = (bytes: number, resolve: MessageResolver = m): string =>
+  resolve(msg("{count, plural, =1 {# byte} other {# bytes}}", { count: bytes }));
+
+/** Writes a text file to the user's downloads via a blob anchor. */
+export function downloadTextFile(fileName: string, content: string): void {
+  const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }

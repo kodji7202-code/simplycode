@@ -24,6 +24,29 @@ export const BotId = Schema.String.check(Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,
 );
 export type BotId = typeof BotId.Type;
 
+/**
+ * A skill's folder slug under `bots/<id>/skills/`: lowercase, 64 chars like
+ * Claude's limit, path-safe on every filesystem the server runs on.
+ */
+export const BotSkillName = Schema.String.check(Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,63}$/)).pipe(
+  Schema.brand("BotSkillName"),
+);
+export type BotSkillName = typeof BotSkillName.Type;
+
+/**
+ * Turns any source folder or package name into a valid skill slug; undefined
+ * when nothing usable remains.
+ */
+export function normalizeBotSkillName(value: string): BotSkillName | undefined {
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64)
+    .replace(/-+$/g, "");
+  return slug.length === 0 ? undefined : BotSkillName.make(slug);
+}
+
 export const BOT_SOUL_MAX_BYTES = 24_000;
 export const BOT_MEMORY_MAX_BYTES = 16_000;
 
@@ -115,10 +138,10 @@ export type BotProfile = typeof BotProfile.Type;
 
 /**
  * An installed skill: a `skills/<name>/` folder with a SKILL.md. The name is
- * the folder slug, so it follows the BotId pattern.
+ * the folder slug, so it follows the BotSkillName pattern.
  */
 export const BotSkill = Schema.Struct({
-  name: BotId,
+  name: BotSkillName,
   description: Schema.optional(TrimmedNonEmptyString),
 });
 export type BotSkill = typeof BotSkill.Type;
@@ -218,7 +241,7 @@ export type BotInstallSkillInput = typeof BotInstallSkillInput.Type;
 
 export const BotRemoveSkillInput = Schema.Struct({
   id: BotId,
-  name: BotId,
+  name: BotSkillName,
 });
 export type BotRemoveSkillInput = typeof BotRemoveSkillInput.Type;
 
@@ -234,6 +257,103 @@ export const BotRunNowResult = Schema.Struct({
   threadId: ThreadId,
 });
 export type BotRunNowResult = typeof BotRunNowResult.Type;
+
+/** Where a bot import reads candidates from. Package content is sent again on apply. */
+export const BotImportSource = Schema.Union([
+  Schema.Struct({ type: Schema.Literal("openbot") }),
+  Schema.Struct({ type: Schema.Literal("openmausbot") }),
+  Schema.Struct({ type: Schema.Literal("folder"), path: TrimmedNonEmptyString }),
+  Schema.Struct({ type: Schema.Literal("package"), content: Schema.String }),
+]);
+export type BotImportSource = typeof BotImportSource.Type;
+
+export const BotImportAutomationPreview = Schema.Struct({
+  name: TrimmedNonEmptyString,
+  scheduleLabel: Schema.String,
+  importable: Schema.Boolean,
+});
+export type BotImportAutomationPreview = typeof BotImportAutomationPreview.Type;
+
+/** A bot the scan found, with everything the preview needs and nothing it doesn't. */
+export const BotImportCandidate = Schema.Struct({
+  /** Stable within one source; apply sends back the keys to import. */
+  key: TrimmedNonEmptyString,
+  name: BotProfile.fields.name,
+  role: BotProfile.fields.role,
+  description: BotProfile.fields.description,
+  avatar: Schema.optional(BotAvatar),
+  /** The source's own model label, for "not available here" preview lines. */
+  sourceModel: Schema.optional(Schema.String),
+  /** Set only when the source model maps to a provider instance and model on this server. */
+  modelSelection: Schema.optional(ModelSelection),
+  approvalMode: BotApprovalMode,
+  soulBytes: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  memoryBytes: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(0)),
+  ),
+  skills: Schema.Array(TrimmedNonEmptyString).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed([] as ReadonlyArray<string>)),
+  ),
+  automations: Schema.Array(BotImportAutomationPreview).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed([] as ReadonlyArray<BotImportAutomationPreview>)),
+  ),
+  warnings: Schema.Array(Schema.String).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed([] as ReadonlyArray<string>)),
+  ),
+});
+export type BotImportCandidate = typeof BotImportCandidate.Type;
+
+export const BotImportScanInput = Schema.Struct({
+  source: BotImportSource,
+});
+export type BotImportScanInput = typeof BotImportScanInput.Type;
+
+export const BotImportScanResult = Schema.Struct({
+  sourceLabel: TrimmedNonEmptyString,
+  candidates: ForwardCompatibleArray(BotImportCandidate),
+  /** Source-level problems, such as package bots rejected for unsafe paths. */
+  warnings: Schema.Array(Schema.String).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed([] as ReadonlyArray<string>)),
+  ),
+});
+export type BotImportScanResult = typeof BotImportScanResult.Type;
+
+export const BotImportApplyInclude = Schema.Struct({
+  memory: Schema.Boolean,
+  skills: Schema.Boolean,
+  automations: Schema.Boolean,
+});
+export type BotImportApplyInclude = typeof BotImportApplyInclude.Type;
+
+export const BotImportApplyInput = Schema.Struct({
+  source: BotImportSource,
+  keys: Schema.Array(TrimmedNonEmptyString),
+  projectId: ProjectId,
+  /** Used for every candidate whose own model could not be mapped. */
+  fallbackModelSelection: ModelSelection,
+  include: BotImportApplyInclude,
+});
+export type BotImportApplyInput = typeof BotImportApplyInput.Type;
+
+export const BotImportApplyResult = Schema.Struct({
+  bots: ForwardCompatibleArray(Bot),
+  warnings: Schema.Array(Schema.String).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed([] as ReadonlyArray<string>)),
+  ),
+});
+export type BotImportApplyResult = typeof BotImportApplyResult.Type;
+
+export const BotExportInput = Schema.Struct({
+  ids: Schema.Array(BotId).check(Schema.isMinLength(1)),
+  includeMemory: Schema.Boolean,
+});
+export type BotExportInput = typeof BotExportInput.Type;
+
+export const BotExportResult = Schema.Struct({
+  fileName: TrimmedNonEmptyString,
+  content: Schema.String,
+});
+export type BotExportResult = typeof BotExportResult.Type;
 
 export class BotError extends Schema.TaggedError<BotError>()("BotError", {
   message: Schema.String,

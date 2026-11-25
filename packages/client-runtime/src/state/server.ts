@@ -1999,6 +1999,18 @@ export function createServerEnvironmentAtoms<R, E>(
       scheduler: configScheduler,
       concurrency: configConcurrency,
     }),
+    scanBotImport: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:bots:import-scan",
+      tag: WS_METHODS.botsImportScan,
+    }),
+    applyBotImport: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:bots:import-apply",
+      tag: WS_METHODS.botsImportApply,
+    }),
+    exportBots: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:bots:export",
+      tag: WS_METHODS.botsExport,
+    }),
     answerWorkflowQuestion: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:workflows:answer",
       tag: WS_METHODS.workflowsAnswer,

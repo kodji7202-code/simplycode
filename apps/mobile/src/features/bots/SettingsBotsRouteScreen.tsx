@@ -17,8 +17,13 @@ import type {
   BotApprovalMode,
   BotAvatar,
   BotAvatarShape,
+  BotImportCandidate,
+  BotImportScanResult,
+  BotImportSource,
+  BotSkillName,
   BotUpsertInput,
   ModelSelection,
+  ProjectId,
 } from "@t3tools/contracts";
 import {
   isAtomCommandInterrupted,
@@ -26,6 +31,7 @@ import {
   type AtomCommandResult,
 } from "@t3tools/client-runtime/state/runtime";
 import { scheduledTaskWorktreeBaseRef } from "@t3tools/client-runtime/scheduled-task-worktree";
+import { resolveProviderInstanceDisplayName } from "@t3tools/client-runtime/state/provider-instance-display";
 import {
   dedupeProviderSkillsByName,
   isProviderSkillUserInvocable,
@@ -33,8 +39,10 @@ import {
 } from "@t3tools/client-runtime/providerSkills";
 import { useNavigation, type StaticScreenProps } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { File, Paths } from "expo-file-system";
+import * as Sharing from "expo-sharing";
 import { useState } from "react";
-import { Pressable, TextInput as RNTextInput, View } from "react-native";
+import { Alert, Pressable, TextInput as RNTextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { MenuAction } from "@react-native-menu/menu";
 
@@ -46,6 +54,7 @@ import { Menu } from "../../components/ui/Menu";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
 import { ThemedSwitch } from "../../components/ui/ThemedSwitch";
 import { m } from "../../i18n/messages";
+import { formatBytes } from "../../lib/formatBytes";
 import { uuidv4 } from "../../lib/uuid";
 import { buildModelOptions } from "../../lib/modelOptions";
 import { useEnvironmentServerConfig, useProjects } from "../../state/entities";
@@ -183,6 +192,11 @@ function EnvironmentBots(props: {
     label: "bot run",
     reportFailure: false,
   });
+  const exportBots = useAtomCommand(serverEnvironment.exportBots, {
+    label: "bot export",
+    reportFailure: false,
+  });
+  const [importOpen, setImportOpen] = useState(false);
   const selectDetail = useSelectWorkspaceDetail();
 
   const automationCount = (botId: BotId) =>
@@ -219,6 +233,37 @@ function EnvironmentBots(props: {
         message,
       );
     }
+  };
+
+  const shareExport = async (ids: ReadonlyArray<BotId>, includeMemory: boolean) => {
+    const first = ids[0];
+    if (first === undefined) return;
+    const result = await exportBots({
+      environmentId,
+      input: { ids: [first, ...ids.slice(1)], includeMemory },
+    });
+    const message = failureMessage(result);
+    if (message !== null || result._tag !== "Success") {
+      Dialog.alert(gt("Export failed"), message ?? gt("Try again."));
+      return;
+    }
+    try {
+      const file = new File(Paths.cache, result.value.fileName);
+      if (file.exists) file.delete();
+      file.create();
+      file.write(result.value.content);
+      await Sharing.shareAsync(file.uri);
+    } catch (error) {
+      Dialog.alert(gt("Export failed"), String(error));
+    }
+  };
+
+  const exportWithConfirm = (ids: ReadonlyArray<BotId>) => {
+    Alert.alert(gt("Export bots"), gt("Include memory (MEMORY.md) in the export?"), [
+      { text: gt("With memory"), onPress: () => void shareExport(ids, true) },
+      { text: gt("Without memory"), onPress: () => void shareExport(ids, false) },
+      { text: gt("Cancel"), style: "cancel" },
+    ]);
   };
 
   return (
@@ -315,6 +360,7 @@ function EnvironmentBots(props: {
                   { id: "edit", title: gt("Edit") },
                   { id: "automation", title: gt("Add automation") },
                   { id: "run", title: gt("Run now"), attributes: { disabled: !canOperate } },
+                  { id: "export", title: gt("Export bot") },
                   {
                     id: "delete",
                     title: gt("Delete"),
@@ -325,6 +371,8 @@ function EnvironmentBots(props: {
                   const action = nativeEvent.event;
                   if (action === "edit") {
                     props.onEdit(bot);
+                  } else if (action === "export") {
+                    exportWithConfirm([bot.id]);
                   } else if (action === "automation") {
                     startEditor({
                       environmentId,
@@ -376,9 +424,384 @@ function EnvironmentBots(props: {
               </Menu>
             </View>
           ))}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={gt("Import bots")}
+            onPress={() => setImportOpen((open) => !open)}
+            className="min-h-11 flex-row items-center gap-2 border-t border-border-subtle px-4 py-3 active:opacity-70"
+          >
+            <Text textRole="body" className="flex-1 text-foreground">
+              <T>Import bots</T>
+            </Text>
+            <SymbolView
+              name={importOpen ? "chevron.up" : "chevron.down"}
+              size={14}
+              tintColorClassName="accent-foreground-muted"
+              type="monochrome"
+            />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={gt("Export all bots")}
+            onPress={() => exportWithConfirm((bots.data?.bots ?? []).map((bot) => bot.id))}
+            className="min-h-11 flex-row items-center border-t border-border-subtle px-4 py-3 active:opacity-70"
+          >
+            <Text textRole="body" className="flex-1 text-foreground">
+              <T>Export all bots</T>
+            </Text>
+          </Pressable>
+          {importOpen ? (
+            <ImportBotsPanel
+              environmentId={environmentId}
+              onImported={(imported) => {
+                setImportOpen(false);
+                const first = imported[0];
+                if (first !== undefined) props.onEdit(first);
+              }}
+            />
+          ) : null}
         </>
       )}
     </SettingsSection>
+  );
+}
+
+type ImportSourceKind = "openbot" | "openmausbot" | "folder" | "package";
+
+function ImportBotsPanel(props: {
+  readonly environmentId: EnvironmentId;
+  readonly onImported: (bots: ReadonlyArray<Bot>) => void;
+}) {
+  const gt = useGT();
+  const environmentId = props.environmentId;
+  const scanBotImport = useAtomCommand(serverEnvironment.scanBotImport, {
+    label: "bot import scan",
+    reportFailure: false,
+  });
+  const applyBotImport = useAtomCommand(serverEnvironment.applyBotImport, {
+    label: "bot import apply",
+    reportFailure: false,
+  });
+  const providers = useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? [];
+  const projects = useProjects().filter(
+    (project) => project.environmentId === environmentId && project.archivedAt == null,
+  );
+
+  const [sourceKind, setSourceKind] = useState<ImportSourceKind>("openbot");
+  const [folderPath, setFolderPath] = useState("");
+  const [packageContent, setPackageContent] = useState<string | null>(null);
+  const [packageName, setPackageName] = useState<string | null>(null);
+  const [result, setResult] = useState<BotImportScanResult | null>(null);
+  const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
+  const [include, setInclude] = useState({ memory: true, skills: true, automations: true });
+  const [projectId, setProjectId] = useState<ProjectId | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const modelOptions = providers.flatMap((provider) =>
+    provider.models.map((model) => ({
+      key: `${provider.instanceId}|${model.slug}`,
+      label: `${model.name} (${provider.instanceId})`,
+      selection: { instanceId: provider.instanceId, model: model.slug } satisfies ModelSelection,
+    })),
+  );
+  const [fallbackKey, setFallbackKey] = useState(modelOptions[0]?.key ?? "");
+  const fallback =
+    modelOptions.find((option) => option.key === fallbackKey)?.selection ??
+    modelOptions[0]?.selection;
+
+  // "SWE-2 · Devin" for models this server knows; the raw slug when it doesn't.
+  const selectionLabel = (selection: { instanceId: string; model: string }): string => {
+    const provider = providers.find((item) => item.instanceId === selection.instanceId);
+    const model = provider?.models.find((item) => item.slug === selection.model);
+    return provider !== undefined && model !== undefined
+      ? `${model.name} · ${resolveProviderInstanceDisplayName(provider)}`
+      : `${selection.model} (${selection.instanceId})`;
+  };
+  const fallbackLabel = fallback === undefined ? gt("no model") : selectionLabel(fallback);
+  const selectedProjectId = projectId ?? projects[0]?.id ?? null;
+
+  const source = (): BotImportSource | null => {
+    if (sourceKind === "openbot") return { type: "openbot" };
+    if (sourceKind === "openmausbot") return { type: "openmausbot" };
+    if (sourceKind === "folder") {
+      return folderPath.trim() === "" ? null : { type: "folder", path: folderPath.trim() };
+    }
+    return packageContent === null ? null : { type: "package", content: packageContent };
+  };
+
+  const runScan = async (src: BotImportSource) => {
+    setBusy(true);
+    setResult(null);
+    const next = await scanBotImport({ environmentId, input: { source: src } });
+    setBusy(false);
+    const message = failureMessage(next);
+    if (message !== null || next._tag !== "Success") {
+      Dialog.alert(gt("Could not scan source"), message ?? gt("Try again."));
+      return;
+    }
+    setResult(next.value);
+    setChecked(new Set(next.value.candidates.map((candidate) => candidate.key)));
+  };
+
+  const scan = () => {
+    const src = source();
+    if (src !== null) void runScan(src);
+  };
+
+  // Local-install sources scan as soon as they are picked; folder waits for Scan.
+  const pickSourceKind = (kind: ImportSourceKind) => {
+    setSourceKind(kind);
+    setResult(null);
+    if (kind === "openbot") void runScan({ type: "openbot" });
+    else if (kind === "openmausbot") void runScan({ type: "openmausbot" });
+  };
+
+  const pickPackage = async () => {
+    const { getDocumentAsync } = await import("expo-document-picker");
+    const picked = await getDocumentAsync({ copyToCacheDirectory: true });
+    const asset = picked.canceled ? null : (picked.assets[0] ?? null);
+    if (asset === null) return;
+    try {
+      const content = await new File(asset.uri).text();
+      setPackageContent(content);
+      setPackageName(asset.name);
+      void runScan({ type: "package", content });
+    } catch (error) {
+      Dialog.alert(gt("Could not read file"), String(error));
+    }
+  };
+
+  const apply = async () => {
+    const src = source();
+    if (src === null || fallback === undefined || selectedProjectId === null) return;
+    setBusy(true);
+    const next = await applyBotImport({
+      environmentId,
+      input: {
+        source: src,
+        keys: [...checked],
+        projectId: selectedProjectId,
+        fallbackModelSelection: fallback,
+        include,
+      },
+    });
+    setBusy(false);
+    const message = failureMessage(next);
+    if (message !== null || next._tag !== "Success") {
+      Dialog.alert(gt("Import failed"), message ?? gt("Try again."));
+      return;
+    }
+    const warnings = next.value.warnings;
+    if (warnings.length > 0) {
+      Dialog.alert(
+        gt("Import warnings"),
+        [
+          ...warnings.slice(0, 3),
+          ...(warnings.length > 3 ? [gt("and {count} more", { count: warnings.length - 3 })] : []),
+        ].join("\n"),
+      );
+    }
+    props.onImported(next.value.bots);
+  };
+
+  const candidates = result?.candidates ?? [];
+
+  return (
+    <View className="gap-2 border-t border-border-subtle px-4 py-3">
+      <SelectRow
+        label={gt("Source")}
+        value={
+          sourceKind === "openbot"
+            ? gt("OpenBot (this computer)")
+            : sourceKind === "openmausbot"
+              ? gt("OpenMausBot (this computer)")
+              : sourceKind === "folder"
+                ? gt("Agent folder")
+                : gt("SimplyCode file")
+        }
+        actions={[
+          {
+            id: "openbot",
+            title: gt("OpenBot (this computer)"),
+            state: sourceKind === "openbot" ? "on" : undefined,
+          },
+          {
+            id: "openmausbot",
+            title: gt("OpenMausBot (this computer)"),
+            state: sourceKind === "openmausbot" ? "on" : undefined,
+          },
+          {
+            id: "folder",
+            title: gt("Agent folder"),
+            state: sourceKind === "folder" ? "on" : undefined,
+          },
+          {
+            id: "package",
+            title: gt("SimplyCode file"),
+            state: sourceKind === "package" ? "on" : undefined,
+          },
+        ]}
+        onSelect={(id) => {
+          if (id === "openbot" || id === "openmausbot" || id === "folder" || id === "package") {
+            pickSourceKind(id);
+          }
+        }}
+      />
+      {sourceKind === "folder" ? (
+        <>
+          <RNTextInput
+            value={folderPath}
+            onChangeText={setFolderPath}
+            placeholder={gt("Path on the server")}
+            placeholderTextColor="#888"
+            className="rounded-lg border border-border-subtle px-3 py-2 text-base text-foreground"
+          />
+          <Button label={gt("Scan")} onPress={scan} disabled={folderPath.trim() === "" || busy} />
+        </>
+      ) : null}
+      {sourceKind === "package" ? (
+        <Button
+          label={packageName === null ? gt("Choose a *.simplycode-bots.json file") : packageName}
+          tone="secondary"
+          onPress={() => void pickPackage()}
+        />
+      ) : null}
+      {busy && result === null && sourceKind !== "folder" ? (
+        <Text className="text-sm text-foreground-muted">{gt("Scanning…")}</Text>
+      ) : null}
+
+      {result !== null ? (
+        candidates.length === 0 ? (
+          <Text className="py-2 text-base text-foreground-muted">
+            <T>No bots found.</T>
+          </Text>
+        ) : (
+          <View className="gap-1">
+            <Text className="text-sm text-foreground-muted">
+              {gt("Found in {source}", { source: result.sourceLabel })}
+            </Text>
+            {candidates.map((candidate) => (
+              <ImportCandidateRow
+                key={candidate.key}
+                candidate={candidate}
+                checked={checked.has(candidate.key)}
+                fallbackLabel={fallbackLabel}
+                selectionLabel={selectionLabel}
+                onToggle={() =>
+                  setChecked((current) => {
+                    const updated = new Set(current);
+                    if (updated.has(candidate.key)) updated.delete(candidate.key);
+                    else updated.add(candidate.key);
+                    return updated;
+                  })
+                }
+              />
+            ))}
+            {(
+              [
+                ["memory", gt("Memory")],
+                ["skills", gt("Skills")],
+                ["automations", gt("Automations (imported disabled)")],
+              ] as const
+            ).map(([key, label]) => (
+              <View key={key} className="min-h-11 flex-row items-center gap-3 py-1">
+                <Text textRole="body" className="flex-1 text-foreground">
+                  {label}
+                </Text>
+                <ThemedSwitch
+                  value={include[key]}
+                  onValueChange={(next) => setInclude((current) => ({ ...current, [key]: next }))}
+                />
+              </View>
+            ))}
+            <SelectRow
+              label={gt("Project")}
+              value={projects.find((project) => project.id === selectedProjectId)?.title ?? ""}
+              actions={projects.map((project) => ({
+                id: project.id,
+                title: project.title,
+                state: project.id === selectedProjectId ? "on" : undefined,
+              }))}
+              onSelect={(id) => setProjectId(id as ProjectId)}
+            />
+            <SelectRow
+              label={gt("Fallback model")}
+              value={fallbackLabel}
+              actions={modelOptions.map((option) => ({
+                id: option.key,
+                title: option.label,
+                state: option.key === fallbackKey ? "on" : undefined,
+              }))}
+              onSelect={setFallbackKey}
+            />
+            <Button
+              label={
+                checked.size === 1
+                  ? gt("Import {count} bot", { count: checked.size })
+                  : gt("Import {count} bots", { count: checked.size })
+              }
+              onPress={() => void apply()}
+              disabled={
+                busy || checked.size === 0 || fallback === undefined || selectedProjectId === null
+              }
+            />
+          </View>
+        )
+      ) : null}
+    </View>
+  );
+}
+
+function ImportCandidateRow(props: {
+  readonly candidate: BotImportCandidate;
+  readonly checked: boolean;
+  readonly fallbackLabel: string;
+  readonly selectionLabel: (selection: { instanceId: string; model: string }) => string;
+  readonly onToggle: () => void;
+}) {
+  const gt = useGT();
+  const { candidate, checked, fallbackLabel, selectionLabel, onToggle } = props;
+  const modelLine =
+    candidate.modelSelection !== undefined
+      ? selectionLabel(candidate.modelSelection)
+      : gt("{model}, not available here, will use {fallback}", {
+          model: candidate.sourceModel ?? gt("Unknown model"),
+          fallback: fallbackLabel,
+        });
+  const automationCount = candidate.automations.filter(
+    (automation) => automation.importable,
+  ).length;
+  return (
+    <View className="flex-row items-start gap-2 py-2">
+      <View className="min-w-0 flex-1 gap-0.5">
+        <Text textRole="body" className="text-foreground" numberOfLines={1}>
+          {candidate.name}
+          {candidate.role !== undefined ? ` · ${candidate.role}` : ""}
+        </Text>
+        <Text className="text-sm text-foreground-muted" numberOfLines={1}>
+          {modelLine}
+        </Text>
+        <Text className="text-sm text-foreground-muted" numberOfLines={1}>
+          {[
+            gt("{count, plural, =1 {# skill} other {# skills}}", {
+              count: candidate.skills.length,
+            }),
+            gt("instructions {size}", { size: formatBytes(candidate.soulBytes) }),
+            gt("{count, plural, =1 {# byte} other {# bytes}}", { count: candidate.memoryBytes }),
+            gt("{count, plural, =1 {# automation} other {# automations}}", {
+              count: automationCount,
+            }),
+            candidate.approvalMode,
+          ].join(" · ")}
+        </Text>
+        {candidate.warnings.map((warning) => (
+          <Text key={warning} className="text-sm text-danger-foreground" numberOfLines={2}>
+            {warning}
+          </Text>
+        ))}
+      </View>
+      <ThemedSwitch value={checked} onValueChange={() => onToggle()} />
+    </View>
   );
 }
 
@@ -746,7 +1169,7 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
     });
   };
 
-  const removeSkill = (name: BotId) => {
+  const removeSkill = (name: BotSkillName) => {
     if (botId === null || skillBusy) return;
     setSkillBusy(true);
     void removeBotSkill({ environmentId, input: { id: botId, name } }).then((result) => {

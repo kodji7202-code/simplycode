@@ -21,15 +21,16 @@ export function botDelegateTaskInput(input: {
   readonly soul: string;
   readonly memory: string;
   readonly skills: BotInstructionsSkills;
+  readonly skillsDir: string;
   readonly input: BotsMcpDelegateToBotInput;
   readonly callerRuntimeMode: RuntimeMode;
 }): OrchestratorMcpDelegateTaskInput {
-  const { bot, soul, memory, skills, input: request, callerRuntimeMode } = input;
+  const { bot, soul, memory, skills, skillsDir, input: request, callerRuntimeMode } = input;
   const botMode = botRuntimeMode(bot.approvalMode);
   const runtimeMode =
     runtimeModeRank(botMode) <= runtimeModeRank(callerRuntimeMode) ? botMode : callerRuntimeMode;
   return {
-    task: botPrompt(bot, botInstructions({ soul, memory, skills }), request.task),
+    task: botPrompt(bot, botInstructions({ soul, memory, skills, skillsDir }), request.task),
     target: {
       providerInstanceId: bot.modelSelection.instanceId,
       model: bot.modelSelection.model,

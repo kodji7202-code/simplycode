@@ -9,6 +9,8 @@ import {
   draftToBotUpsertInput,
   EMPTY_BOT_DRAFT,
   filterBots,
+  importMemoryLabel,
+  importModelLine,
   sortBotsForSidebar,
   soulByteLength,
   type BotActivity,
@@ -210,5 +212,65 @@ describe("filterBots", () => {
     expect(filterBots([reviewer, cleaner], "CLEAN")).toEqual([cleaner]);
     expect(filterBots([reviewer, cleaner], "  ")).toHaveLength(2);
     expect(filterBots([reviewer, cleaner], "zzz")).toHaveLength(0);
+  });
+});
+
+describe("importModelLine", () => {
+  const candidate = {
+    key: "k1",
+    name: "Dev",
+    approvalMode: "ask" as const,
+    soulBytes: 0,
+    memoryBytes: 0,
+    skills: [],
+    automations: [],
+    warnings: [],
+  };
+  const fallbackLabel = "sonnet (claude-1)";
+
+  it("shows the mapped selection when present", () => {
+    expect(
+      importModelLine(
+        {
+          ...candidate,
+          modelSelection: { instanceId: "devin", model: "swe-2-high" },
+        } as never,
+        fallbackLabel,
+      ),
+    ).toBe("swe-2-high (devin)");
+  });
+
+  it("uses the display-name label for a mapped selection when given one", () => {
+    expect(
+      importModelLine(
+        {
+          ...candidate,
+          modelSelection: { instanceId: "devin", model: "swe-2-high" },
+        } as never,
+        fallbackLabel,
+        undefined,
+        () => "SWE-2 · Devin",
+      ),
+    ).toBe("SWE-2 · Devin");
+  });
+
+  it("names the source model and fallback when unmapped", () => {
+    expect(importModelLine({ ...candidate, sourceModel: "swe-2-high" }, fallbackLabel)).toBe(
+      "swe-2-high, not available here, will use sonnet (claude-1)",
+    );
+  });
+
+  it("labels a missing source model as unknown", () => {
+    expect(importModelLine(candidate, fallbackLabel)).toBe(
+      "Unknown model, not available here, will use sonnet (claude-1)",
+    );
+  });
+});
+
+describe("importMemoryLabel", () => {
+  it("pluralizes the byte count", () => {
+    expect(importMemoryLabel(0)).toBe("0 bytes");
+    expect(importMemoryLabel(1)).toBe("1 byte");
+    expect(importMemoryLabel(1536)).toBe("1,536 bytes");
   });
 });
