@@ -151,13 +151,14 @@ it.effect("reads agents, memories, skills and routines from an OpenBot database 
     );
 
     const db = new NodeSqlite.DatabaseSync(dbFile);
-    db.exec(`CREATE TABLE projection_agents (agent_json TEXT, sort_order INTEGER);
-      CREATE TABLE projection_agent_memories (id TEXT PRIMARY KEY, agent_id TEXT, text TEXT, created_at TEXT);
+    db.exec(`CREATE TABLE projection_agents (agent_id TEXT, agent_json TEXT, sort_order INTEGER);
+      CREATE TABLE projection_agent_memories (memory_id TEXT PRIMARY KEY, agent_id TEXT, text TEXT, created_at TEXT);
       CREATE TABLE agent_memory_selections (memory_id TEXT, inclusion TEXT);
       CREATE TABLE projection_agent_routines (routine_id TEXT, agent_id TEXT, name TEXT, instruction TEXT, active INTEGER, timezone TEXT);
       CREATE TABLE projection_routine_triggers (routine_id TEXT, schedule_json TEXT);`);
-    const insertAgent = db.prepare("INSERT INTO projection_agents VALUES (?, ?)");
+    const insertAgent = db.prepare("INSERT INTO projection_agents VALUES (?, ?, ?)");
     insertAgent.run(
+      "a1",
       stringify({
         id: "a1",
         name: "Chief",
@@ -172,7 +173,11 @@ it.effect("reads agents, memories, skills and routines from an OpenBot database 
       }),
       0,
     );
-    insertAgent.run(stringify({ id: "a2", name: "Dev", provider: "codex", model: "gpt-5.4" }), 1);
+    insertAgent.run(
+      "a2",
+      stringify({ id: "a2", name: "Dev", provider: "codex", model: "gpt-5.4" }),
+      1,
+    );
     const insertMemory = db.prepare("INSERT INTO projection_agent_memories VALUES (?, ?, ?, ?)");
     insertMemory.run("m1", "a1", "Likes coffee", "2026-01-02T00:00:00Z");
     insertMemory.run("m2", "a1", "Codes in the dark", "2026-01-01T00:00:00Z");

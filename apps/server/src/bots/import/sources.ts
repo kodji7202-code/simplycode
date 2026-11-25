@@ -109,6 +109,22 @@ const humanize = (slug: string): string =>
     .map((part) => part[0]!.toUpperCase() + part.slice(1))
     .join(" ");
 
+// Profile fields have wire caps (name 100/no-newline, role 60/no-newline,
+// description 1000); over-cap text is cut at a code-point boundary with a warning.
+const clipProfileField = (
+  value: string | undefined,
+  max: number,
+): { value: string | undefined; warning: string | undefined } => {
+  if (value === undefined) return { value: undefined, warning: undefined };
+  const flat = value.replace(/[\r\n]+/g, " ").trim();
+  if (flat === "") return { value: undefined, warning: undefined };
+  const clipped = [...flat].slice(0, max).join("");
+  return {
+    value: clipped,
+    warning: clipped === flat ? undefined : `was cut to ${max} characters.`,
+  };
+};
+
 // hue (0-360) → the closest swatch hue, circular distance.
 const hexToHue = (hex: string): number => {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -238,9 +254,14 @@ const folderBot = Effect.fnUntraced(function* (
     path.join(dir, ".agents", "skills"),
     path.join(dir, ".claude", "skills"),
   ]);
+  const clippedName = clipProfileField(
+    frontmatterName(instructions) ?? humanize(path.basename(dir)),
+    100,
+  );
+  if (clippedName.warning !== undefined) warnings.push(`Name ${clippedName.warning}`);
   return {
     key: dir,
-    name: frontmatterName(instructions) ?? humanize(path.basename(dir)),
+    name: clippedName.value ?? humanize(path.basename(dir)),
     role: undefined,
     description: undefined,
     avatar: undefined,
@@ -402,8 +423,8 @@ const readOpenBotData = (dbFile: string): ReadonlyArray<OpenBotRow> => {
   const db = new NodeSqlite.DatabaseSync(dbFile, { readOnly: true });
   try {
     const agentRows = db
-      .prepare("SELECT agent_json FROM projection_agents ORDER BY sort_order")
-      .all() as unknown as ReadonlyArray<{ agent_json: string }>;
+      .prepare("SELECT agent_id, agent_json FROM projection_agents ORDER BY sort_order")
+      .all() as unknown as ReadonlyArray<{ agent_id: string; agent_json: string }>;
     const rows: OpenBotRow[] = [];
     for (const row of agentRows) {
       const agent = parseAgentJson(row.agent_json);
@@ -413,11 +434,11 @@ const readOpenBotData = (dbFile: string): ReadonlyArray<OpenBotRow> => {
           .prepare(
             `SELECT m.text AS text
              FROM projection_agent_memories m
-             JOIN agent_memory_selections s ON s.memory_id = m.id
+             JOIN agent_memory_selections s ON s.memory_id = m.memory_id
              WHERE m.agent_id = ?
              ORDER BY CASE WHEN s.inclusion = 'essential' THEN 0 ELSE 1 END, m.created_at`,
           )
-          .all(agent.id) as unknown as ReadonlyArray<{ text: string }>
+          .all(row.agent_id) as unknown as ReadonlyArray<{ text: string }>
       ).map((memory) => memory.text);
       const routines = (
         db
@@ -428,7 +449,7 @@ const readOpenBotData = (dbFile: string): ReadonlyArray<OpenBotRow> => {
              LEFT JOIN projection_routine_triggers t ON t.routine_id = r.routine_id
              WHERE r.agent_id = ?`,
           )
-          .all(agent.id) as unknown as ReadonlyArray<{
+          .all(row.agent_id) as unknown as ReadonlyArray<{
           name: string;
           instruction: string;
           timezone: string | null;
@@ -528,15 +549,20 @@ export const scanOpenBotDb = Effect.fnUntraced(function* (
             path.join(workspacePath, ".agents", "skills"),
             path.join(workspacePath, ".claude", "skills"),
           ]);
-    const role =
-      agent.title === undefined || agent.title === "" ? undefined : agent.title.slice(0, 60);
+    const clippedName = clipProfileField(agent.name ?? humanize(agent.id), 100);
+    if (clippedName.warning !== undefined) warnings.push(`Name ${clippedName.warning}`);
+    const clippedRole = clipProfileField(agent.title, 60);
+    if (clippedRole.warning !== undefined) warnings.push(`Role ${clippedRole.warning}`);
+    const clippedDescription = clipProfileField(agent.description, 1000);
+    if (clippedDescription.warning !== undefined)
+      warnings.push(`Description ${clippedDescription.warning}`);
     bots.push({
       key: agent.id,
-      name: agent.name ?? humanize(agent.id),
-      role,
-      description: agent.description === "" ? undefined : agent.description,
+      name: clippedName.value ?? humanize(agent.id),
+      role: clippedRole.value,
+      description: clippedDescription.value,
       avatar:
-        agent.avatarHue === undefined
+        agent.avatarHue === undefined || agent.avatarHue === null
           ? botAvatarOrDefault({ id: agent.id })
           : {
               shape: botAvatarOrDefault({ id: agent.id }).shape,
