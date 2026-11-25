@@ -5,7 +5,7 @@ import type {
   OrchestrationV2ShellStreamItem,
   OrchestrationV2ThreadShell,
 } from "@t3tools/contracts";
-import { ProjectId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
+import { BotId, botThreadTag, ProjectId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
 import type * as Cause from "effect/Cause";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
@@ -16,6 +16,7 @@ import * as Queue from "effect/Queue";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 
+import type { ActiveShellIndexEntry } from "./ProjectionStore.ts";
 import {
   activeShellRowsForSubscriber,
   bufferShellLiveStream,
@@ -25,6 +26,7 @@ import {
   omitOlderSettledShells,
   shellStreamItemFromEnrichmentRefresh,
   shellStreamItemsFromInitialSnapshot,
+  shellSubscriberThreadIds,
   shouldPublishShellApplicationEvent,
   skipUnchangedThreadShells,
 } from "./ShellStream.ts";
@@ -198,6 +200,15 @@ describe("omitIdleSubagentShells", () => {
     ]);
   });
 
+  it("keeps a bot's delegated run (bot: tag) while omitting an untagged idle sibling", () => {
+    const threads = [
+      row("root", null),
+      row("idle", "root"),
+      row("bot-run", "root", { tags: [botThreadTag(BotId.make("dev"))] }),
+    ];
+    expect(omitIdleSubagentShells(threads).map((thread) => thread.id)).toEqual(["root", "bot-run"]);
+  });
+
   it("still filters the transcript events of omitted children for a subscriber that opts in", () => {
     const threads = [row("root", null), row("idle", "root")];
     const omitted = activeShellRowsForSubscriber(threads, true);
@@ -327,6 +338,56 @@ describe("omitOlderSettledShells", () => {
       "side-chat",
     ]);
     expect(result.olderSettled.counts).toEqual([{ projectId: "project-a", count: 5 }]);
+  });
+});
+
+describe("shellSubscriberThreadIds", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const entry = (
+    id: string,
+    overrides: Partial<ActiveShellIndexEntry> = {},
+  ): ActiveShellIndexEntry => ({
+    id: ThreadId.make(id),
+    projectId: ProjectId.make("project-a"),
+    lineage: {
+      parentThreadId: null,
+      relationshipToParent: null,
+      rootThreadId: ThreadId.make(id),
+    },
+    settledOverride: null,
+    settledAt: null,
+    pinnedAt: null,
+    pinOrderKey: null,
+    snoozedUntil: null,
+    mayBeLive: false,
+    hasRemoteTasks: false,
+    ...overrides,
+  });
+  const listed = (id: string, daysAgo: number) =>
+    entry(id, {
+      settledOverride: "settled",
+      settledAt: DateTime.makeUnsafe(100 * DAY - daysAgo * DAY),
+    });
+  const child = (id: string, overrides: Partial<ActiveShellIndexEntry> = {}) =>
+    entry(id, {
+      lineage: {
+        parentThreadId: ThreadId.make("new-0"),
+        relationshipToParent: "subagent",
+        rootThreadId: ThreadId.make("new-0"),
+      },
+      ...overrides,
+    });
+  const newest = Array.from({ length: 25 }, (_, index) => listed(`new-${index}`, index / 10));
+
+  it("keeps an idle bot run child while omitting an untagged idle sibling", () => {
+    const index = [
+      ...newest,
+      child("idle"),
+      child("bot-run", { tags: [botThreadTag(BotId.make("dev"))] }),
+    ];
+    expect(
+      shellSubscriberThreadIds(index, { omitIdleSubagents: true, omitOlderSettled: true }),
+    ).toEqual([...newest.map((row) => row.id), "bot-run"]);
   });
 });
 

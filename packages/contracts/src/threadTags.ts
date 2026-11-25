@@ -16,3 +16,9 @@ export type ThreadTag = typeof ThreadTag.Type;
 export const StoredThreadTags = Schema.Array(Schema.String).pipe(
   Schema.catchDecoding(() => Effect.succeedSome([])),
 );
+
+/** `bot:<botId>` marks the thread a bot's delegated run produced (`botThreadTag` in bot.ts). */
+export const BOT_THREAD_TAG_PREFIX = "bot:";
+
+export const hasBotThreadTag = (tags: ReadonlyArray<string> | undefined): boolean =>
+  tags?.some((tag) => tag.startsWith(BOT_THREAD_TAG_PREFIX)) === true;

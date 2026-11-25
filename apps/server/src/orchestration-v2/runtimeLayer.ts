@@ -458,6 +458,8 @@ export const layerProduction = Layer.mergeAll(
   layerManagedProjectFoldersProvided,
   layerThreadLaunchProvided,
   layerScheduledTaskProvided,
+  // Exported, not just provided to the bot layers: the /mcp bots toolkit resolves it per call.
+  layerBotStoreProvided,
   layerBotServiceProvided,
   layerWorkflowsProvided,
   layerScratchThreadPromotionProvided,
