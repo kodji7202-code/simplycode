@@ -221,7 +221,9 @@ function PipelineRunPanel(props: {
       <div className="flex items-center gap-2">
         <Select value={pickedProjectId} onValueChange={(value) => setProjectId(value ?? undefined)}>
           <SelectTrigger className="min-w-0 flex-1" aria-label={gt("Project")}>
-            <SelectValue placeholder={gt("Project")} />
+            <SelectValue placeholder={gt("Project")}>
+              {projects.find((project) => project.id === pickedProjectId)?.title}
+            </SelectValue>
           </SelectTrigger>
           <SelectPopup>
             {projects.map((project) => (
