@@ -12,6 +12,8 @@ import {
   TrimmedNonEmptyString,
 } from "./index.ts";
 import {
+  isBotDelegatedSubagentShell,
+  isListedThreadLineage,
   latestProviderTurnForAttempt,
   OrchestrationV2CheckpointFileSummary,
   repositoryRewindCheckpoint,
@@ -747,5 +749,26 @@ describe("withMessageSenderNote", () => {
     [{ createdBy: "agent", creationSource: "server" }, "Hi", "Hi"],
   ] as const)("labels %j's message %j for the provider", (message, text, expected) => {
     expect(withMessageSenderNote(message, text)).toBe(expected);
+  });
+});
+
+describe("workflow step thread visibility", () => {
+  const lineage = {
+    parentThreadId: null,
+    relationshipToParent: null,
+    rootThreadId: ThreadId.make("root"),
+    workflowStep: true,
+  } as const;
+
+  it("keeps a bot-tagged workflow step shell under its bot, but not an untagged one", () => {
+    expect(isBotDelegatedSubagentShell({ lineage, tags: ["bot:dev"] })).toBe(true);
+    expect(isBotDelegatedSubagentShell({ lineage, tags: [] })).toBe(false);
+    expect(isBotDelegatedSubagentShell({ lineage, tags: undefined })).toBe(false);
+    expect(isBotDelegatedSubagentShell({ lineage, tags: ["other"] })).toBe(false);
+  });
+
+  it("never lists a workflow step thread, tagged or not", () => {
+    expect(isListedThreadLineage(lineage)).toBe(false);
+    expect(isListedThreadLineage({ ...lineage, workflowStep: undefined })).toBe(true);
   });
 });

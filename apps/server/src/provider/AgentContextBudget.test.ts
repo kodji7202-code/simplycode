@@ -10,7 +10,11 @@ import { McpServer } from "effect/ai";
 
 import { AssetSigner } from "../assets/AssetSigner.ts";
 import { ServerSecretStore } from "../auth/ServerSecretStore.ts";
+import { BotService } from "../bots/BotService.ts";
 import { BotStore } from "../bots/BotStore.ts";
+import { PipelineService } from "../bots/PipelineService.ts";
+import { TeamService } from "../bots/TeamService.ts";
+import { TeamStore } from "../bots/TeamStore.ts";
 import { ServerConfig } from "../config.ts";
 import { DeviceService } from "../device/DeviceService.ts";
 import { ServerEnvironment } from "../environment/ServerEnvironment.ts";
@@ -24,6 +28,7 @@ import {
   makeClaudeQueryOptions,
 } from "../orchestration-v2/Adapters/ClaudeAdapterV2.ts";
 import { OrchestratorV2 } from "../orchestration-v2/Orchestrator.ts";
+import { ProjectStoreV2 } from "../orchestration-v2/ProjectStore.ts";
 import { ProviderAdapterRegistryV2 } from "../orchestration-v2/ProviderAdapterRegistry.ts";
 import { ThreadIssueService } from "../orchestration-v2/ThreadIssueService.ts";
 import { ThreadLaunchService } from "../orchestration-v2/ThreadLaunchService.ts";
@@ -61,7 +66,11 @@ import budget from "./agentContextBudget.json" with { type: "json" };
 const toolHandlerServices = Layer.mergeAll(
   Layer.mock(AnalyticsService)({}),
   Layer.mock(AssetSigner)({}),
+  Layer.mock(BotService)({}),
   Layer.mock(BotStore)({}),
+  Layer.mock(TeamStore)({}),
+  Layer.mock(TeamService)({}),
+  Layer.mock(PipelineService)({}),
   Layer.mock(DeviceService)({}),
   Layer.mock(DocumentText)({}),
   Layer.mock(EnvironmentThemeService)({}),
@@ -81,6 +90,7 @@ const toolHandlerServices = Layer.mergeAll(
   Layer.mock(Workflows)({}),
   Layer.mock(ProjectCloneTracker)({}),
   Layer.mock(ProjectService)({}),
+  Layer.mock(ProjectStoreV2)({}),
   Layer.mock(ProjectSetupScriptRunner)({}),
   Layer.mock(ProviderAdapterRegistryV2)({}),
   Layer.mock(ProviderRegistry)({}),

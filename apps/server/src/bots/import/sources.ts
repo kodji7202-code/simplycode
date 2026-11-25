@@ -62,6 +62,8 @@ export interface ScannedBot {
   readonly approvalMode: BotApprovalMode;
   readonly interactionMode: ProviderInteractionMode | undefined;
   readonly limits: BotLimits | undefined;
+  /** Set only by sources that know the option (a SimplyCode package); others default to true. */
+  readonly stayInProject?: boolean;
   readonly soul: string;
   readonly memory: string;
   readonly skills: ReadonlyArray<ScannedSkill>;
@@ -913,6 +915,8 @@ const PackageBot = Schema.Struct({
     approvalMode: Schema.optional(Schema.String),
     interactionMode: Schema.optional(Schema.String),
     limits: Schema.optional(Schema.Unknown),
+    canManageBots: Schema.optional(Schema.Boolean),
+    stayInProject: Schema.optional(Schema.Boolean),
   }),
   soul: Schema.optional(Schema.String),
   memory: Schema.optional(Schema.String),
@@ -1028,6 +1032,12 @@ const scanPackage = Effect.fnUntraced(function* (
       warnings.push(`A bot with no name was skipped.`);
       return;
     }
+    // Imported bots never arrive as managers; the flag is opt-in per bot.
+    if (bot.profile.canManageBots === true) {
+      botWarnings.push(
+        `Bot management was not carried over. Turn on "Can create and edit other bots" in the bot's profile to keep it.`,
+      );
+    }
     const approvalMode = decodeApproval(bot.profile.approvalMode);
     const interactionMode = decodeInteraction(bot.profile.interactionMode);
     const limits = decodeLimits(bot.profile.limits);
@@ -1050,6 +1060,9 @@ const scanPackage = Effect.fnUntraced(function* (
       approvalMode: approvalMode._tag === "Some" ? approvalMode.value : "ask",
       interactionMode: interactionMode._tag === "Some" ? interactionMode.value : undefined,
       limits: limits._tag === "Some" ? limits.value : undefined,
+      ...(bot.profile.stayInProject === undefined
+        ? {}
+        : { stayInProject: bot.profile.stayInProject }),
       soul: cutSoul(bot.soul ?? "", botWarnings),
       memory: cutMemory(bot.memory ?? "", botWarnings),
       skills,

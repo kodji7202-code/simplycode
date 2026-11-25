@@ -20,6 +20,7 @@ import * as Hex from "effect/encoding/Hex";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 
+import * as Orchestrator from "../orchestration-v2/Orchestrator.ts";
 import * as ThreadIssueService from "../orchestration-v2/ThreadIssueService.ts";
 import * as ThreadLaunch from "../orchestration-v2/ThreadLaunchService.ts";
 import * as ThreadManagement from "../orchestration-v2/ThreadManagementService.ts";
@@ -48,6 +49,7 @@ const failed = (reason: string) => (cause: unknown) =>
 const make = Effect.gen(function* () {
   const threads = yield* ThreadManagement.ThreadManagementService;
   const launches = yield* ThreadLaunch.ThreadLaunchService;
+  const orchestrator = yield* Orchestrator.OrchestratorV2;
   const projects = yield* ProjectService.ProjectService;
   const providers = yield* ProviderRegistry.ProviderRegistry;
   const settings = yield* ServerSettings.ServerSettingsService;
@@ -215,6 +217,7 @@ const make = Effect.gen(function* () {
           runtimeMode: input.launch?.runtimeMode ?? defaults.defaultRuntimeMode,
           interactionMode: input.launch?.interactionMode ?? "default",
           workspaceStrategy: input.launch?.workspace ?? { type: "root" },
+          workspaceConfined: input.launch?.workspaceConfined === true,
           initialMessage: { messageId, text: input.prompt, attachments: [], ...outputSchema },
           createdBy: "system",
           creationSource: "server",
@@ -228,6 +231,25 @@ const make = Effect.gen(function* () {
         return yield* new WorkflowAgentError({
           reason: `Thread ${launched.threadId} started without a turn for its first message.`,
         });
+      }
+      // A tag that does not land leaves the step's thread usable, so it never fails the start.
+      for (const tag of input.tags ?? []) {
+        yield* orchestrator
+          .dispatch({
+            type: "thread.tag.set",
+            commandId: CommandId.make(`workflow-tag:${id}:${tag}`),
+            threadId: launched.threadId,
+            tag,
+            tagged: true,
+          })
+          .pipe(
+            Effect.catchCause(() =>
+              Effect.logWarning("Could not tag a workflow agent thread", {
+                threadId: launched.threadId,
+                tag,
+              }),
+            ),
+          );
       }
       yield* showIssue(input.issue, launched.threadId);
       return { threadId: launched.threadId, turnId: run.id };

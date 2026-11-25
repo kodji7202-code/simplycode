@@ -32,6 +32,10 @@ import * as SubscriptionRef from "effect/SubscriptionRef";
 
 import * as ServerConfig from "../config.ts";
 import * as ServerSettings from "../serverSettings.ts";
+import * as BotStore from "../bots/BotStore.ts";
+import * as PipelineStore from "../bots/PipelineStore.ts";
+import * as TeamStore from "../bots/TeamStore.ts";
+import * as PipelineDefinition from "./pipelineDefinition.ts";
 import { engineTag, text, type WorkflowDefinition } from "./workflow.ts";
 import type * as WorkflowEngine from "./WorkflowEngine.ts";
 import * as WorkflowAgentThreads from "./WorkflowAgentThreads.ts";
@@ -243,23 +247,37 @@ const definitionProblems = (
   }>,
   unfinished: ReadonlyArray<{ readonly workflow: string; readonly version: number }>,
   before: ReadonlyMap<string, ReadonlyArray<WorkflowDefinition>> = new Map(),
+  reserved: ReadonlySet<string> = new Set(),
 ): ReadonlyArray<{
   readonly problem: WorkflowDefinitionProblem;
   readonly files: ReadonlyArray<string>;
   readonly clash: boolean;
 }> => {
   const where = new Map<string, Array<string>>();
+  const taken = new Map<string, Array<string>>();
   for (const file of files) {
     for (const definition of file.definitions) {
       where.set(engineTag(definition), [...(where.get(engineTag(definition)) ?? []), file.name]);
+      if (reserved.has(definition.name)) {
+        taken.set(definition.name, [...(taken.get(definition.name) ?? []), file.name]);
+      }
     }
   }
   const waiting = new Map<string, number>();
   for (const run of unfinished) {
     const tag = engineTag({ name: run.workflow, version: run.version });
-    if (!where.has(tag)) waiting.set(tag, (waiting.get(tag) ?? 0) + 1);
+    if (!where.has(tag) && !reserved.has(run.workflow)) {
+      waiting.set(tag, (waiting.get(tag) ?? 0) + 1);
+    }
   }
   return [
+    ...[...taken].map(([name, names]) => ({
+      problem: {
+        message: `${name} is a built-in workflow. A definition file cannot use its name.`,
+      },
+      files: [...new Set(names)],
+      clash: false,
+    })),
     ...[...where]
       .filter(([, names]) => names.length > 1)
       .map(([tag, names]) => ({
@@ -284,9 +302,9 @@ const definitionProblems = (
 };
 
 /**
- * `engine` gives the layer that runs a set of definitions. It is asked for only once there is
- * something to run or `kept` says there are runs to read, since the engine's modules are not worth
- * loading for nothing. `where` is the folder of definition files, or one file.
+ * `engine` gives the layer that runs a set of definitions, asked for lazily.
+ * `builtins` are in-process definitions (the pipeline runner): they run beside
+ * the folder's, show on no definition page, and no file may take one's name.
  */
 export const make = Effect.fn("WorkflowRuntime.make")(function* <E, R>(
   engine: Effect.Effect<
@@ -294,7 +312,9 @@ export const make = Effect.fn("WorkflowRuntime.make")(function* <E, R>(
   >,
   where: string,
   kept: Effect.Effect<boolean>,
+  builtins: ReadonlyArray<WorkflowDefinition> = [],
 ) {
+  const reserved = new Set(builtins.map((definition) => definition.name));
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const target = path.resolve(where);
@@ -375,18 +395,20 @@ export const make = Effect.fn("WorkflowRuntime.make")(function* <E, R>(
       if (engineScope !== undefined) yield* Scope.close(engineScope, Exit.void);
       engineScope = undefined;
       running = [];
-      if (definitions.length === 0 && !imported && !(yield* kept)) {
+      // Built-ins run beside the folder's, so an empty folder still runs them.
+      const all = [...builtins, ...definitions];
+      if (all.length === 0 && !imported && !(yield* kept)) {
         yield* Deferred.succeed(next, Workflows.disabled);
         return null;
       }
-      const built = yield* build(definitions);
+      const built = yield* build(all);
       if (Exit.isSuccess(built)) {
-        running = definitions;
+        running = all;
         yield* Deferred.succeed(next, Context.get(built.value, Workflows.Workflows));
-        if (definitions.length > 0) {
+        if (all.length > 0) {
           yield* Effect.logInfo("Workflows registered", {
             directory,
-            workflows: definitions.map(engineTag),
+            workflows: all.map(engineTag),
           });
         }
         return null;
@@ -499,7 +521,7 @@ export const make = Effect.fn("WorkflowRuntime.make")(function* <E, R>(
         if (definitions === null) next.delete(name);
         else next.set(name, definitions);
       }
-      problems = definitionProblems(gathered(next), runs, good);
+      problems = definitionProblems(gathered(next), runs, good, reserved);
       for (const { problem, files: involved, clash } of problems) {
         const changing = involved.filter((name) => pending.has(name) && !held.has(name));
         // Between new files that define the same workflow, the first in the folder's order stays.
@@ -669,7 +691,7 @@ export const make = Effect.fn("WorkflowRuntime.make")(function* <E, R>(
   ) {
     const files = new Map(good);
     change(files);
-    return definitionProblems(gathered(files), yield* unfinished, good).map(
+    return definitionProblems(gathered(files), yield* unfinished, good, reserved).map(
       (entry) => entry.problem,
     );
   });
@@ -946,6 +968,13 @@ export const layer = Layer.effectContext(
     const settings = yield* ServerSettings.ServerSettingsService;
     const where = Option.getOrElse(override, () => config.workflowsDir);
     const changes = yield* settings.subscribeChanges;
+    const builtins = [
+      PipelineDefinition.makePipelineDefinition({
+        bots: yield* BotStore.BotStore,
+        teams: yield* TeamStore.TeamStore,
+        pipelines: yield* PipelineStore.PipelineStore,
+      }),
+    ];
     const gated = yield* gate(
       make(
         Effect.map(
@@ -960,6 +989,7 @@ export const layer = Layer.effectContext(
           Effect.map((rows) => rows.length > 0),
           Effect.orElseSucceed(() => true),
         ),
+        builtins,
       ),
       where,
     );

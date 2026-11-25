@@ -137,6 +137,8 @@ import * as ReviewService from "./review/ReviewService.ts";
 import * as ScheduledTasks from "./scheduledTasks/ScheduledTaskService.ts";
 import * as BotService from "./bots/BotService.ts";
 import * as BotImportService from "./bots/import/BotImportService.ts";
+import * as PipelineService from "./bots/PipelineService.ts";
+import * as TeamService from "./bots/TeamService.ts";
 import * as Workflows from "./workflows/Workflows.ts";
 import * as WorkflowRuntime from "./workflows/WorkflowRuntime.ts";
 import * as SecretRequests from "./secrets/SecretRequests.ts";
@@ -894,6 +896,8 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
   Layer.mock(ScheduledTasks.ScheduledTaskService)({}),
   Layer.mock(BotService.BotService)({}),
   Layer.mock(BotImportService.BotImportService)({}),
+  Layer.mock(TeamService.TeamService)({}),
+  Layer.mock(PipelineService.PipelineService)({}),
   Workflows.layerDisabled,
   Layer.mock(WorkflowRuntime.WorkflowDefinitions)({}),
   Layer.mock(SecretRequests.SecretRequests)({}),
@@ -2736,6 +2740,7 @@ const workflowRpcs = WsRpcGroup.omit(
 const workflowRun: WorkflowRun = {
   runId: "run-1",
   workflow: "release",
+  key: null,
   version: 1,
   title: "Release 1.2",
   status: "paused",

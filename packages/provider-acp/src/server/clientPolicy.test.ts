@@ -94,9 +94,46 @@ describe("acpPermissionDisposition", () => {
     );
   });
 
-  it("keeps non-mutating workspace permissions and denials unchanged", () => {
+  it("keeps non-mutating workspace permissions and the mode's execute answer unchanged", () => {
     assert.equal(acpPermissionDisposition(policy, permissionRequest("read")), "allow");
-    assert.equal(acpPermissionDisposition(policy, permissionRequest("execute")), "deny");
+    // Confinement gates mutations only; an execute gets the mode's normal answer.
+    assert.equal(acpPermissionDisposition(policy, permissionRequest("execute")), "allow");
+  });
+
+  it("gives an execute the mode's normal answer and an inside mutation its normal answer too", () => {
+    const auto: AcpRuntimePolicy = {
+      runtimeMode: "auto",
+      cwd,
+      sandboxPolicy: { type: "workspaceWrite", writableRoots: [cwd] },
+    };
+    const approvalRequired: AcpRuntimePolicy = { ...auto, runtimeMode: "approval-required" };
+
+    assert.equal(acpPermissionDisposition(auto, permissionRequest("execute")), "allow");
+    assert.equal(
+      acpPermissionDisposition(auto, permissionRequest("edit", [{ path: "src/index.ts" }])),
+      "allow",
+    );
+
+    assert.equal(acpPermissionDisposition(approvalRequired, permissionRequest("execute")), "ask");
+    assert.equal(
+      acpPermissionDisposition(
+        approvalRequired,
+        permissionRequest("edit", [{ path: "src/index.ts" }]),
+      ),
+      "ask",
+    );
+    // A write outside the roots is refused outright in either mode — the user
+    // cannot approve around confinement.
+    const outside = NodePath.resolve(process.cwd(), "outside-acp-permission-workspace", "f.ts");
+    assert.equal(
+      acpPermissionDisposition(auto, permissionRequest("edit", [{ path: outside }])),
+      "deny",
+    );
+    assert.equal(
+      acpPermissionDisposition(approvalRequired, permissionRequest("edit", [{ path: outside }])),
+      "deny",
+    );
+    assert.equal(acpPermissionDisposition(approvalRequired, permissionRequest("edit")), "deny");
   });
 
   it("auto-accept-edits approves file changes without locations and asks for the rest", () => {
@@ -126,9 +163,28 @@ describe("acpPermissionDisposition", () => {
       for (const kind of ["read", "search", "think"] as const) {
         assert.equal(acpPermissionDisposition(runtimePolicy, permissionRequest(kind)), "allow");
       }
+    }
+    // Without workspaceWrite, on-request asks for everything else.
+    for (const runtimePolicy of [
+      { ...policy, approvalPolicy: "on-request", sandboxPolicy: { type: "readOnly" } },
+      { runtimeMode: "approval-required", cwd },
+    ] satisfies ReadonlyArray<AcpRuntimePolicy>) {
       for (const kind of ["edit", "delete", "move", "execute", "fetch", "other"] as const) {
         assert.equal(acpPermissionDisposition(runtimePolicy, permissionRequest(kind)), "ask");
       }
+    }
+    // Under workspaceWrite an inside edit still asks, but a mutation that names
+    // no location cannot be checked and is denied rather than asked.
+    const confined = { ...policy, approvalPolicy: "on-request" } satisfies AcpRuntimePolicy;
+    for (const kind of ["execute", "fetch", "other"] as const) {
+      assert.equal(acpPermissionDisposition(confined, permissionRequest(kind)), "ask");
+    }
+    for (const kind of ["edit", "delete", "move"] as const) {
+      assert.equal(acpPermissionDisposition(confined, permissionRequest(kind)), "deny");
+      assert.equal(
+        acpPermissionDisposition(confined, permissionRequest(kind, [{ path: "src/in.ts" }])),
+        "ask",
+      );
     }
   });
 
@@ -310,21 +366,34 @@ describe("client terminal disposition", () => {
     assert.equal(acpClientExecuteDisposition({ runtimeMode: "full-access", cwd }), "allow");
   });
 
-  it("denies terminals under explicit read-only and workspace-write sandboxes", () => {
-    for (const sandboxPolicy of [
-      { type: "readOnly" },
-      { type: "workspaceWrite", writableRoots: [], networkAccess: false },
-    ]) {
-      assert.equal(
-        acpClientExecuteDisposition({
-          runtimeMode: "full-access",
-          cwd,
-          approvalPolicy: "never",
-          sandboxPolicy,
-        }),
-        "deny",
-      );
-    }
+  it("denies terminals under read-only, and gives them the mode's answer under workspace-write", () => {
+    assert.equal(
+      acpClientExecuteDisposition({
+        runtimeMode: "full-access",
+        cwd,
+        approvalPolicy: "never",
+        sandboxPolicy: { type: "readOnly" },
+      }),
+      "deny",
+    );
+    // Confinement refuses outside file edits, not the shell.
+    assert.equal(
+      acpClientExecuteDisposition({
+        runtimeMode: "full-access",
+        cwd,
+        approvalPolicy: "never",
+        sandboxPolicy: { type: "workspaceWrite", writableRoots: [], networkAccess: false },
+      }),
+      "allow",
+    );
+    assert.equal(
+      acpClientExecuteDisposition({
+        runtimeMode: "approval-required",
+        cwd,
+        sandboxPolicy: { type: "workspaceWrite", writableRoots: [cwd] },
+      }),
+      "ask",
+    );
   });
 });
 

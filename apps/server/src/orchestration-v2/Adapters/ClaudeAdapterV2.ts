@@ -74,6 +74,7 @@ import type {
 import * as NodeChildProcess from "node:child_process";
 import * as NodeUtil from "node:util";
 import { parseCliArgs } from "@t3tools/shared/cliArgs";
+import { pathContainedInRoots, resolveContainedPath } from "@t3tools/shared/pathContainment";
 import { fromLenientJson } from "@t3tools/shared/schemaJson";
 import {
   claudeMcpToolName,
@@ -2764,6 +2765,8 @@ export const CLAUDE_T3_MCP_TOOL_WILDCARD = "mcp__t3-code__*";
 export const CLAUDE_READ_ONLY_T3_MCP_ALLOWED_TOOLS: ReadonlyArray<string> = [
   "mcp__t3-code__orchestrator_capabilities",
   "mcp__t3-code__list_bots",
+  "mcp__t3-code__get_bot",
+  "mcp__t3-code__list_teams",
   "mcp__t3-code__list_scheduled_tasks",
   "mcp__t3-code__t3_background_wait",
   "mcp__t3-code__t3_thread_list",
@@ -3632,6 +3635,61 @@ function sandboxPolicyKindForClaudeRuntimePolicy(
     isClaudeRuntimeSandboxPolicyKind(runtimePolicy.sandboxPolicy)
     ? runtimePolicy.sandboxPolicy.type
     : undefined;
+}
+
+/** The file-writing tools confinement inspects, and the input key naming their target path. */
+const CLAUDE_CONFINED_WRITE_TOOL_PATH_KEYS: Readonly<Record<string, string>> = {
+  Write: "file_path",
+  Edit: "file_path",
+  MultiEdit: "file_path",
+  NotebookEdit: "notebook_path",
+};
+
+/**
+ * The refusal a workspace-confined thread hands a file-writing tool whose target escapes the
+ * writable roots — or undefined when the tool is not confined. The runtime only sets a
+ * `workspaceWrite` sandbox on a confined thread that is not full-access, so its presence alone
+ * switches the check on.
+ */
+export function claudeWorkspaceConfinementDenial(
+  runtimePolicy: ProviderAdapter.ProviderAdapterV2RuntimePolicy,
+  toolName: string,
+  toolInput: unknown,
+): string | undefined {
+  if (sandboxPolicyKindForClaudeRuntimePolicy(runtimePolicy) !== "workspaceWrite") {
+    return undefined;
+  }
+  const pathKey = CLAUDE_CONFINED_WRITE_TOOL_PATH_KEYS[toolName];
+  if (pathKey === undefined) return undefined;
+  const cwd =
+    typeof runtimePolicy.cwd === "string" && runtimePolicy.cwd.trim().length > 0
+      ? runtimePolicy.cwd
+      : null;
+  const input =
+    typeof toolInput === "object" && toolInput !== null && !Array.isArray(toolInput)
+      ? (toolInput as Record<string, unknown>)
+      : {};
+  const rawPath = input[pathKey];
+  // A malformed call names no path; the tool's own validation reports that instead.
+  if (typeof rawPath !== "string" || rawPath.trim().length === 0) return undefined;
+  const sandbox = runtimePolicy.sandboxPolicy;
+  const writableRoots =
+    typeof sandbox === "object" &&
+    sandbox !== null &&
+    !Array.isArray(sandbox) &&
+    Array.isArray((sandbox as { readonly writableRoots?: unknown }).writableRoots)
+      ? (sandbox as { readonly writableRoots: ReadonlyArray<unknown> }).writableRoots.filter(
+          (root): root is string => typeof root === "string",
+        )
+      : [];
+  const roots = [
+    ...(cwd === null ? [] : [cwd]),
+    ...writableRoots,
+    ...(runtimePolicy.workspace?.extraRoots ?? []),
+  ];
+  const resolved = resolveContainedPath(rawPath.trim(), cwd);
+  if (resolved !== undefined && pathContainedInRoots(resolved, roots)) return undefined;
+  return `SimplyCode: this bot stays in its project. Writing outside ${cwd ?? "the project"} is not allowed.`;
 }
 
 function readOnlyPolicyAllowsGlobalReads(
@@ -12968,6 +13026,21 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               behavior: "deny",
               message:
                 "This tool requires approval in Plan mode, but approvals are disabled for this thread.",
+              toolUseID: callbackOptions.toolUseID,
+            } satisfies PermissionResult;
+          }
+
+          // Confinement precedes the mode's own answer: an auto or bypassed turn must not get
+          // an outside write allowed before its permission mode is even consulted.
+          const confinementDenial = claudeWorkspaceConfinementDenial(
+            context.input.runtimePolicy,
+            toolName,
+            toolInput,
+          );
+          if (confinementDenial !== undefined) {
+            return {
+              behavior: "deny",
+              message: confinementDenial,
               toolUseID: callbackOptions.toolUseID,
             } satisfies PermissionResult;
           }

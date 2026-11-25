@@ -47,6 +47,10 @@ export interface ServerDerivedPaths {
   readonly workflowsDir: string;
   /** Where bot profiles live. In the home itself: users may edit them directly. */
   readonly botsDir: string;
+  /** Where bot teams live, one JSON file per team. */
+  readonly teamsDir: string;
+  /** Where bot pipelines live, one JSON file per pipeline. */
+  readonly pipelinesDir: string;
   readonly worktreeCheckoutCacheDir: string;
   readonly attachmentsDir: string;
   readonly browserArtifactsDir: string;
@@ -167,6 +171,8 @@ export const deriveServerPaths = Effect.fn(function* (
     worktreesDir: join(baseDir, "worktrees"),
     workflowsDir: join(baseDir, "workflows"),
     botsDir: join(baseDir, "bots"),
+    teamsDir: join(baseDir, "teams"),
+    pipelinesDir: join(baseDir, "pipelines"),
     worktreeCheckoutCacheDir: join(providerStatusCacheDir, "worktree-checkouts"),
     attachmentsDir,
     browserArtifactsDir: join(stateDir, "browser-artifacts"),

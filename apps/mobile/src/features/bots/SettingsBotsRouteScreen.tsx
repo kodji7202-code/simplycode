@@ -75,6 +75,7 @@ import {
   scheduledTaskDefaultModel,
 } from "../settings/scheduledTaskDraft";
 import { BotAvatarView } from "./BotAvatarView";
+import { EnvironmentTeamsPipelines } from "./EnvironmentTeamsPipelines";
 
 const APPROVAL_MODES: ReadonlyArray<{
   readonly id: BotApprovalMode;
@@ -148,11 +149,13 @@ export function SettingsBotsRouteScreen() {
       >
         {visibleEnvironments.length > 0 ? (
           visibleEnvironments.map((environment) => (
-            <EnvironmentBots
-              key={environment.environmentId}
-              environment={environment}
-              onEdit={(bot) => openEditor(environment.environmentId, bot.id)}
-            />
+            <View key={environment.environmentId} className="gap-5">
+              <EnvironmentBots
+                environment={environment}
+                onEdit={(bot) => openEditor(environment.environmentId, bot.id)}
+              />
+              <EnvironmentTeamsPipelines environment={environment} />
+            </View>
           ))
         ) : (
           <Text className="px-2 text-base text-foreground-muted">
@@ -825,6 +828,8 @@ type BotDraft = {
   readonly checkoutPath: string;
   readonly modelSelection: ModelSelection | null;
   readonly approvalMode: BotApprovalMode;
+  readonly canManageBots: boolean;
+  readonly stayInProject: boolean;
   readonly soul: string | null;
   readonly memory: string | null;
   readonly maxSteps: string;
@@ -846,6 +851,8 @@ function draftForNewBot(
     checkoutPath: "",
     modelSelection: model,
     approvalMode: "ask",
+    canManageBots: false,
+    stayInProject: true,
     soul: "",
     memory: "",
     maxSteps: "",
@@ -866,6 +873,8 @@ function draftForBot(bot: Bot, soul: string, memory: string): BotDraft {
       bot.workspaceStrategy.type === "existing_worktree" ? bot.workspaceStrategy.worktreePath : "",
     modelSelection: bot.modelSelection,
     approvalMode: bot.approvalMode,
+    canManageBots: bot.canManageBots,
+    stayInProject: bot.stayInProject,
     soul,
     memory,
     maxSteps: bot.limits.maxStepsPerRun === undefined ? "" : String(bot.limits.maxStepsPerRun),
@@ -1119,6 +1128,8 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
               },
       modelSelection: form.modelSelection,
       approvalMode: form.approvalMode,
+      canManageBots: form.canManageBots,
+      stayInProject: form.stayInProject,
       interactionMode: existing.data?.bot.interactionMode ?? "default",
       limits: {
         ...(stepsNumber !== undefined ? { maxStepsPerRun: stepsNumber } : {}),
@@ -1414,6 +1425,50 @@ export function SettingsBotRouteScreen({ route }: StaticScreenProps<BotRoutePara
                   }
                 }}
               />
+              <View className="gap-1 border-t border-border-subtle px-4 py-3">
+                <View className="min-h-14 flex-row items-center gap-3">
+                  <Text textRole="body" className="min-w-0 flex-1 text-foreground">
+                    {gt("Stay in project")}
+                  </Text>
+                  <ThemedSwitch
+                    accessibilityLabel={gt("Stay in project")}
+                    value={form.stayInProject}
+                    disabled={!canOperate || saving || form.approvalMode === "full"}
+                    onValueChange={(stayInProject) => set({ stayInProject })}
+                  />
+                </View>
+                {form.approvalMode === "full" ? (
+                  <Text className="text-sm text-danger-foreground">
+                    {gt(
+                      'Full access: this bot can change any file on this computer, and "Stay in project" does not apply.',
+                    )}
+                  </Text>
+                ) : (
+                  <Text className="text-sm text-foreground-muted">
+                    {gt(
+                      "Refuses file edits outside the project folder. Terminal commands are not limited. Applies to new conversations.",
+                    )}
+                  </Text>
+                )}
+              </View>
+              <View className="gap-1 border-t border-border-subtle px-4 py-3">
+                <View className="min-h-14 flex-row items-center gap-3">
+                  <Text textRole="body" className="min-w-0 flex-1 text-foreground">
+                    {gt("Can create and edit other bots")}
+                  </Text>
+                  <ThemedSwitch
+                    accessibilityLabel={gt("Can create and edit other bots")}
+                    value={form.canManageBots}
+                    disabled={!canOperate || saving}
+                    onValueChange={(canManageBots) => set({ canManageBots })}
+                  />
+                </View>
+                <Text className="text-sm text-foreground-muted">
+                  {gt(
+                    "Gives this bot tools to create bots and change other bots' instructions, model and approval mode, never above its own.",
+                  )}
+                </Text>
+              </View>
             </SettingsSection>
             <SettingsSection
               title={gt("Standing instructions")}

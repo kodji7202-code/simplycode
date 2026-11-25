@@ -37,7 +37,10 @@ import * as Orchestrator from "../orchestration-v2/Orchestrator.ts";
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
 import * as ScheduledTasks from "../scheduledTasks/ScheduledTaskService.ts";
 import { BotStore } from "./BotStore.ts";
+import { PipelineStore } from "./PipelineStore.ts";
+import { TeamStore } from "./TeamStore.ts";
 import { botInstructions } from "./botInstructions.ts";
+import { teamsLedBy } from "./botTeams.ts";
 import { botPrompt } from "@t3tools/shared/botPrompt";
 
 function botError(message: string, input?: { botId?: BotId; cause?: unknown }) {
@@ -56,6 +59,7 @@ function botError(message: string, input?: { botId?: BotId; cause?: unknown }) {
 export const botHookLayer = Layer.unwrap(
   Effect.gen(function* () {
     const store = yield* BotStore;
+    const teamStore = yield* TeamStore;
     const orchestrator = yield* Orchestrator.OrchestratorV2;
 
     const prompt: ScheduledTasks.ScheduledTaskBotHookShape["prompt"] = Effect.fn(
@@ -72,6 +76,7 @@ export const botHookLayer = Layer.unwrap(
           memory: entry.success.memory,
           skills: entry.success.skills,
           skillsDir: entry.success.skillsDir,
+          teams: yield* teamsLedBy(store, teamStore, task.botId),
         }),
         text,
       );
@@ -96,6 +101,13 @@ export const botHookLayer = Layer.unwrap(
         );
     });
 
+    const workspaceConfined: ScheduledTasks.ScheduledTaskBotHookShape["workspaceConfined"] =
+      Effect.fn("ScheduledTaskBotHook.workspaceConfined")(function* (task) {
+        if (task.botId === undefined) return false;
+        const bot = yield* store.find(task.botId);
+        return bot?.stayInProject ?? false;
+      });
+
     const blocked: ScheduledTasks.ScheduledTaskBotHookShape["blocked"] = Effect.fn(
       "ScheduledTaskBotHook.blocked",
     )(function* (task) {
@@ -112,6 +124,7 @@ export const botHookLayer = Layer.unwrap(
     return Layer.succeed(ScheduledTasks.ScheduledTaskBotHook, {
       prompt,
       afterLaunch,
+      workspaceConfined,
       blocked,
       botExists,
     });
@@ -141,6 +154,8 @@ export const layer = Layer.effect(
   BotService,
   Effect.gen(function* () {
     const store = yield* BotStore;
+    const teamStore = yield* TeamStore;
+    const pipelineStore = yield* PipelineStore;
     const scheduledTasks = yield* ScheduledTasks.ScheduledTaskService;
     const threadLaunch = yield* ThreadLaunchService.ThreadLaunchService;
     const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -199,6 +214,8 @@ export const layer = Layer.effect(
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
           pinned: input.pinned ?? existing?.pinned ?? false,
+          canManageBots: input.canManageBots ?? existing?.canManageBots ?? false,
+          stayInProject: input.stayInProject ?? existing?.stayInProject ?? true,
           ...(input.avatar === undefined ? {} : { avatar: input.avatar }),
           ...(input.role === undefined ? {} : { role: input.role }),
           ...(input.description === undefined ? {} : { description: input.description }),
@@ -224,6 +241,28 @@ export const layer = Layer.effect(
     const deleteBot: BotService["Service"]["delete"] = Effect.fn("BotService.delete")(
       function* (input) {
         yield* store.get(input.id);
+        // A bot a team or pipeline still names cannot go away under them.
+        const { teams } = yield* teamStore.list();
+        for (const team of teams) {
+          if (team.leadBotId === input.id) {
+            return yield* botError(
+              `This bot leads the team "${team.name}". Remove it from the team first.`,
+            );
+          }
+          if (team.memberBotIds.includes(input.id)) {
+            return yield* botError(
+              `This bot is on the team "${team.name}". Remove it from the team first.`,
+            );
+          }
+        }
+        const { pipelines } = yield* pipelineStore.list();
+        for (const pipeline of pipelines) {
+          if (pipeline.stages.some((stage) => stage.botId === input.id)) {
+            return yield* botError(
+              `This bot runs a stage of the pipeline "${pipeline.name}". Change the pipeline first.`,
+            );
+          }
+        }
         const { tasks } = yield* scheduledTasks
           .list()
           .pipe(Effect.mapError((cause) => botError("Could not list schedule tasks.", { cause })));
@@ -256,11 +295,18 @@ export const layer = Layer.effect(
             runtimeMode: botRuntimeMode(bot.approvalMode),
             interactionMode: bot.interactionMode,
             workspaceStrategy: bot.workspaceStrategy,
+            workspaceConfined: bot.stayInProject,
             initialMessage: {
               messageId: MessageId.make(`bot-message:${commandId}`),
               text: botPrompt(
                 bot,
-                botInstructions({ soul, memory, skills, skillsDir }),
+                botInstructions({
+                  soul,
+                  memory,
+                  skills,
+                  skillsDir,
+                  teams: yield* teamsLedBy(store, teamStore, input.id),
+                }),
                 input.prompt,
               ),
               attachments: [],

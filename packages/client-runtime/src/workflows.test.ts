@@ -42,6 +42,7 @@ const at = (minute: number, second = 0) => `2026-11-01T00:${two(minute)}:${two(s
 const run = (runId: string, fields: Partial<WorkflowRun> = {}): WorkflowRun => ({
   runId,
   workflow: "release",
+  key: null,
   version: 1,
   title: runId,
   status: "running",

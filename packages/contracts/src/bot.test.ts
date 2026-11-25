@@ -11,6 +11,10 @@ import {
   BotProfile,
   BotUpsertInput,
   botRuntimeMode,
+  Pipeline,
+  PipelineUpsertInput,
+  Team,
+  TeamUpsertInput,
 } from "./bot.ts";
 
 const decodeBotId = Schema.decodeUnknownSync(BotId);
@@ -21,6 +25,10 @@ const decodeCandidate = Schema.decodeUnknownSync(BotImportCandidate);
 const decodeSource = Schema.decodeUnknownSync(BotImportSource);
 const decodeApply = Schema.decodeUnknownSync(BotImportApplyInput);
 const decodeExport = Schema.decodeUnknownSync(BotExportInput);
+const decodeTeam = Schema.decodeUnknownSync(Team);
+const decodeTeamUpsert = Schema.decodeUnknownSync(TeamUpsertInput);
+const decodePipeline = Schema.decodeUnknownSync(Pipeline);
+const decodePipelineUpsert = Schema.decodeUnknownSync(PipelineUpsertInput);
 
 const validProfile = {
   id: "night-watch",
@@ -54,6 +62,16 @@ describe("BotProfile", () => {
     expect(profile.limits).toEqual({});
   });
 
+  it("defaults canManageBots for a profile written before it existed, and decodes it", () => {
+    expect(decodeProfile(validProfile).canManageBots).toBe(false);
+    expect(decodeProfile({ ...validProfile, canManageBots: true }).canManageBots).toBe(true);
+  });
+
+  it("defaults stayInProject on for a profile written before it existed, and decodes it", () => {
+    expect(decodeProfile(validProfile).stayInProject).toBe(true);
+    expect(decodeProfile({ ...validProfile, stayInProject: false }).stayInProject).toBe(false);
+  });
+
   it("rejects a multi-line name", () => {
     expect(() => decodeProfile({ ...validProfile, name: "two\nlines" })).toThrow();
   });
@@ -83,6 +101,16 @@ describe("Bot", () => {
 });
 
 describe("BotUpsertInput", () => {
+  it("decodes canManageBots and leaves it out when omitted", () => {
+    expect(decodeUpsert({ ...validProfile, canManageBots: true }).canManageBots).toBe(true);
+    expect(decodeUpsert(validProfile).canManageBots).toBeUndefined();
+  });
+
+  it("decodes stayInProject and leaves it out when omitted", () => {
+    expect(decodeUpsert({ ...validProfile, stayInProject: false }).stayInProject).toBe(false);
+    expect(decodeUpsert(validProfile).stayInProject).toBeUndefined();
+  });
+
   it("rejects a soul over the byte limit", () => {
     expect(() => decodeUpsert({ ...validProfile, soul: "x".repeat(24_001) })).toThrow();
   });
@@ -138,5 +166,94 @@ describe("BotImportCandidate", () => {
 
   it("rejects an export input with no ids", () => {
     expect(() => decodeExport({ ids: [], includeMemory: false })).toThrow();
+  });
+});
+
+const validTeam = {
+  id: "build",
+  name: "Build",
+  leadBotId: "planner",
+  memberBotIds: ["dev", "reviewer"],
+  createdAt: "2026-01-01T00:00:00Z",
+  updatedAt: "2026-01-01T00:00:00Z",
+};
+
+describe("Team", () => {
+  it("decodes a stored team and its upsert input", () => {
+    const team = decodeTeam(validTeam);
+    expect(team.memberBotIds).toEqual(["dev", "reviewer"]);
+    const upsert = decodeTeamUpsert({ name: "Build", memberBotIds: ["dev"] });
+    expect(upsert.leadBotId).toBeUndefined();
+  });
+
+  it.each(["Lead", "has space", ""])("rejects a bad team id %j", (id) => {
+    expect(() => decodeTeam({ ...validTeam, id })).toThrow();
+  });
+});
+
+const validPipeline = {
+  id: "ship",
+  teamId: "build",
+  name: "Ship",
+  stages: [
+    { id: "dev", name: "Dev", botId: "dev", kind: "work", instructions: "Build it." },
+    {
+      id: "review",
+      name: "Review",
+      botId: "reviewer",
+      kind: "review",
+      instructions: "Check it.",
+      onFail: "dev",
+    },
+  ],
+  limits: { maxRounds: 3, stageTimeoutMinutes: 60 },
+  createdAt: "2026-01-01T00:00:00Z",
+  updatedAt: "2026-01-01T00:00:00Z",
+};
+
+describe("Pipeline", () => {
+  it("decodes a stored pipeline with its stages and limits", () => {
+    const pipeline = decodePipeline(validPipeline);
+    expect(pipeline.stages).toHaveLength(2);
+    expect(pipeline.stages[1]?.onFail).toBe("dev");
+    expect(pipeline.limits).toEqual({ maxRounds: 3, stageTimeoutMinutes: 60 });
+  });
+
+  it("rejects stages outside the bounds, bad limits and a long brief", () => {
+    expect(() => decodePipeline({ ...validPipeline, stages: [] })).toThrow();
+    expect(() =>
+      decodePipeline({
+        ...validPipeline,
+        stages: Array.from({ length: 13 }, (_, i) => ({
+          id: `s-${i}`,
+          name: `S${i}`,
+          botId: "dev",
+          kind: "work",
+          instructions: "Do.",
+        })),
+      }),
+    ).toThrow();
+    for (const limits of [
+      { maxRounds: 0, stageTimeoutMinutes: 60 },
+      { maxRounds: 11, stageTimeoutMinutes: 60 },
+      { maxRounds: 3, stageTimeoutMinutes: 4 },
+      { maxRounds: 3, stageTimeoutMinutes: 481 },
+    ]) {
+      expect(() => decodePipeline({ ...validPipeline, limits })).toThrow();
+    }
+    const long = {
+      ...validPipeline,
+      stages: [{ ...validPipeline.stages[0], instructions: "x".repeat(4001) }],
+    };
+    expect(() => decodePipeline(long)).toThrow();
+  });
+
+  it("decodes an upsert input with optional limits left out", () => {
+    const upsert = decodePipelineUpsert({
+      teamId: "build",
+      name: "Ship",
+      stages: validPipeline.stages,
+    });
+    expect(upsert.limits).toBeUndefined();
   });
 });

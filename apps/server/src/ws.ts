@@ -135,6 +135,8 @@ import * as DocumentText from "./provider/DocumentText.ts";
 import * as ScheduledTasks from "./scheduledTasks/ScheduledTaskService.ts";
 import * as BotService from "./bots/BotService.ts";
 import * as BotImportService from "./bots/import/BotImportService.ts";
+import * as PipelineService from "./bots/PipelineService.ts";
+import * as TeamService from "./bots/TeamService.ts";
 import * as Workflows from "./workflows/Workflows.ts";
 import * as WorkflowRuntime from "./workflows/WorkflowRuntime.ts";
 import * as SecretRequests from "./secrets/SecretRequests.ts";
@@ -1507,6 +1509,8 @@ export const layerWsRpc = (
       const scheduledTasks = yield* ScheduledTasks.ScheduledTaskService;
       const bots = yield* BotService.BotService;
       const botImport = yield* BotImportService.BotImportService;
+      const teams = yield* TeamService.TeamService;
+      const pipelines = yield* PipelineService.PipelineService;
       const workflows = yield* Workflows.Workflows;
       const workflowDefinitions = yield* WorkflowRuntime.WorkflowDefinitions;
       // The service's messages are built from its own attributes, so they are safe to send.
@@ -2466,6 +2470,22 @@ export const layerWsRpc = (
         [WS_METHODS.botsRemoveSkill]: (input) =>
           Effect.annotateCurrentSpan({ "bot.id": input.id }).pipe(
             Effect.andThen(bots.removeSkill(input)),
+          ),
+        [WS_METHODS.teamsSubscribe]: (input) => teams.subscribeList(input),
+        [WS_METHODS.teamsUpsert]: (input) => teams.upsert(input),
+        [WS_METHODS.teamsDelete]: (input) =>
+          Effect.annotateCurrentSpan({ "team.id": input.id }).pipe(
+            Effect.andThen(teams.delete(input)),
+          ),
+        [WS_METHODS.pipelinesSubscribe]: (input) => pipelines.subscribeList(input),
+        [WS_METHODS.pipelinesUpsert]: (input) => pipelines.upsert(input),
+        [WS_METHODS.pipelinesDelete]: (input) =>
+          Effect.annotateCurrentSpan({ "pipeline.id": input.id }).pipe(
+            Effect.andThen(pipelines.delete(input)),
+          ),
+        [WS_METHODS.pipelinesRun]: (input) =>
+          Effect.annotateCurrentSpan({ "pipeline.id": input.pipelineId }).pipe(
+            Effect.andThen(pipelines.run(input)),
           ),
         [WS_METHODS.botsImportScan]: (input) => botImport.scan(input),
         [WS_METHODS.botsImportApply]: (input) => botImport.apply(input),

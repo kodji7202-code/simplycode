@@ -13,6 +13,7 @@ import * as Option from "effect/Option";
 import * as Queue from "effect/Queue";
 import * as Path from "effect/Path";
 import * as PlatformError from "effect/PlatformError";
+import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
@@ -21,7 +22,7 @@ import WorkflowsMigration from "../persistence/Migrations/110_Workflows.ts";
 import { type AgentResult, WorkflowAgents } from "./WorkflowAgents.ts";
 import * as WorkflowEngine from "./WorkflowEngine.ts";
 import * as WorkflowRuntime from "./WorkflowRuntime.ts";
-import { engineTag, type WorkflowDefinition } from "./workflow.ts";
+import { engineTag, workflow, type WorkflowDefinition } from "./workflow.ts";
 import * as Workflows from "./Workflows.ts";
 
 /** Waits to be let go. */
@@ -531,4 +532,104 @@ it.effect(
         assert.equal(freed.result, "go on");
       }).pipe(Effect.scoped, Effect.raceFirst(Effect.forever(TestClock.adjust("1 second"))));
     }).pipe(Effect.provide(NodeServices.layer), Effect.scoped),
+);
+
+/**
+ * An empty folder plus `builtins`: what `setup` cannot say, since it always writes `hold.ts`.
+ * `seeded` adds files to the folder before the runtime comes up.
+ */
+const setupBuiltin = Effect.fn("setupBuiltin")(function* (
+  builtins: ReadonlyArray<WorkflowDefinition>,
+  seeded: ReadonlyArray<readonly [string, string]> = [],
+) {
+  const fileSystem = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const home = yield* fileSystem.makeTempDirectoryScoped({ prefix: "t3-workflow-builtin-" });
+  const directory = path.join(home, "workflows");
+  const at = (name: string) => path.join(directory, name);
+  yield* fileSystem.makeDirectory(directory);
+  for (const [name, source] of seeded) {
+    yield* fileSystem.writeFileString(at(name), source);
+  }
+  const database = NodeSqliteClient.layer({ filename: path.join(home, "state.sqlite") });
+  yield* Effect.provide(WorkflowsMigration, database);
+  const made = WorkflowRuntime.make(
+    Effect.succeed((definitions: ReadonlyArray<WorkflowDefinition>) =>
+      WorkflowEngine.layer(definitions).pipe(
+        Layer.provide(Layer.mock(WorkflowAgents)({})),
+        Layer.provide(database),
+        Layer.provide(NodeCrypto.layer),
+      ),
+    ),
+    directory,
+    Effect.succeed(false),
+    builtins,
+  );
+  return { fileSystem, at, directory, runtime: Layer.effectContext(made) };
+});
+
+/** Stands in for the pipeline runner: same name, a body that just ends. */
+const pipelineStub = workflow(
+  "simplycode.pipeline",
+  { version: 1, payload: Schema.Struct({}), returns: Schema.String },
+  () => Effect.succeed("done"),
+);
+
+it.effect("a built-in workflow runs even when the folder is empty", () =>
+  Effect.gen(function* () {
+    const { runtime } = yield* setupBuiltin([pipelineStub]);
+    yield* Effect.gen(function* () {
+      const workflows = yield* Workflows.Workflows;
+      const definitions = yield* WorkflowRuntime.WorkflowDefinitions;
+      const started = yield* workflows.start("simplycode.pipeline", {}, { idempotencyKey: "p" });
+      const done = yield* workflows.waitFor(started.runId, (run) => run.status === "completed");
+      assert.equal(done.result, "done");
+      // It is on no definition page: the folder's files list stays empty.
+      assert.deepStrictEqual((yield* definitions.read).files, []);
+    }).pipe(
+      Effect.provide(runtime),
+      Effect.scoped,
+      Effect.raceFirst(Effect.forever(TestClock.adjust("1 second"))),
+    );
+  }).pipe(Effect.provide(NodeServices.layer), Effect.scoped),
+);
+
+it.effect("a definition file cannot take a built-in workflow's name", () =>
+  Effect.gen(function* () {
+    const { fileSystem, at, runtime } = yield* setupBuiltin([pipelineStub]);
+    yield* Effect.gen(function* () {
+      const workflows = yield* Workflows.Workflows;
+      const definitions = yield* WorkflowRuntime.WorkflowDefinitions;
+      const usurper =
+        'T3.workflow("simplycode.pipeline", { version: 1, payload: Schema.Struct({}) }, () => Effect.void);\n';
+
+      // Refused before the file is even written.
+      const saved = yield* definitions.save("mine.ts", usurper);
+      assert.isFalse(saved.changed);
+      assert.include(saved.problems[0]?.message ?? "", "is a built-in workflow");
+
+      // On disk behind the editor's back, it is still held out and says why.
+      yield* fileSystem.writeFileString(at("mine.ts"), usurper);
+      assert.deepStrictEqual(yield* definitions.save("other.ts", greet("hi")), {
+        changed: true,
+        problems: [],
+      });
+      const read = yield* definitions.read;
+      const mine = read.files.find((file) => file.name === "mine.ts");
+      assert.include(
+        mine?.problems[0]?.message ?? "",
+        "simplycode.pipeline is a built-in workflow",
+      );
+      // And the real one still runs.
+      const started = yield* workflows.start("simplycode.pipeline", {}, { idempotencyKey: "p" });
+      assert.equal(
+        (yield* workflows.waitFor(started.runId, (run) => run.status === "completed")).result,
+        "done",
+      );
+    }).pipe(
+      Effect.provide(runtime),
+      Effect.scoped,
+      Effect.raceFirst(Effect.forever(TestClock.adjust("1 second"))),
+    );
+  }).pipe(Effect.provide(NodeServices.layer), Effect.scoped),
 );

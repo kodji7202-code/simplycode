@@ -159,6 +159,22 @@ export function summarizeT3ToolCalls(
           );
       break;
     }
+    case "bot-manage": {
+      const count = selected.length;
+      label = done
+        ? resolve(
+            msg("{count, plural, one {Managed {count} bot} other {Managed {count} bots}}", {
+              count,
+            }),
+          )
+        : resolve(
+            msg(
+              "{count, plural, one {Tried to manage {count} bot} other {Tried to manage {count} bots}}",
+              { count },
+            ),
+          );
+      break;
+    }
     case "thread-interrupt": {
       const count = countEntities(threadIds);
       label = done

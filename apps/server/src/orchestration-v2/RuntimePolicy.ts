@@ -190,12 +190,23 @@ export const layerFromProjectStore: Layer.Layer<
               ),
             ),
           );
+        const runtimeMode = providerRuntimeMode(input.thread.runtimeMode, supportedRuntimeModes);
+        // A confined thread is only confined under the OS- or client-level workspace-write
+        // sandbox; a full-access turn is deliberately left unconfined.
+        const sandboxPolicy =
+          input.thread.workspaceConfined === true && runtimeMode !== "full-access"
+            ? {
+                type: "workspaceWrite" as const,
+                writableRoots: [cwd, ...(workspace?.extraRoots ?? [])],
+              }
+            : undefined;
         return ProviderAdapter.ProviderAdapterV2RuntimePolicy.make({
-          runtimeMode: providerRuntimeMode(input.thread.runtimeMode, supportedRuntimeModes),
+          runtimeMode,
           interactionMode: input.thread.interactionMode,
           cwd,
           ...(maxRuntimeMode === undefined ? {} : { maxRuntimeMode }),
           ...(workspace === undefined || workspace.folders.length === 0 ? {} : { workspace }),
+          ...(sandboxPolicy === undefined ? {} : { sandboxPolicy }),
         });
       }),
     });

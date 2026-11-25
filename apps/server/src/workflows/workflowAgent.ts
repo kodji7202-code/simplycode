@@ -55,6 +55,8 @@ export interface AgentOptions<A, I> extends AgentLaunch {
   readonly issue?: IssueAddress;
   /** How long the agent has. Past it the thread is stopped and the step has failed. */
   readonly timeout?: Duration.Input;
+  /** Tags set on the thread a start makes, such as the `bot:<id>` of the bot it runs for. */
+  readonly tags?: ReadonlyArray<string>;
   /**
    * Let the agent end a turn without its `returns` and answer from a later one, as an agent does
    * that waits to be woken: by a pull request it watches, by work it left running. Only when
@@ -79,9 +81,11 @@ const AGENT_OPTIONS = [
   "timeout",
   "quiet",
   "title",
+  "tags",
   "workspace",
   "runtimeMode",
   "interactionMode",
+  "workspaceConfined",
 ];
 
 // What only shapes a new thread: a continued one keeps its project, machine, model and modes.
@@ -93,6 +97,7 @@ const NEW_THREAD_OPTIONS = [
   "workspace",
   "runtimeMode",
   "interactionMode",
+  "workspaceConfined",
 ] as const;
 
 /** What the engine needs to see one turn of an agent step through to its end. */
@@ -226,12 +231,14 @@ const attempt = Effect.fn("workflow.agent")(function* <A, I>(
   const launch: AgentLaunch | undefined =
     options.workspace === undefined &&
     options.runtimeMode === undefined &&
-    options.interactionMode === undefined
+    options.interactionMode === undefined &&
+    options.workspaceConfined === undefined
       ? undefined
       : {
           workspace: options.workspace,
           runtimeMode: options.runtimeMode,
           interactionMode: options.interactionMode,
+          workspaceConfined: options.workspaceConfined,
         };
   // What the agent's thread touches, its issue and the pull requests it links, is this step's.
   const touches = stepReferences(run.store, run.runId, name);
@@ -250,6 +257,7 @@ const attempt = Effect.fn("workflow.agent")(function* <A, I>(
         environment: thread === undefined ? options.environment : thread.environment,
         thread: thread?.threadId,
         issue: options.issue,
+        tags: options.tags,
       })
       .pipe(
         Effect.provideContext(touches),

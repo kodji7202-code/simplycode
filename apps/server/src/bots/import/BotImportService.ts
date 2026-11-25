@@ -15,7 +15,6 @@ import {
   type BotImportScanResult,
   BotProfile,
   botRuntimeMode,
-  type ModelSelection,
   type ProjectId,
   type ScheduledTaskUpsertSchedule,
   type ServerProvider,
@@ -35,6 +34,7 @@ import * as ProjectStore from "../../orchestration-v2/ProjectStore.ts";
 import * as ScheduledTasks from "../../scheduledTasks/ScheduledTaskService.ts";
 import * as ProviderRegistry from "../../provider/ProviderRegistry.ts";
 import { BotStore } from "../BotStore.ts";
+import { mapModelSelection } from "../modelMapping.ts";
 import { scanSource, type ScannedBot } from "./sources.ts";
 
 const decodeProfile = Schema.decodeUnknownEffect(BotProfile);
@@ -50,25 +50,8 @@ function botError(message: string, input?: { cause?: unknown }) {
   });
 }
 
-// The source's provider maps to the instance whose id or driver matches it
-// (case-insensitive); the model must be one of that instance's known slugs.
-const mapModel = (
-  bot: ScannedBot,
-  providers: ReadonlyArray<ServerProvider>,
-): ModelSelection | undefined => {
-  if (bot.sourceModelSlug === undefined || bot.sourceProvider === undefined) return undefined;
-  const wanted = bot.sourceProvider.toLowerCase();
-  for (const provider of providers) {
-    const matchesInstance =
-      provider.instanceId.toLowerCase() === wanted || provider.driver.toLowerCase() === wanted;
-    if (!matchesInstance) continue;
-    const model = provider.models.find((entry) => entry.slug === bot.sourceModelSlug);
-    if (model !== undefined) {
-      return { instanceId: provider.instanceId, model: model.slug };
-    }
-  }
-  return undefined;
-};
+const mapModel = (bot: ScannedBot, providers: ReadonlyArray<ServerProvider>) =>
+  mapModelSelection(bot, providers);
 
 const toCandidate = (bot: ScannedBot, providers: ReadonlyArray<ServerProvider>) => {
   const modelSelection = mapModel(bot, providers);
@@ -170,6 +153,9 @@ export const layer = Layer.effect(
         approvalMode: bot.approvalMode,
         interactionMode: bot.interactionMode ?? "default",
         limits: bot.limits ?? {},
+        // An imported bot can never arrive as a bot manager; the user opts in per bot.
+        canManageBots: false,
+        stayInProject: bot.stayInProject ?? true,
         createdAt: now,
         updatedAt: now,
         ...(bot.avatar === undefined ? {} : { avatar: bot.avatar }),

@@ -271,6 +271,34 @@ describe("CodexAdapterV2 runtime policy", () => {
     }),
   );
 
+  it.effect("honors an explicit workspaceWrite sandbox in auto and approval-required modes", () =>
+    Effect.gen(function* () {
+      // A confined thread carries its own sandbox policy; it must reach Codex
+      // verbatim rather than the mode default (readOnly for approval-required).
+      const sandboxPolicy = {
+        type: "workspaceWrite" as const,
+        writableRoots: ["/work/app", "/work/api"],
+      };
+      const build = (runtimeMode: "approval-required" | "auto") =>
+        CodexAdapterV2.buildCodexTurnStartParams({
+          nativeThreadId: `native-confined-${runtimeMode}`,
+          codexInput: [{ type: "text", text: "test" }],
+          runtimePolicy: {
+            runtimeMode,
+            interactionMode: "default",
+            cwd: "/work/app",
+            sandboxPolicy,
+          },
+          modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4" },
+          hasT3Mcp: false,
+        });
+      for (const runtimeMode of ["approval-required", "auto"] as const) {
+        const turn = yield* build(runtimeMode);
+        assert.deepEqual(turn.sandboxPolicy, sandboxPolicy);
+      }
+    }),
+  );
+
   it.effect("sends the chosen cyber access program, else the model's default", () =>
     Effect.gen(function* () {
       const build = (value?: string, cyberAccess?: { defaultProgram: string | undefined }) =>

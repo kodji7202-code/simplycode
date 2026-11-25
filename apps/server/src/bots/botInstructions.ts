@@ -3,6 +3,17 @@ export type BotInstructionsSkills = ReadonlyArray<{
   readonly description?: string | undefined;
 }>;
 
+/** A team a bot leads, for the `## Your team` section. Disabled members are left out. */
+export interface BotInstructionsTeam {
+  readonly name: string;
+  readonly members: ReadonlyArray<{
+    readonly id: string;
+    readonly name: string;
+    readonly role?: string | undefined;
+    readonly description?: string | undefined;
+  }>;
+}
+
 const SKILLS_SECTION_MAX_BYTES = 6_000;
 const SKILL_DESCRIPTION_MAX_CHARS = 160;
 
@@ -24,6 +35,8 @@ export function botInstructions(input: {
   readonly skills: BotInstructionsSkills;
   /** The bot's `skills/` folder; printed once so the agent can list it. */
   readonly skillsDir: string;
+  /** The teams this bot leads; each gets a member list for delegate_to_bot. */
+  readonly teams?: ReadonlyArray<BotInstructionsTeam>;
 }): string {
   const sections: Array<string> = [];
   if (input.soul.length > 0) {
@@ -51,6 +64,21 @@ export function botInstructions(input: {
       skillsSection += `\n- …and ${input.skills.length - shown} more. List ${input.skillsDir} to see them.`;
     }
     sections.push(skillsSection);
+  }
+  for (const team of input.teams ?? []) {
+    const lines = team.members.map(
+      (member) =>
+        `- ${member.name} (${member.id}): ${member.role ?? "no role"} - ${
+          member.description === undefined
+            ? "no description"
+            : clipSkillDescription(member.description)
+        }`,
+    );
+    sections.push(
+      `## Your team: ${team.name}\n` +
+        "You lead this team. Delegate work to its members with delegate_to_bot." +
+        (lines.length === 0 ? "" : `\n${lines.join("\n")}`),
+    );
   }
   return sections.join("\n\n");
 }
