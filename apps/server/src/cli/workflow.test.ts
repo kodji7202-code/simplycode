@@ -39,6 +39,7 @@ vi.mock("../auth/EnvironmentAuth.ts", async (importOriginal) => {
 const makeRun = (status: WorkflowRun["status"]): WorkflowRun => ({
   runId: "run-1",
   workflow: "review",
+  key: null,
   version: 1,
   title: "review pr-1",
   status,

@@ -13,6 +13,8 @@ import { botDelegateTaskInput } from "../../../bots/botDelegation.ts";
 import * as BotManagerPolicy from "../../../bots/botManagerPolicy.ts";
 import { BotService } from "../../../bots/BotService.ts";
 import { BotStore } from "../../../bots/BotStore.ts";
+import { teamsLedBy } from "../../../bots/botTeams.ts";
+import { TeamStore } from "../../../bots/TeamStore.ts";
 import * as ProviderRegistry from "../../../provider/ProviderRegistry.ts";
 import * as Orchestrator from "../../../orchestration-v2/Orchestrator.ts";
 import { loadCaller, readCaller } from "../../threadAccess.ts";
@@ -110,6 +112,7 @@ const handlers = {
       if (caller.tags?.includes(botThreadTag(input.botId)) === true) {
         return yield* invalidRequest("A bot cannot delegate to itself.");
       }
+      const teamStore = yield* TeamStore;
       const result = yield* service.delegateTask(
         scope,
         botDelegateTaskInput({
@@ -118,6 +121,7 @@ const handlers = {
           memory,
           skills,
           skillsDir,
+          teams: yield* teamsLedBy(store, teamStore, input.botId),
           input,
           callerRuntimeMode: caller.runtimeMode,
         }),

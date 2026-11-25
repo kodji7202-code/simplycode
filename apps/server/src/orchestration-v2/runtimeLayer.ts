@@ -37,6 +37,10 @@ import * as Orchestrator from "./Orchestrator.ts";
 import * as BotStore from "../bots/BotStore.ts";
 import * as BotService from "../bots/BotService.ts";
 import * as BotImportService from "../bots/import/BotImportService.ts";
+import * as PipelineService from "../bots/PipelineService.ts";
+import * as PipelineStore from "../bots/PipelineStore.ts";
+import * as TeamService from "../bots/TeamService.ts";
+import * as TeamStore from "../bots/TeamStore.ts";
 import * as ProjectionStore from "./ProjectionStore.ts";
 import * as ProjectionMaintenance from "./ProjectionMaintenance.ts";
 import * as ProjectStore from "./ProjectStore.ts";
@@ -321,12 +325,21 @@ const layerThreadLaunchProvided = ThreadLaunchService.layer.pipe(
     ).pipe(Layer.provideMerge(layerProjectService)),
   ),
 );
+const layerBotStoreProvided = BotStore.layer;
+const layerTeamStoreProvided = TeamStore.layer;
+const layerPipelineStoreProvided = PipelineStore.layer;
 const layerWorkflowsProvided = WorkflowRuntime.layer.pipe(
   Layer.provide(
     Layer.mergeAll(
       layerThreadLaunchProvided,
       layerThreadManagementProvided,
       ThreadIssueService.layer.pipe(Layer.provide(layerOrchestratorProvided)),
+      // The built-in pipeline definition reads the bot stores; stage threads
+      // get their `bot:` tag through the orchestrator.
+      layerBotStoreProvided,
+      layerTeamStoreProvided,
+      layerPipelineStoreProvided,
+      layerOrchestratorProvided,
     ).pipe(Layer.provideMerge(layerProjectService)),
   ),
   // Layers memoize by reference, so these are the links Settings and agents use.
@@ -339,9 +352,10 @@ const layerSecretRequestsProvided = SecretRequests.layer.pipe(
 const layerFeedbackStoreProvided = FeedbackStore.layer.pipe(
   Layer.provide(layerThreadManagementProvided),
 );
-const layerBotStoreProvided = BotStore.layer;
 const layerBotHookProvided = BotService.botHookLayer.pipe(
-  Layer.provide(Layer.merge(layerBotStoreProvided, layerOrchestratorProvided)),
+  Layer.provide(
+    Layer.mergeAll(layerBotStoreProvided, layerTeamStoreProvided, layerOrchestratorProvided),
+  ),
 );
 const layerScheduledTaskProvided = ScheduledTaskService.layer.pipe(
   Layer.provide(
@@ -358,10 +372,27 @@ const layerBotServiceProvided = BotService.layer.pipe(
   Layer.provide(
     Layer.mergeAll(
       layerBotStoreProvided,
+      layerTeamStoreProvided,
+      layerPipelineStoreProvided,
       layerScheduledTaskProvided,
       layerThreadLaunchProvided,
       layerOrchestratorProvided,
       ProjectStore.layer,
+    ),
+  ),
+);
+const layerTeamServiceProvided = TeamService.layer.pipe(
+  Layer.provide(
+    Layer.mergeAll(layerBotStoreProvided, layerTeamStoreProvided, layerPipelineStoreProvided),
+  ),
+);
+const layerPipelineServiceProvided = PipelineService.layer.pipe(
+  Layer.provide(
+    Layer.mergeAll(
+      layerBotStoreProvided,
+      layerTeamStoreProvided,
+      layerPipelineStoreProvided,
+      layerWorkflowsProvided,
     ),
   ),
 );
@@ -468,6 +499,10 @@ export const layerProduction = Layer.mergeAll(
   layerScheduledTaskProvided,
   // Exported, not just provided to the bot layers: the /mcp bots toolkit resolves it per call.
   layerBotStoreProvided,
+  layerTeamStoreProvided,
+  layerPipelineStoreProvided,
+  layerTeamServiceProvided,
+  layerPipelineServiceProvided,
   layerBotServiceProvided,
   layerBotImportProvided,
   layerWorkflowsProvided,

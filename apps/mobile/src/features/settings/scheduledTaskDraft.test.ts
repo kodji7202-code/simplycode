@@ -264,6 +264,7 @@ describe("applyBotToDraft", () => {
     modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4-codex" },
     approvalMode: "auto-safe",
     interactionMode: "plan",
+    canManageBots: false,
     limits: {},
     soulBytes: 10,
     memoryBytes: 0,

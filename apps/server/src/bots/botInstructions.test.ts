@@ -77,3 +77,42 @@ it("still produces the memory section when the soul is empty", () => {
   expect(text.startsWith("## Your memory\n")).toBe(true);
   expect(text.endsWith("The user prefers dark mode.")).toBe(true);
 });
+
+it("adds a team section with each member's role and clipped description", () => {
+  const text = botInstructions({
+    soul: "Plan.",
+    memory: "",
+    skills: [],
+    skillsDir: SKILLS_DIR,
+    teams: [
+      {
+        name: "Build",
+        members: [
+          { id: "dev", name: "Dev", role: "Coder", description: "Writes the code." },
+          { id: "reviewer", name: "Reviewer", description: "x".repeat(200) },
+          { id: "quiet", name: "Quiet" },
+        ],
+      },
+    ],
+  });
+  expect(
+    text.endsWith(
+      "## Your team: Build\n" +
+        "You lead this team. Delegate work to its members with delegate_to_bot.\n" +
+        "- Dev (dev): Coder - Writes the code.\n" +
+        `- Reviewer (reviewer): no role - ${"x".repeat(160)}…\n` +
+        "- Quiet (quiet): no role - no description",
+    ),
+  ).toBe(true);
+});
+
+it("leaves the team section out when the bot leads no team", () => {
+  const text = botInstructions({
+    soul: "Plan.",
+    memory: "",
+    skills: [],
+    skillsDir: SKILLS_DIR,
+    teams: [],
+  });
+  expect(text).not.toContain("Your team");
+});

@@ -75,6 +75,7 @@ import {
   scheduledTaskDefaultModel,
 } from "../settings/scheduledTaskDraft";
 import { BotAvatarView } from "./BotAvatarView";
+import { EnvironmentTeamsPipelines } from "./EnvironmentTeamsPipelines";
 
 const APPROVAL_MODES: ReadonlyArray<{
   readonly id: BotApprovalMode;
@@ -148,11 +149,13 @@ export function SettingsBotsRouteScreen() {
       >
         {visibleEnvironments.length > 0 ? (
           visibleEnvironments.map((environment) => (
-            <EnvironmentBots
-              key={environment.environmentId}
-              environment={environment}
-              onEdit={(bot) => openEditor(environment.environmentId, bot.id)}
-            />
+            <View key={environment.environmentId} className="gap-5">
+              <EnvironmentBots
+                environment={environment}
+                onEdit={(bot) => openEditor(environment.environmentId, bot.id)}
+              />
+              <EnvironmentTeamsPipelines environment={environment} />
+            </View>
           ))
         ) : (
           <Text className="px-2 text-base text-foreground-muted">

@@ -156,6 +156,8 @@ export function makeReplayServerConfig(
       worktreeCheckoutCacheDir: path.join(providerStatusCacheDir, "worktree-checkouts"),
       workflowsDir: path.join(baseDir, "workflows"),
       botsDir: path.join(baseDir, "bots"),
+      teamsDir: path.join(baseDir, "teams"),
+      pipelinesDir: path.join(baseDir, "pipelines"),
       attachmentsDir,
       browserArtifactsDir: path.join(stateDir, "browser-artifacts"),
       environmentThemesDir,

@@ -12,6 +12,7 @@ import * as ThreadLaunchService from "../orchestration-v2/ThreadLaunchService.ts
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
 import * as BotService from "../bots/BotService.ts";
 import * as BotStore from "../bots/BotStore.ts";
+import * as TeamStore from "../bots/TeamStore.ts";
 import * as ServerConfig from "../config.ts";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import * as ManagedProjectFolders from "../project/ManagedProjectFolders.ts";
@@ -47,10 +48,16 @@ const botLayer = (baseDir: string) => {
       Layer.mergeAll(NodeServices.layer, ServerConfig.layerTest(process.cwd(), baseDir)),
     ),
   );
+  const teamStoreLayer = TeamStore.layer.pipe(
+    Layer.provideMerge(
+      Layer.mergeAll(NodeServices.layer, ServerConfig.layerTest(process.cwd(), baseDir)),
+    ),
+  );
   const hookLayer = BotService.botHookLayer.pipe(
     Layer.provide(
-      Layer.merge(
+      Layer.mergeAll(
         botStoreLayer,
+        teamStoreLayer,
         Layer.mock(Orchestrator.OrchestratorV2)({
           dispatch: (command) =>
             Effect.sync(() => void dispatches.push(command as Record<string, unknown>) as never),

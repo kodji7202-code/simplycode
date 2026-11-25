@@ -1666,6 +1666,14 @@ export function createServerEnvironmentAtoms<R, E>(
       label: "environment-data:server:bots:live",
       tag: WS_METHODS.botsSubscribe,
     }),
+    teamsLive: createEnvironmentRpcSubscriptionAtomFamily(runtime, {
+      label: "environment-data:server:teams:live",
+      tag: WS_METHODS.teamsSubscribe,
+    }),
+    pipelinesLive: createEnvironmentRpcSubscriptionAtomFamily(runtime, {
+      label: "environment-data:server:pipelines:live",
+      tag: WS_METHODS.pipelinesSubscribe,
+    }),
     bot: createEnvironmentRpcQueryAtomFamily(runtime, {
       label: "environment-data:server:bots:get",
       tag: WS_METHODS.botsGet,
@@ -2010,6 +2018,35 @@ export function createServerEnvironmentAtoms<R, E>(
     exportBots: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:bots:export",
       tag: WS_METHODS.botsExport,
+    }),
+    upsertTeam: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:teams:upsert",
+      tag: WS_METHODS.teamsUpsert,
+      scheduler: configScheduler,
+      concurrency: configConcurrency,
+    }),
+    deleteTeam: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:teams:delete",
+      tag: WS_METHODS.teamsDelete,
+      scheduler: configScheduler,
+      concurrency: configConcurrency,
+    }),
+    upsertPipeline: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:pipelines:upsert",
+      tag: WS_METHODS.pipelinesUpsert,
+      scheduler: configScheduler,
+      concurrency: configConcurrency,
+    }),
+    deletePipeline: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:pipelines:delete",
+      tag: WS_METHODS.pipelinesDelete,
+      scheduler: configScheduler,
+      concurrency: configConcurrency,
+    }),
+    // Deliberately not on the config lane, same as runBotNow.
+    runPipeline: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:pipelines:run",
+      tag: WS_METHODS.pipelinesRun,
     }),
     answerWorkflowQuestion: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:workflows:answer",

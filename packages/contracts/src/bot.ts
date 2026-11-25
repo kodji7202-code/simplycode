@@ -262,6 +262,174 @@ export const BotRunNowResult = Schema.Struct({
 });
 export type BotRunNowResult = typeof BotRunNowResult.Type;
 
+/**
+ * A team's id is the name of its file under `teams/` in the server home, so it
+ * shares the bot-id alphabet and stays path-safe everywhere.
+ */
+export const TeamId = Schema.String.check(Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,47}$/)).pipe(
+  Schema.brand("TeamId"),
+);
+export type TeamId = typeof TeamId.Type;
+
+export const PipelineId = Schema.String.check(Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,47}$/)).pipe(
+  Schema.brand("PipelineId"),
+);
+export type PipelineId = typeof PipelineId.Type;
+
+/** A stage's slug, unique inside its pipeline. */
+export const PipelineStageId = Schema.String.check(
+  Schema.isPattern(/^[a-z0-9][a-z0-9-]{0,47}$/),
+).pipe(Schema.brand("PipelineStageId"));
+export type PipelineStageId = typeof PipelineStageId.Type;
+
+export const Team = Schema.Struct({
+  id: TeamId,
+  name: BotProfile.fields.name,
+  description: BotProfile.fields.description,
+  leadBotId: Schema.optional(BotId),
+  memberBotIds: Schema.Array(BotId),
+  createdAt: IsoDateTime,
+  updatedAt: IsoDateTime,
+});
+export type Team = typeof Team.Type;
+
+export const TeamListInput = Schema.Struct({});
+export type TeamListInput = typeof TeamListInput.Type;
+
+export const TeamListResult = Schema.Struct({
+  teams: ForwardCompatibleArray(Team),
+  loadErrors: Schema.Array(BotLoadError),
+});
+export type TeamListResult = typeof TeamListResult.Type;
+
+export const TeamUpsertInput = Schema.Struct({
+  id: Schema.optional(TeamId),
+  name: Team.fields.name,
+  description: Team.fields.description,
+  leadBotId: Schema.optional(BotId),
+  memberBotIds: Schema.Array(BotId),
+});
+export type TeamUpsertInput = typeof TeamUpsertInput.Type;
+
+export const TeamMutationResult = Schema.Struct({
+  team: Team,
+});
+export type TeamMutationResult = typeof TeamMutationResult.Type;
+
+export const TeamDeleteInput = Schema.Struct({
+  id: TeamId,
+});
+export type TeamDeleteInput = typeof TeamDeleteInput.Type;
+
+export const TeamDeleteResult = Schema.Struct({
+  id: TeamId,
+});
+export type TeamDeleteResult = typeof TeamDeleteResult.Type;
+
+export const PIPELINE_MAX_STAGES = 12;
+export const PIPELINE_INSTRUCTIONS_MAX_CHARS = 4_000;
+export const PIPELINE_MAX_ROUNDS = 10;
+export const PIPELINE_MAX_STAGE_TIMEOUT_MINUTES = 480;
+export const PIPELINE_MIN_STAGE_TIMEOUT_MINUTES = 5;
+const PIPELINE_DEFAULT_MAX_ROUNDS = 3;
+const PIPELINE_DEFAULT_STAGE_TIMEOUT_MINUTES = 60;
+
+export const PipelineStageKind = Schema.Literals(["work", "review"]);
+export type PipelineStageKind = typeof PipelineStageKind.Type;
+
+export const PipelineStage = Schema.Struct({
+  id: PipelineStageId,
+  name: TrimmedNonEmptyString.check(Schema.isMaxLength(100)),
+  botId: BotId,
+  kind: PipelineStageKind,
+  instructions: Schema.String.check(Schema.isMaxLength(PIPELINE_INSTRUCTIONS_MAX_CHARS)),
+  /** For a review stage, the earlier work stage a failed review goes back to. */
+  onFail: Schema.optional(PipelineStageId),
+});
+export type PipelineStage = typeof PipelineStage.Type;
+
+export const PipelineLimits = Schema.Struct({
+  maxRounds: Schema.Int.check(
+    Schema.isGreaterThanOrEqualTo(1),
+    Schema.isLessThanOrEqualTo(PIPELINE_MAX_ROUNDS),
+  ),
+  stageTimeoutMinutes: Schema.Int.check(
+    Schema.isGreaterThanOrEqualTo(PIPELINE_MIN_STAGE_TIMEOUT_MINUTES),
+    Schema.isLessThanOrEqualTo(PIPELINE_MAX_STAGE_TIMEOUT_MINUTES),
+  ),
+});
+export type PipelineLimits = typeof PipelineLimits.Type;
+
+export const PIPELINE_DEFAULT_LIMITS: PipelineLimits = {
+  maxRounds: PIPELINE_DEFAULT_MAX_ROUNDS,
+  stageTimeoutMinutes: PIPELINE_DEFAULT_STAGE_TIMEOUT_MINUTES,
+};
+
+export const Pipeline = Schema.Struct({
+  id: PipelineId,
+  teamId: TeamId,
+  name: Team.fields.name,
+  description: Team.fields.description,
+  stages: Schema.Array(PipelineStage).check(
+    Schema.isMinLength(1),
+    Schema.isMaxLength(PIPELINE_MAX_STAGES),
+  ),
+  limits: PipelineLimits,
+  createdAt: IsoDateTime,
+  updatedAt: IsoDateTime,
+});
+export type Pipeline = typeof Pipeline.Type;
+
+export const PipelineListInput = Schema.Struct({});
+export type PipelineListInput = typeof PipelineListInput.Type;
+
+export const PipelineListResult = Schema.Struct({
+  pipelines: ForwardCompatibleArray(Pipeline),
+  loadErrors: Schema.Array(BotLoadError),
+});
+export type PipelineListResult = typeof PipelineListResult.Type;
+
+export const PipelineUpsertInput = Schema.Struct({
+  id: Schema.optional(PipelineId),
+  teamId: TeamId,
+  name: Pipeline.fields.name,
+  description: Pipeline.fields.description,
+  stages: Pipeline.fields.stages,
+  /** Omitted on update: keep the stored value. Omitted on create: the defaults. */
+  limits: Schema.optional(PipelineLimits),
+});
+export type PipelineUpsertInput = typeof PipelineUpsertInput.Type;
+
+export const PipelineMutationResult = Schema.Struct({
+  pipeline: Pipeline,
+});
+export type PipelineMutationResult = typeof PipelineMutationResult.Type;
+
+export const PipelineDeleteInput = Schema.Struct({
+  id: PipelineId,
+});
+export type PipelineDeleteInput = typeof PipelineDeleteInput.Type;
+
+export const PipelineDeleteResult = Schema.Struct({
+  id: PipelineId,
+});
+export type PipelineDeleteResult = typeof PipelineDeleteResult.Type;
+
+export const PipelineRunInput = Schema.Struct({
+  pipelineId: PipelineId,
+  task: TrimmedNonEmptyString,
+  /** The project the stages share; defaults to the lead's, then the first stage bot's. */
+  projectId: Schema.optional(ProjectId),
+  /** Replays with the same commandId return the same run instead of starting again. */
+  commandId: Schema.optional(CommandId),
+});
+export type PipelineRunInput = typeof PipelineRunInput.Type;
+
+export const PipelineRunResult = Schema.Struct({
+  runId: Schema.String,
+});
+export type PipelineRunResult = typeof PipelineRunResult.Type;
+
 /** Where a bot import reads candidates from. Package content is sent again on apply. */
 export const BotImportSource = Schema.Union([
   Schema.Struct({ type: Schema.Literal("openbot") }),

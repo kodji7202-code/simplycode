@@ -161,6 +161,7 @@ const make = Effect.fn("WorkflowEngine.make")(function* (
   ): WorkflowStore.WorkflowRun => ({
     runId: row.run_id,
     workflow: row.workflow,
+    key: row.idempotency_key,
     version: Number(row.version),
     title: row.title,
     status: row.status,

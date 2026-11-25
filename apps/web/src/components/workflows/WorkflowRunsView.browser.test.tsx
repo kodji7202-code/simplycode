@@ -19,6 +19,7 @@ const environmentId = EnvironmentId.make("laptop");
 const at = (minute: number) => new Date(Date.UTC(2026, 10, 1, 0, minute)).toISOString();
 const run = (fields: Partial<WorkflowRun> & Pick<WorkflowRun, "runId" | "title">): WorkflowRun => ({
   workflow: "release",
+  key: null,
   version: 1,
   status: "running",
   detail: null,

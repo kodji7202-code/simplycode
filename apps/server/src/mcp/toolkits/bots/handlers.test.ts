@@ -23,6 +23,7 @@ import { McpSchema, McpServer } from "effect/ai";
 
 import { BotService } from "../../../bots/BotService.ts";
 import { BotStore } from "../../../bots/BotStore.ts";
+import { TeamStore } from "../../../bots/TeamStore.ts";
 import * as ProviderRegistry from "../../../provider/ProviderRegistry.ts";
 import * as Orchestrator from "../../../orchestration-v2/Orchestrator.ts";
 import * as ThreadManagement from "../../../orchestration-v2/ThreadManagementService.ts";
@@ -220,6 +221,11 @@ const layerToolkit = (input: {
     calls,
     layer: McpHttpServer.toolkitRegistration(BotsToolkit, BotsHandlers.layer).pipe(
       Layer.provide(layerStore),
+      Layer.provide(
+        Layer.mock(TeamStore)({
+          list: () => Effect.succeed({ teams: [], loadErrors: [] }),
+        }),
+      ),
       Layer.provide(layerBotService),
       Layer.provide(layerProviders),
       Layer.provide(layerService),
