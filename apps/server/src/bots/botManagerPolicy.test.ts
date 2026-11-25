@@ -96,6 +96,24 @@ it("updateDenial refuses self, managers, and approval raises", () => {
   expect(Policy.updateDenial(caller, target, { approvalMode: "ask" })).toBeUndefined();
 });
 
+it("updateDenial refuses a target already above the caller's own approval", () => {
+  const above = bot({ id: "above", canManageBots: false, approvalMode: "full" });
+  expect(Policy.updateDenial(caller, above, {})).toBe(
+    'You can\'t edit a bot whose approval mode ("full") is above your own ("auto-safe").',
+  );
+  // The check runs before the requested-mode check, so it also fires on a raise.
+  expect(Policy.updateDenial(caller, above, { approvalMode: "ask" })).toBe(
+    'You can\'t edit a bot whose approval mode ("full") is above your own ("auto-safe").',
+  );
+  // Targets at or below the caller's rank stay editable.
+  expect(
+    Policy.updateDenial(caller, bot({ id: "same", canManageBots: false }), {}),
+  ).toBeUndefined();
+  expect(
+    Policy.updateDenial(caller, bot({ id: "low", canManageBots: false, approvalMode: "ask" }), {}),
+  ).toBeUndefined();
+});
+
 it("installSkillDenial allows self and non-manager targets only", () => {
   expect(Policy.installSkillDenial(caller, caller)).toBeUndefined();
   expect(
@@ -104,6 +122,25 @@ it("installSkillDenial allows self and non-manager targets only", () => {
   expect(Policy.installSkillDenial(caller, bot({ id: "other-manager" }))).toBe(
     "You can't edit another bot that manages bots.",
   );
+});
+
+it("installSkillDenial refuses a non-self target above the caller's own approval", () => {
+  expect(
+    Policy.installSkillDenial(
+      caller,
+      bot({ id: "above", canManageBots: false, approvalMode: "full" }),
+    ),
+  ).toBe('You can\'t edit a bot whose approval mode ("full") is above your own ("auto-safe").');
+  // Self is exempt, and a full caller may install into an auto-safe target.
+  expect(
+    Policy.installSkillDenial(caller, bot({ id: "manager", approvalMode: "full" })),
+  ).toBeUndefined();
+  expect(
+    Policy.installSkillDenial(
+      bot({ id: "big", approvalMode: "full" }),
+      bot({ id: "worker", canManageBots: false }),
+    ),
+  ).toBeUndefined();
 });
 
 it("resolveModelPick maps an existing slug and refuses anything else", () => {

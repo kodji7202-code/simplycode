@@ -674,7 +674,10 @@ it.effect("update_bot refuses the caller itself, other managers, and approval ra
     });
 
     const { layer: raise } = layerToolkit({
-      bots: [managerBot({ approvalMode: "auto-safe" }), plannerBot({ id: "worker" })],
+      bots: [
+        managerBot({ approvalMode: "auto-safe" }),
+        plannerBot({ id: "worker", approvalMode: "auto-safe" }),
+      ],
       ...managerCaller,
     });
     expect(
@@ -689,6 +692,32 @@ it.effect("update_bot refuses the caller itself, other managers, and approval ra
     });
   }),
 );
+
+it.effect("update_bot refuses a target above the caller's approval and leaves it unchanged", () => {
+  const { calls, layer } = layerToolkit({
+    bots: [
+      managerBot({ approvalMode: "auto-safe" }),
+      plannerBot({ id: "worker", approvalMode: "full" }),
+    ],
+    ...managerCaller,
+  });
+  return Effect.gen(function* () {
+    const failure = declaredFailure(
+      yield* callTool("update_bot", { botId: "worker", name: "Renamed", soul: "Hacked." }),
+    );
+    expect(failure).toMatchObject({
+      code: "invalid_request",
+      message:
+        'You can\'t edit a bot whose approval mode ("full") is above your own ("auto-safe").',
+    });
+    expect(
+      calls.filter(
+        (call): call is { type: "upsert" } =>
+          typeof call === "object" && call !== null && "type" in call && call.type === "upsert",
+      ),
+    ).toHaveLength(0);
+  }).pipe(Effect.provide(layer));
+});
 
 it.effect("install_bot_skill works on self and editable targets, refuses managers", () =>
   Effect.gen(function* () {

@@ -41,7 +41,10 @@ export function createDenial(
   return approvalDenial(requested, caller.approvalMode);
 }
 
-/** Update: not self, not another manager, no approval raise. */
+const aboveOwnApprovalMessage = (target: BotApprovalMode, own: BotApprovalMode): string =>
+  `You can't edit a bot whose approval mode ("${target}") is above your own ("${own}").`;
+
+/** Update: not self, not another manager, not above the caller's own approval. */
 export function updateDenial(
   caller: Bot,
   target: Bot,
@@ -49,6 +52,8 @@ export function updateDenial(
 ): string | undefined {
   if (caller.id === target.id) return "You can't edit yourself.";
   if (target.canManageBots) return "You can't edit another bot that manages bots.";
+  if (approvalRank(target.approvalMode) > approvalRank(caller.approvalMode))
+    return aboveOwnApprovalMessage(target.approvalMode, caller.approvalMode);
   return input.approvalMode === undefined
     ? undefined
     : approvalDenial(input.approvalMode, caller.approvalMode);
@@ -57,7 +62,10 @@ export function updateDenial(
 /** install_bot_skill allows the caller itself, or a target update_bot could edit. */
 export function installSkillDenial(caller: Bot, target: Bot): string | undefined {
   if (caller.id === target.id) return undefined;
-  return target.canManageBots ? "You can't edit another bot that manages bots." : undefined;
+  if (target.canManageBots) return "You can't edit another bot that manages bots.";
+  return approvalRank(target.approvalMode) > approvalRank(caller.approvalMode)
+    ? aboveOwnApprovalMessage(target.approvalMode, caller.approvalMode)
+    : undefined;
 }
 
 /**

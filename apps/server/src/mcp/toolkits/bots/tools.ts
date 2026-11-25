@@ -113,7 +113,7 @@ const CreateBotTool = Tool.make("create_bot", {
 
 const UpdateBotTool = Tool.make("update_bot", {
   description:
-    "Change another bot's name, role, description, standing instructions, model or approval mode. Fields you leave out stay as they are. You can't edit yourself or a bot that manages bots, and you can't raise approval above your own.",
+    "Change another bot's name, role, description, standing instructions, model or approval mode. Fields you leave out stay as they are. You can't edit yourself or a bot that manages bots, and you can't raise approval above your own or edit a bot whose approval is above yours.",
   parameters: BotsMcpUpdateBotInput,
   success: BotsMcpUpdateBotResult,
   failure: OrchestratorMcpFailure,
