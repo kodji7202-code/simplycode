@@ -124,6 +124,7 @@ describe("readDevinUsage", () => {
         provider: "devin",
         timestampMs: 1780000123000,
         model: "swe-2-high",
+        rateModel: "swe-2",
         sessionId: "sess-1",
         totals: {
           uncachedInputTokens: 168,
@@ -162,6 +163,43 @@ describe("readDevinUsage", () => {
       const records = (yield* readDevinUsage(dir, 0)).files.flatMap((file) => file.records);
       assert.strictEqual(records.length, 1);
       assert.strictEqual(records[0]?.dedupeKey, "devin:sess-1:3");
+    }).pipe(Effect.provide(NodeServices.layer)),
+  );
+
+  it.effect("prices effort-suffixed model ids as their base model id", () =>
+    Effect.gen(function* () {
+      const fileSystem = yield* FileSystem.FileSystem;
+      const dir = yield* fileSystem.makeTempDirectoryScoped({ prefix: "devin-usage-" });
+      const db = yield* makeDevinDatabase(dir);
+      yield* addSession(db, "sess-1", "swe-2-high");
+      yield* addNode(
+        db,
+        "sess-1",
+        1,
+        metricsMessage({ metrics: STANDARD_METRICS, generationModel: "claude-opus-5-5-max" }),
+      );
+      yield* addNode(
+        db,
+        "sess-1",
+        2,
+        metricsMessage({ metrics: STANDARD_METRICS, generationModel: "claude-opus-5-5-medium" }),
+      );
+      yield* addNode(
+        db,
+        "sess-1",
+        3,
+        metricsMessage({ metrics: STANDARD_METRICS, generationModel: "compactor" }),
+      );
+
+      const records = (yield* readDevinUsage(dir, 0)).files.flatMap((file) => file.records);
+      assert.deepStrictEqual(
+        records.map((record) => [record.model, record.rateModel ?? null]),
+        [
+          ["claude-opus-5-5-max", "claude-opus-5-5"],
+          ["claude-opus-5-5-medium", "claude-opus-5-5"],
+          ["compactor", null],
+        ],
+      );
     }).pipe(Effect.provide(NodeServices.layer)),
   );
 

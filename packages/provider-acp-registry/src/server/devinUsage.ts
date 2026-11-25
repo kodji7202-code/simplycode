@@ -29,6 +29,11 @@ function toTimestampMs(value: unknown): number | null {
   return value > 1e12 ? Math.trunc(value) : Math.trunc(value * 1000);
 }
 
+// Devin appends a reasoning effort to the served model id (claude-opus-5-5-max,
+// gpt-6-2-sol-high). The rate table only knows the base id, so the record carries it as
+// rateModel: pricing prefers it while the displayed id keeps the effort suffix.
+const DEVIN_EFFORT_SUFFIX = /-(?:minimal|low|medium|high|xhigh|max|thinking)$/;
+
 function modelDisplayName(responseDimensions: unknown): string | null {
   if (!Array.isArray(responseDimensions)) return null;
   for (const entry of responseDimensions) {
@@ -78,10 +83,12 @@ const parseDevinRow = (
       "";
     const timestampMs = toTimestampMs(row.created_at);
     if (totalTokens(totals) === 0 || model.length === 0 || timestampMs === null) return null;
+    const rateModel = model.replace(DEVIN_EFFORT_SUFFIX, "");
     return {
       provider: "devin",
       timestampMs,
       model,
+      ...(rateModel !== model ? { rateModel } : {}),
       sessionId,
       totals,
       reportedCostUsd: null,
