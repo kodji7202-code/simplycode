@@ -166,7 +166,10 @@ function normalizeContextHandoffText(value: string): string {
 
 function normalizeReplayFrame(value: unknown): unknown {
   if (typeof value === "string") {
-    return normalizeContextHandoffText(value);
+    // The fixtures are upstream T3 Code recordings kept byte-identical so upstream
+    // merges stay clean; this fork renames the product, so the brand token is
+    // mapped back before comparing.
+    return normalizeContextHandoffText(value.replaceAll(/\bSimplyCode\b/g, "T3 Code"));
   }
   if (typeof value !== "object" || value === null) {
     return value;
