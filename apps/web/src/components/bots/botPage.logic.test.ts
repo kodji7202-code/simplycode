@@ -9,6 +9,7 @@ import {
   draftToBotUpsertInput,
   EMPTY_BOT_DRAFT,
   filterBots,
+  importMemoryLabel,
   importModelLine,
   sortBotsForSidebar,
   soulByteLength,
@@ -263,5 +264,13 @@ describe("importModelLine", () => {
     expect(importModelLine(candidate, fallbackLabel)).toBe(
       "Unknown model, not available here, will use sonnet (claude-1)",
     );
+  });
+});
+
+describe("importMemoryLabel", () => {
+  it("pluralizes the byte count", () => {
+    expect(importMemoryLabel(0)).toBe("0 bytes");
+    expect(importMemoryLabel(1)).toBe("1 byte");
+    expect(importMemoryLabel(1536)).toBe("1,536 bytes");
   });
 });

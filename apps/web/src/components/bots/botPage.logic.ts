@@ -293,7 +293,7 @@ export function importModelLine(
 }
 
 export const importMemoryLabel = (bytes: number, resolve: MessageResolver = m): string =>
-  resolve(msg("{count} bytes", { count: bytes }));
+  resolve(msg("{count, plural, =1 {# byte} other {# bytes}}", { count: bytes }));
 
 /** Writes a text file to the user's downloads via a blob anchor. */
 export function downloadTextFile(fileName: string, content: string): void {

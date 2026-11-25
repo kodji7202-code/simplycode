@@ -3335,7 +3335,7 @@
   "acbf0b4710755dc1": "Persönlich",
   "28a637543abedfc9": "Unknown model",
   "472e0f00f193ee8e": "{model}, not available here, will use {fallback}",
-  "d773271c5f0b1462": "{count} bytes",
+  "a72ce72a6c7725de": "{count, plural, =1 {# byte} other {# bytes}}",
   "c2403b3e12ef2fb8": "Could not save bot",
   "603404b381c2c9a4": "This session cannot change orchestration settings.",
   "ea6a253b98e95d7d": "Soul is too long",

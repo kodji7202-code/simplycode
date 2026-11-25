@@ -472,7 +472,9 @@ function CandidateRow(props: {
         {candidate.warnings.length > 0 ? (
           <details className="text-2xs text-muted-foreground">
             <summary className="cursor-pointer">
-              {m("{count} warnings", { count: candidate.warnings.length })}
+              {m("{count, plural, =1 {# warning} other {# warnings}}", {
+                count: candidate.warnings.length,
+              })}
             </summary>
             <ul className="list-disc pl-4">
               {candidate.warnings.map((warning) => (

@@ -783,10 +783,14 @@ function ImportCandidateRow(props: {
         </Text>
         <Text className="text-sm text-foreground-muted" numberOfLines={1}>
           {[
-            gt("{count} skills", { count: candidate.skills.length }),
+            gt("{count, plural, =1 {# skill} other {# skills}}", {
+              count: candidate.skills.length,
+            }),
             gt("instructions {size}", { size: formatBytes(candidate.soulBytes) }),
-            gt("{count} bytes", { count: candidate.memoryBytes }),
-            gt("{count} automations", { count: automationCount }),
+            gt("{count, plural, =1 {# byte} other {# bytes}}", { count: candidate.memoryBytes }),
+            gt("{count, plural, =1 {# automation} other {# automations}}", {
+              count: automationCount,
+            }),
             candidate.approvalMode,
           ].join(" · ")}
         </Text>
