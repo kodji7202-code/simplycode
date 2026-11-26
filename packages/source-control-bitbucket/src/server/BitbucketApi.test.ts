@@ -331,7 +331,7 @@ it.effect.each([false, true])(
                   baseUrl: "https://bitbucket.org",
                 },
                 remoteName: "upstream",
-                remoteUrl: "git@bitbucket.org:PingDotGG/SimplyCode.git",
+                remoteUrl: "git@bitbucket.org:Kodji7202-Code/SimplyCode.git",
               },
             }
           : {}),
@@ -670,7 +670,7 @@ it.effect("creates pull requests using the official REST payload shape", () => {
       description: "PR body",
       source: {
         branch: { name: "feature/provider" },
-        repository: { full_name: "owner/t3code" },
+        repository: { full_name: "owner/simplycode" },
       },
       destination: {
         branch: { name: "main" },
