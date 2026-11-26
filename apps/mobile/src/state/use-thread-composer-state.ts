@@ -39,6 +39,11 @@ import {
 } from "@t3tools/contracts";
 
 import { resolveThreadWorkingStartedAt } from "@t3tools/client-runtime/state/models";
+import {
+  parseCodexFeedbackCommand,
+  submitCodexFeedback,
+  type CodexFeedbackSubmission,
+} from "@t3tools/client-runtime/state/threads";
 import { deriveThreadTitleSeed } from "@t3tools/client-runtime/operations";
 import { upgradeLegacyContextMessage } from "@t3tools/shared/composerContextLegacy";
 import { restoreAttachmentOnlyBootstrapPrompt } from "@t3tools/shared/composerContextReferences";
@@ -243,6 +248,12 @@ export function useThreadComposerState(input: {
   const savingQueuedEditRef = useRef(false);
   const startingSideChatRef = useRef(false);
 
+  const [feedbackSubmissionsByThreadKey, setFeedbackSubmissionsByThreadKey] = useState<
+    Record<string, ReadonlyArray<CodexFeedbackSubmission>>
+  >({});
+  const uploadThreadFeedback = useAtomCommand(threadEnvironment.uploadFeedback, {
+    reportFailure: false,
+  });
   const selectedThreadKey = selectedThreadShell
     ? scopedThreadKey(selectedThreadShell.environmentId, selectedThreadShell.id)
     : null;
@@ -321,6 +332,16 @@ export function useThreadComposerState(input: {
         ? selectedThreadKey
         : queuedEditDraftKey(selectedThreadKey, queuedRunEdit.runId);
   const selectedDraft = useComposerDraftSettings(composerDraftKey);
+  const feedbackSubmissions = selectedThreadKey
+    ? (feedbackSubmissionsByThreadKey[selectedThreadKey] ?? [])
+    : [];
+  const dismissFeedback = (id: MessageId) => {
+    if (!selectedThreadKey) return;
+    setFeedbackSubmissionsByThreadKey((current) => ({
+      ...current,
+      [selectedThreadKey]: (current[selectedThreadKey] ?? []).filter((entry) => entry.id !== id),
+    }));
+  };
   const threadDraftSettings = useComposerDraftSettings(selectedThreadKey);
   const selectedThreadQueueCount = selectedThreadQueuedMessages.length;
   const selectedThread = selectedThreadShell;
@@ -769,6 +790,55 @@ export function useThreadComposerState(input: {
       alertModelUnavailable();
       return null;
     }
+    const provider = serverConfig?.providers.find(
+      (entry) => entry.instanceId === modelSelection.instanceId,
+    );
+    const feedbackCommand =
+      attachments.length === 0 && provider?.driver === "codex"
+        ? parseCodexFeedbackCommand(text)
+        : null;
+    if (feedbackCommand) {
+      if (!readEnvironmentScope(selectedThreadShell.environmentId, AuthOrchestrationOperateScope))
+        return null;
+      if (thread.activeProviderThreadId === null) {
+        Dialog.alert(
+          m(msg("Start a {provider} thread first", { provider: "Codex" })),
+          m(msg("Send a message before you submit feedback.")),
+        );
+        return null;
+      }
+      const metadata = makeQueuedMessageMetadata();
+      await submitCodexFeedback(
+        {
+          submission: {
+            id: MessageId.make(metadata.messageId),
+            command: text,
+            createdAt: metadata.createdAt,
+          },
+          clearDraft: () => clearComposerDraftContent(threadKey),
+          onUpdate: (submission) => {
+            setFeedbackSubmissionsByThreadKey((current) => {
+              const existing = current[threadKey] ?? [];
+              const found = existing.some((entry) => entry.id === submission.id);
+              return {
+                ...current,
+                [threadKey]: found
+                  ? existing.map((entry) => (entry.id === submission.id ? submission : entry))
+                  : [...existing, submission],
+              };
+            });
+          },
+          upload: () =>
+            uploadThreadFeedback({
+              environmentId: thread.environmentId,
+              input: { threadId: thread.id, ...feedbackCommand },
+            }),
+        },
+        m,
+      );
+      return null;
+    }
+
     if (beforeDispatch !== undefined) {
       const response = await beforeDispatch(
         text,
@@ -977,6 +1047,8 @@ export function useThreadComposerState(input: {
     selectedThreadDetailBehindShell,
     selectedThreadQueueCount,
     selectedThreadQueuedMessages,
+    feedbackSubmissions,
+    dismissFeedback,
     dispatchingQueuedMessageId,
     activeWorkStartedAt,
     runlessWorkActive,

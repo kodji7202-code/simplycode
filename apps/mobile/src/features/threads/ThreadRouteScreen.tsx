@@ -1130,6 +1130,8 @@ function ThreadRouteContent(
           onSendMessage={composer.onSendMessage}
           offersSideChat={composer.sideChatUnavailableReason === null}
           onSendCommand={composer.onSendCommand}
+          feedbackSubmissions={composer.feedbackSubmissions}
+          onDismissFeedback={composer.dismissFeedback}
           onReconnectEnvironment={handleReconnectEnvironment}
           canSwitchThreadProvider={composer.canSwitchThreadProvider}
           onRespondToApproval={requests.onRespondToApproval}

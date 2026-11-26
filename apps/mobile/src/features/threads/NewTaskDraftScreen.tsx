@@ -1125,6 +1125,8 @@ export function NewTaskDraftScreen(props: {
         onSendMessage={handleStart}
         offersSideChat={false}
         onSendCommand={async () => null}
+        feedbackSubmissions={[]}
+        onDismissFeedback={() => {}}
         onReconnectEnvironment={() => onReconnectEnvironment(selectedProject.environmentId)}
         canSwitchThreadProvider
         onRespondToApproval={async () => {}}

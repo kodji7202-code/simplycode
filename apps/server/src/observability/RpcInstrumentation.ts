@@ -44,6 +44,7 @@ const RPC_AGGREGATES = {
   [WS_METHODS.providerAuthStart]: "provider",
   [WS_METHODS.providerConsumeResetCredit]: "provider",
   [WS_METHODS.providerAuthComplete]: "provider",
+  [WS_METHODS.providerUploadFeedback]: "provider",
   [WS_METHODS.providerMcpSignInStart]: "provider",
   [WS_METHODS.providerMcpSignInComplete]: "provider",
   [WS_METHODS.chatGptReconnectProfile]: "provider",

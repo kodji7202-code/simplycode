@@ -499,6 +499,7 @@ function itemIsProminent(item: OrchestrationV2TurnItem): boolean {
     item.type === "system_notice" ||
     item.type === "proposed_plan" ||
     item.type === "secret_request" ||
+    item.type === "feedback_request" ||
     item.type === "link_request"
   );
 }
@@ -619,6 +620,8 @@ function itemIcon(item: OrchestrationV2TurnItem): ThreadFeedActivity["icon"] {
     case "fork":
     case "thread_created":
       return "zap";
+    case "feedback_request":
+      return "message";
     case "secret_request":
       return "lock";
     case "link_request":
@@ -715,6 +718,8 @@ function itemSummary(
       }
       return toolPresentation?.displayName ?? item.toolName ?? resolve(msg("Tool call"));
     }
+    case "feedback_request":
+      return resolve(msg("Feedback for the T3 team"));
     case "proposed_plan":
       return resolve(msg("Proposed plan"));
     case "todo_list":
@@ -762,6 +767,8 @@ function itemPreview(item: OrchestrationV2TurnItem, resolve: MessageResolver): s
     case "fork":
     case "thread_created":
       return item.targetThreadId;
+    case "feedback_request":
+      return item.preview.subject;
     case "secret_request":
     case "link_request":
       return item.reason || null;

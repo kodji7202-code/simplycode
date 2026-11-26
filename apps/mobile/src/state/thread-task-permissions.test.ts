@@ -58,6 +58,7 @@ const state = vi.hoisted(() => ({
   >,
   approve: vi.fn(),
   answer: vi.fn(),
+  feedback: vi.fn(),
   updateSettings: vi.fn(),
   question: {
     id: "language",
@@ -182,6 +183,7 @@ vi.mock("./threads", async () => {
     threadEnvironment: {
       respondToApproval: state.approve,
       respondToUserInput: state.answer,
+      uploadFeedback: state.feedback,
     },
   };
 });
@@ -284,6 +286,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   state.approve.mockResolvedValue(AsyncResult.success(undefined));
   state.answer.mockResolvedValue(AsyncResult.success(undefined));
+  state.feedback.mockResolvedValue(AsyncResult.success({ feedbackId: "feedback" }));
 });
 
 describe("mobile task permissions", () => {
