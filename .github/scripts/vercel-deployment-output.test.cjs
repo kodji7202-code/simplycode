@@ -16,7 +16,11 @@ const steps = [
   ]),
   ...Array.from(preview.matchAll(stepPattern), (match) => ["web preview", match[1]]),
 ];
-assert.equal(steps.length, 3, "Expected both release steps and the preview step");
+assert.equal(
+  steps.length,
+  1,
+  "Expected only the preview step; the fork release deploys no hosted surfaces",
+);
 
 const url = "https://t3code-fixture-pinglabs.vercel.app";
 const warning = 'Error while parsing config file: "/runner/t3code/pnpm-lock.yaml"';

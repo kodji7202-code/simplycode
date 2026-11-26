@@ -333,6 +333,22 @@ jobs:
             exit 1
           fi
           npm config set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
-          npm publish --access public --tag latest --provenance ./npm-packages/simplycode.tgz
-          published="$(npm view simplycode@"$VERSION" version)"
-          test "$published" = "$VERSION"
+          if npm view simplycode@"$VERSION" version >/dev/null 2>&1; then
+            echo "simplycode@$VERSION is already published; skipping npm publish."
+          elif ! npm publish --access public --tag latest --provenance ./npm-packages/simplycode.tgz; then
+            echo "npm publish failed; checking whether the version was already published or is still propagating." >&2
+          fi
+
+          for attempt in {1..30}; do
+            published="$(npm view simplycode@"$VERSION" version 2>/dev/null || true)"
+            if [[ "$published" == "$VERSION" ]]; then
+              echo "Verified simplycode@$VERSION on npm."
+              exit 0
+            fi
+            if [[ $attempt -lt 30 ]]; then
+              sleep 10
+            fi
+          done
+
+          echo "simplycode@$VERSION did not become visible in the npm registry within five minutes." >&2
+          exit 1

@@ -32,10 +32,11 @@ const runsProjectCode = (block) =>
     block,
   );
 
-test("npm publishing is bound to the environment that admits only main and v* tags", () => {
-  const publish = jobs("workflows/release.yml").publish_cli;
+test("npm publishing uses provenance without checking out project code", () => {
+  const publish = jobs("workflows/release.yml").publish_npm;
   assert.match(publish, /^ {6}id-token: write$/m);
-  assert.match(publish, /^ {4}environment: production$/m);
+  assert.match(publish, /NPM_TOKEN: \$\{\{ secrets\.NPM_TOKEN \}\}/);
+  assert.doesNotMatch(publish, /actions\/checkout/);
 });
 
 test("the web preview gives the Vercel token to the deploy step only, after an install without lifecycle scripts", () => {
@@ -182,14 +183,11 @@ test("the store build record job runs the workflow's own action and passes the b
   assert.match(record, /^ {10}commit: \$\{\{ inputs\.sha \}\}$/m);
 });
 
-test("release deploys give the Vercel token to the deploy step only", () => {
+test("the fork release does not deploy hosted web surfaces", () => {
   const all = jobs("workflows/release.yml");
-  for (const name of ["build_web", "build_marketing"]) {
-    assert.doesNotMatch(all[name].split(/^ {4}steps:\n/m)[0], /secrets\.VERCEL/);
-    const withToken = steps(all[name]).filter((step) => step.includes("secrets.VERCEL_TOKEN"));
-    assert.equal(withToken.length, 1);
-    assert.match(withToken[0], /name: Build staged deployment/);
-  }
+  assert.equal(all.build_web, undefined);
+  assert.equal(all.build_marketing, undefined);
+  assert.doesNotMatch(read("workflows/release.yml"), /VERCEL_TOKEN/);
 });
 
 test("the version override token covers this repository only", () => {
