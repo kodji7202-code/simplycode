@@ -25,6 +25,7 @@ import { McpSchema, McpServer } from "effect/ai";
 
 import * as McpHttpServer from "../../apps/server/src/mcp/McpHttpServer.ts";
 import * as McpInvocationContext from "../../apps/server/src/mcp/McpInvocationContext.ts";
+import { TelegramNotifier } from "../../apps/server/src/notifications/TelegramNotifier.ts";
 import { liveThreadShell } from "../../apps/server/src/mcp/McpToolAccess.testkit.ts";
 import * as OrchestratorMcpService from "../../apps/server/src/mcp/OrchestratorMcpService.ts";
 import * as ThreadMetadataMcpService from "../../apps/server/src/mcp/ThreadMetadataMcpService.ts";
@@ -106,6 +107,7 @@ export const makeBackgroundWait = Effect.fn("evaluateMcpToolUse.makeBackgroundWa
       Layer.provide(Layer.mock(PeerLinkRequests.PeerLinkRequests)({})),
       Layer.provide(Layer.mock(PeerLinks.PeerLinks)({})),
       Layer.provide(Layer.mock(RemoteDelegation.RemoteDelegation)({})),
+      Layer.provide(Layer.mock(TelegramNotifier)({})),
     ),
   );
   type Entry = Parameters<McpServer.McpServer["Service"]["addTool"]>[0];
@@ -126,10 +128,12 @@ export const makeBackgroundWait = Effect.fn("evaluateMcpToolUse.makeBackgroundWa
     protocolVersion: "2025-06-18",
     clientCapabilities: {},
   });
+  const telegramNotifier = Layer.mock(TelegramNotifier)({});
   return Effect.fn("evaluateMcpToolUse.backgroundWait")(function* (input: unknown) {
     const result = yield* entry.handle(input).pipe(
       Effect.provideService(McpInvocationContext.McpInvocationContext, scope),
       Effect.provideService(McpSchema.McpRequestContext, request),
+      Effect.provide(telegramNotifier),
       // An MCP client shows a protocol error, such as bad parameters, as the tool's error.
       Effect.catch((error) =>
         Effect.succeed(

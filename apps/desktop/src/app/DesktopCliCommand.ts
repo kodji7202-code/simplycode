@@ -95,11 +95,8 @@ export const make = Effect.gen(function* () {
   const exists = (target: string) => fs.exists(target).pipe(Effect.orElseSucceed(() => false));
   // Read before this launch writes either one: an app that ran before left its launcher or
   // settings. Its user may have removed simplycode or chosen another, so only Settings installs there.
-  const legacyLauncher = path.join(binDirectory, "t3");
   const freshInstall =
-    !(yield* exists(launcher)) &&
-    !(yield* exists(legacyLauncher)) &&
-    !(yield* exists(environment.desktopSettingsPath));
+    !(yield* exists(launcher)) && !(yield* exists(environment.desktopSettingsPath));
   const writableDirectory = (directory: string) =>
     fs.access(directory, { writable: true }).pipe(
       Effect.as(true),

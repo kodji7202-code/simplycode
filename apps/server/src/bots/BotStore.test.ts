@@ -184,9 +184,8 @@ it.effect("keeps the last good list when the bots folder cannot be read", () =>
           : Reflect.get(target, property, receiver),
     });
     const dependencies = Layer.mergeAll(
-      NodeServices.layer,
+      ServerConfig.layerTest(process.cwd(), baseDir).pipe(Layer.provideMerge(NodeServices.layer)),
       Layer.succeed(FileSystem.FileSystem, proxied),
-      ServerConfig.layerTest(process.cwd(), baseDir),
     );
 
     yield* Effect.gen(function* () {

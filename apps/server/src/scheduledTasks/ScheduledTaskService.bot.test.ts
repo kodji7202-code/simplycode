@@ -45,12 +45,12 @@ const dispatches: Array<Record<string, unknown>> = [];
 const botLayer = (baseDir: string) => {
   const botStoreLayer = BotStore.layer.pipe(
     Layer.provideMerge(
-      Layer.mergeAll(NodeServices.layer, ServerConfig.layerTest(process.cwd(), baseDir)),
+      ServerConfig.layerTest(process.cwd(), baseDir).pipe(Layer.provideMerge(NodeServices.layer)),
     ),
   );
   const teamStoreLayer = TeamStore.layer.pipe(
     Layer.provideMerge(
-      Layer.mergeAll(NodeServices.layer, ServerConfig.layerTest(process.cwd(), baseDir)),
+      ServerConfig.layerTest(process.cwd(), baseDir).pipe(Layer.provideMerge(NodeServices.layer)),
     ),
   );
   const hookLayer = BotService.botHookLayer.pipe(

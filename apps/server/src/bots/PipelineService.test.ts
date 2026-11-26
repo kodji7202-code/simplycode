@@ -88,9 +88,8 @@ const withService = <A, E>(
   Effect.gen(function* () {
     const fs = yield* FileSystem.FileSystem;
     const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "simplycode-pipes-" });
-    const configLayer = Layer.mergeAll(
-      NodeServices.layer,
-      ServerConfig.layerTest(process.cwd(), baseDir),
+    const configLayer = ServerConfig.layerTest(process.cwd(), baseDir).pipe(
+      Layer.provideMerge(NodeServices.layer),
     );
     const storesLayer = Layer.mergeAll(TeamStore.layer, BotStore.layer, PipelineStore.layer).pipe(
       Layer.provideMerge(configLayer),

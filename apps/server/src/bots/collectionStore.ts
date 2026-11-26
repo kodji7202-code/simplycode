@@ -63,6 +63,7 @@ export const makeCollectionStore = <Id extends string, A extends { readonly id: 
   readonly decode: (value: unknown) => Effect.Effect<A, unknown>;
   readonly decodeId: (value: string) => Id | undefined;
 }): Effect.Effect<CollectionStore<Id, A>, never, FileSystem.FileSystem | Path.Path | Scope.Scope> =>
+  // @effect-diagnostics-next-line effectFnIife:off -- Repo lint requires Effect.fn for service constructors.
   Effect.fn("CollectionStore.make")(function* () {
     const fileSystem = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;

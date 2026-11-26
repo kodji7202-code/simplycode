@@ -149,7 +149,7 @@ it.layer(NodeServices.layer)("DesktopCliCommand", (it) => {
 
       // An app that ran before left its settings or launcher. Its user may have removed simplycode or
       // chosen another, so first launch leaves it to Settings, where Install still works.
-      for (const left of ["userdata/desktop-settings.json", "bin/t3"]) {
+      for (const left of ["userdata/desktop-settings.json", "bin/simplycode"]) {
         const upgradedHome = yield* fs.makeTempDirectoryScoped();
         const leftFile = path.join(upgradedHome, ".simplycode", left);
         yield* fs.makeDirectory(path.dirname(leftFile), { recursive: true });
