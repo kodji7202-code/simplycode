@@ -1716,14 +1716,14 @@ export function createServerEnvironmentAtoms<R, E>(
         );
       },
     }),
-    resourceTelemetry: createEnvironmentRpcSubscriptionAtomFamily(runtime, {
-      label: "environment-data:server:resource-telemetry",
-      tag: WS_METHODS.subscribeResourceTelemetry,
+    resourceUsage: createEnvironmentRpcSubscriptionAtomFamily(runtime, {
+      label: "environment-data:server:resource-usage",
+      tag: WS_METHODS.subscribeResourceUsage,
       idleTtlMs: 0,
     }),
-    resourceTelemetryHistory: createEnvironmentRpcQueryAtomFamily(runtime, {
-      label: "environment-data:server:resource-telemetry-history",
-      tag: WS_METHODS.serverGetResourceTelemetryHistory,
+    resourceUsageHistory: createEnvironmentRpcQueryAtomFamily(runtime, {
+      label: "environment-data:server:resource-usage-history",
+      tag: WS_METHODS.serverGetResourceUsageHistory,
       staleTimeMs: 5_000,
       refreshIntervalMs: 5_000,
       idleTtlMs: 0,
@@ -2094,15 +2094,6 @@ export function createServerEnvironmentAtoms<R, E>(
           JSON.stringify([environmentId, input.threadId, input.turnItemId]),
       },
     }),
-    answerFeedbackRequest: createEnvironmentRpcCommand(runtime, {
-      label: "environment-data:server:agent-feedback:answer-request",
-      tag: WS_METHODS.agentFeedbackAnswerRequest,
-      concurrency: {
-        mode: "singleFlight",
-        key: ({ environmentId, input }) =>
-          JSON.stringify([environmentId, input.threadId, input.turnItemId]),
-      },
-    }),
     refreshUsageRates: createEnvironmentRpcCommand(runtime, {
       label: "environment-data:server:refresh-usage-rates",
       tag: WS_METHODS.serverRefreshUsageRates,
@@ -2131,9 +2122,9 @@ export function createServerEnvironmentAtoms<R, E>(
       label: "environment-data:server:list-text-generator-models",
       tag: WS_METHODS.serverListTextGeneratorModels,
     }),
-    retryResourceTelemetry: createEnvironmentRpcCommand(runtime, {
-      label: "environment-data:server:retry-resource-telemetry",
-      tag: WS_METHODS.serverRetryResourceTelemetry,
+    retryResourceUsage: createEnvironmentRpcCommand(runtime, {
+      label: "environment-data:server:retry-resource-usage",
+      tag: WS_METHODS.serverRetryResourceUsage,
       concurrency: {
         mode: "singleFlight",
         key: ({ environmentId }) => environmentId,

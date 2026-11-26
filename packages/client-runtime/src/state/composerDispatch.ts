@@ -1,7 +1,6 @@
 import { isClearComposerCommand, parseSideChatCommand } from "@t3tools/shared/composerTrigger";
+import { parseCodexFeedbackCommand } from "./codexFeedback.ts";
 import { isUsageLimitsCommand } from "@t3tools/shared/usageLimits";
-
-import { parseCodexFeedbackCommand } from "./threadFeedback.ts";
 
 export type ComposerDispatchMode = "auto" | "queue" | "steer" | "restart";
 export type ActiveTurnComposerAction = Exclude<ComposerDispatchMode, "auto">;

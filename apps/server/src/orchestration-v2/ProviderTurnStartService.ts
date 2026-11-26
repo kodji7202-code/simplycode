@@ -51,7 +51,6 @@ import {
 } from "../workspace/restoreMissingWorktree.ts";
 import type * as TaskFolders from "../workspace/TaskFolders.ts";
 import * as EventSink from "./EventSink.ts";
-import * as ProviderUsageAnalytics from "../telemetry/ProviderUsageAnalytics.ts";
 import * as ContextHandoffService from "./ContextHandoffService.ts";
 import { canForkBusySourceNatively, isActiveRun } from "./CommandPolicy.ts";
 import { contextBoundaryOrdinal, isScheduledFreshRun } from "./contextBoundary.ts";
@@ -309,7 +308,6 @@ export const layer: Layer.Layer<
   ProviderTurnStartServiceV2,
   Effect.gen(function* () {
     const eventSink = yield* EventSink.EventSinkV2;
-    const turnAnalytics = yield* ProviderUsageAnalytics.ProviderTurnAnalytics;
     const contextHandoffService = yield* ContextHandoffService.ContextHandoffServiceV2;
     const idAllocator = yield* IdAllocator.IdAllocatorV2;
     const fileSystem = yield* FileSystem.FileSystem;
@@ -539,22 +537,13 @@ export const layer: Layer.Layer<
             } satisfies OrchestrationV2DomainEvent;
           }),
         );
-        const written = yield* eventSink.writeIfRunCurrent({
+        yield* eventSink.writeIfRunCurrent({
           threadId: run.threadId,
           runId,
           activeAttemptId: attempt.id,
           expectedStatus: "starting",
           events,
         });
-        // A steering restart that cannot start still ends a run whose earlier turns counted.
-        if (written.committed) {
-          yield* turnAnalytics.runSettled({
-            runId,
-            status,
-            completedAt: now,
-            childrenRunning: false,
-          });
-        }
       },
     );
 
@@ -1172,7 +1161,7 @@ export const layer: Layer.Layer<
         const previousUsage = measuredContext
           ? { ...threadUsage, ...measuredContext.usage }
           : threadUsage;
-        const reuseTelemetry =
+        const reuseUsageStats =
           sameSelection ||
           (previousSelection !== undefined &&
             session.canReuseContextUsage?.(previousSelection, run.modelSelection) === true);
@@ -1183,7 +1172,7 @@ export const layer: Layer.Layer<
         const handoffUsage = contextUsageForHandoff({
           sameNativeThread,
           sameSelection,
-          reuseTelemetry,
+          reuseUsageStats,
           previousUsage,
           knownModelWindow,
         });
@@ -1269,7 +1258,7 @@ export const layer: Layer.Layer<
         });
         const modelContextWindow =
           knownModelWindow ??
-          (handoffUsage !== null || reuseTelemetry ? previousUsage?.maxTokens : undefined);
+          (handoffUsage !== null || reuseUsageStats ? previousUsage?.maxTokens : undefined);
         const budgetProviderThread = {
           ...loadedProviderThread,
           contextUsage: handoffUsage,

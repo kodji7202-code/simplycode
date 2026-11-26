@@ -1,18 +1,15 @@
 import { describe, expect, it } from "@effect/vitest";
-import type {
-  DesktopHostTelemetrySnapshot,
-  ResourceMonitorSnapshotEvent,
-} from "@t3tools/contracts";
+import type { DesktopHostResourceSnapshot, ResourceMonitorSnapshotEvent } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Stream from "effect/Stream";
 
-import * as DesktopTelemetryReceiver from "../resourceTelemetry/DesktopTelemetryReceiver.ts";
-import * as NativeTelemetryClient from "../resourceTelemetry/NativeTelemetryClient.ts";
-import * as ResourceAttribution from "../resourceTelemetry/ResourceAttribution.ts";
-import * as ResourceTelemetry from "../resourceTelemetry/ResourceTelemetry.ts";
+import * as DesktopResourceReceiver from "../resourceUsage/DesktopResourceReceiver.ts";
+import * as NativeResourceClient from "../resourceUsage/NativeResourceClient.ts";
+import * as ResourceAttribution from "../resourceUsage/ResourceAttribution.ts";
+import * as ResourceUsage from "../resourceUsage/ResourceUsage.ts";
 import * as ProcessDiagnostics from "./ProcessDiagnostics.ts";
 
 // ProcessDiagnostics treats process.pid as the server, so the fixture PID is an
@@ -36,11 +33,11 @@ function makeNativeSnapshot(
   };
 }
 
-function layerTelemetryFor(
+function layerResourceUsageFor(
   snapshot: ResourceMonitorSnapshotEvent,
-  desktopSnapshot?: DesktopHostTelemetrySnapshot,
+  desktopSnapshot?: DesktopHostResourceSnapshot,
 ) {
-  const layerNative = NativeTelemetryClient.layerTest({
+  const layerNative = NativeResourceClient.layerTest({
     sampleNow: Effect.succeed({ generation: 0, snapshot }),
     health: Effect.succeed({
       status: "healthy",
@@ -52,7 +49,7 @@ function layerTelemetryFor(
     }),
   });
   const layerDesktop = desktopSnapshot
-    ? DesktopTelemetryReceiver.layerTest({
+    ? DesktopResourceReceiver.layerTest({
         latest: Effect.succeedSome(desktopSnapshot),
         health: Effect.succeed({
           status: "healthy",
@@ -60,8 +57,8 @@ function layerTelemetryFor(
           lastError: Option.none(),
         }),
       })
-    : DesktopTelemetryReceiver.layerTest();
-  return ResourceTelemetry.layer.pipe(
+    : DesktopResourceReceiver.layerTest();
+  return ResourceUsage.layer.pipe(
     Layer.provide(Layer.mergeAll(layerNative, layerDesktop, ResourceAttribution.layer)),
   );
 }
@@ -70,8 +67,8 @@ describe("ProcessDiagnostics", () => {
   it.effect("rejects stale process identities before signaling", () =>
     Effect.gen(function* () {
       const snapshot = makeNativeSnapshot([]);
-      const layerTelemetry = layerTelemetryFor(snapshot);
-      const layer = ProcessDiagnostics.layer.pipe(Layer.provide(layerTelemetry));
+      const layerResourceUsage = layerResourceUsageFor(snapshot);
+      const layer = ProcessDiagnostics.layer.pipe(Layer.provide(layerResourceUsage));
 
       const result = yield* Effect.service(ProcessDiagnostics.ProcessDiagnostics).pipe(
         Effect.flatMap((processDiagnostics) =>
@@ -115,19 +112,19 @@ describe("ProcessDiagnostics", () => {
           ioSemantics: "storage",
         },
       ]);
-      const staleTelemetry = yield* Effect.service(ResourceTelemetry.ResourceTelemetry).pipe(
-        Effect.flatMap((telemetry) => telemetry.latest),
-        Effect.provide(layerTelemetryFor(snapshot)),
+      const staleUsage = yield* Effect.service(ResourceUsage.ResourceUsage).pipe(
+        Effect.flatMap((usage) => usage.latest),
+        Effect.provide(layerResourceUsageFor(snapshot)),
       );
-      const layerTelemetry = Layer.succeed(
-        ResourceTelemetry.ResourceTelemetry,
-        ResourceTelemetry.ResourceTelemetry.of({
-          latest: Effect.succeed(staleTelemetry),
+      const layerResourceUsage = Layer.succeed(
+        ResourceUsage.ResourceUsage,
+        ResourceUsage.ResourceUsage.of({
+          latest: Effect.succeed(staleUsage),
           changes: Stream.empty,
           subscribe: Effect.die("unused"),
           readHistory: () => Effect.die("unused"),
           refresh: Effect.fail(
-            new ResourceTelemetry.ResourceTelemetryRefreshFailed({
+            new ResourceUsage.ResourceUsageRefreshFailed({
               operation: "refresh",
               cause: new Error("collector unavailable"),
             }),
@@ -135,7 +132,7 @@ describe("ProcessDiagnostics", () => {
           retry: Effect.die("unused"),
         }),
       );
-      const layer = ProcessDiagnostics.layer.pipe(Layer.provide(layerTelemetry));
+      const layer = ProcessDiagnostics.layer.pipe(Layer.provide(layerResourceUsage));
 
       const result = yield* Effect.service(ProcessDiagnostics.ProcessDiagnostics).pipe(
         Effect.flatMap((processDiagnostics) =>
@@ -183,9 +180,9 @@ describe("ProcessDiagnostics", () => {
         },
       ]);
       const sampledAt = DateTime.makeUnsafe(sampledAtUnixMs);
-      const layerTelemetry = layerTelemetryFor(snapshot, {
+      const layerResourceUsage = layerResourceUsageFor(snapshot, {
         version: 1,
-        type: "desktopTelemetry",
+        type: "desktopResource",
         sequence: 1,
         sampledAtUnixMs,
         electronPid: CHILD_PID,
@@ -215,7 +212,7 @@ describe("ProcessDiagnostics", () => {
           },
         ],
       });
-      const layer = ProcessDiagnostics.layer.pipe(Layer.provide(layerTelemetry));
+      const layer = ProcessDiagnostics.layer.pipe(Layer.provide(layerResourceUsage));
 
       const result = yield* Effect.service(ProcessDiagnostics.ProcessDiagnostics).pipe(
         Effect.flatMap((processDiagnostics) =>

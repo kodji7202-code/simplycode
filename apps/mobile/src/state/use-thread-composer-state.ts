@@ -38,12 +38,12 @@ import {
   type ThreadId,
 } from "@t3tools/contracts";
 
+import { resolveThreadWorkingStartedAt } from "@t3tools/client-runtime/state/models";
 import {
   parseCodexFeedbackCommand,
   submitCodexFeedback,
   type CodexFeedbackSubmission,
 } from "@t3tools/client-runtime/state/threads";
-import { resolveThreadWorkingStartedAt } from "@t3tools/client-runtime/state/models";
 import { deriveThreadTitleSeed } from "@t3tools/client-runtime/operations";
 import { upgradeLegacyContextMessage } from "@t3tools/shared/composerContextLegacy";
 import { restoreAttachmentOnlyBootstrapPrompt } from "@t3tools/shared/composerContextReferences";
@@ -240,12 +240,6 @@ export function useThreadComposerState(input: {
   const acknowledgedMessages = useAtomValue(acknowledgedThreadMessagesAtom);
   const queuedMessagesByThreadKey = useThreadOutboxMessages();
   const dispatchingQueuedMessageIds = useAtomValue(dispatchingQueuedMessageIdsAtom);
-  const [feedbackSubmissionsByThreadKey, setFeedbackSubmissionsByThreadKey] = useState<
-    Record<string, ReadonlyArray<CodexFeedbackSubmission>>
-  >({});
-  const uploadThreadFeedback = useAtomCommand(threadEnvironment.uploadFeedback, {
-    reportFailure: false,
-  });
   const editQueuedRun = useAtomCommand(threadEnvironment.editQueuedRun, {
     label: "edit queued message",
     reportFailure: false,
@@ -254,6 +248,12 @@ export function useThreadComposerState(input: {
   const savingQueuedEditRef = useRef(false);
   const startingSideChatRef = useRef(false);
 
+  const [feedbackSubmissionsByThreadKey, setFeedbackSubmissionsByThreadKey] = useState<
+    Record<string, ReadonlyArray<CodexFeedbackSubmission>>
+  >({});
+  const uploadThreadFeedback = useAtomCommand(threadEnvironment.uploadFeedback, {
+    reportFailure: false,
+  });
   const selectedThreadKey = selectedThreadShell
     ? scopedThreadKey(selectedThreadShell.environmentId, selectedThreadShell.id)
     : null;
@@ -266,16 +266,6 @@ export function useThreadComposerState(input: {
   const dispatchingQueuedMessageId =
     selectedThreadQueuedMessages.find((message) => dispatchingQueuedMessageIds[message.messageId])
       ?.messageId ?? null;
-  const feedbackSubmissions = selectedThreadKey
-    ? (feedbackSubmissionsByThreadKey[selectedThreadKey] ?? [])
-    : [];
-  const dismissFeedback = (id: MessageId) => {
-    if (!selectedThreadKey) return;
-    setFeedbackSubmissionsByThreadKey((current) => ({
-      ...current,
-      [selectedThreadKey]: (current[selectedThreadKey] ?? []).filter((entry) => entry.id !== id),
-    }));
-  };
   const selectedThreadMessages = selectedThreadProjection?.projection.messages;
   const selectedThreadAttempts = selectedThreadProjection?.projection.attempts;
   const selectedThreadNodes = selectedThreadProjection?.projection.nodes;
@@ -342,6 +332,16 @@ export function useThreadComposerState(input: {
         ? selectedThreadKey
         : queuedEditDraftKey(selectedThreadKey, queuedRunEdit.runId);
   const selectedDraft = useComposerDraftSettings(composerDraftKey);
+  const feedbackSubmissions = selectedThreadKey
+    ? (feedbackSubmissionsByThreadKey[selectedThreadKey] ?? [])
+    : [];
+  const dismissFeedback = (id: MessageId) => {
+    if (!selectedThreadKey) return;
+    setFeedbackSubmissionsByThreadKey((current) => ({
+      ...current,
+      [selectedThreadKey]: (current[selectedThreadKey] ?? []).filter((entry) => entry.id !== id),
+    }));
+  };
   const threadDraftSettings = useComposerDraftSettings(selectedThreadKey);
   const selectedThreadQueueCount = selectedThreadQueuedMessages.length;
   const selectedThread = selectedThreadShell;
@@ -1041,14 +1041,14 @@ export function useThreadComposerState(input: {
   };
 
   return {
-    feedbackSubmissions,
-    dismissFeedback,
     selectedThreadFeed,
     selectedThreadActivityRun,
     selectedThreadAnnouncedRun,
     selectedThreadDetailBehindShell,
     selectedThreadQueueCount,
     selectedThreadQueuedMessages,
+    feedbackSubmissions,
+    dismissFeedback,
     dispatchingQueuedMessageId,
     activeWorkStartedAt,
     runlessWorkActive,

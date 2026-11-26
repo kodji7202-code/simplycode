@@ -23,7 +23,7 @@ import {
   ATTACHMENT_ID_THREAD_SEGMENT_MAX_CHARS,
   toSafeThreadAttachmentSegment,
 } from "../attachmentStore.ts";
-import type * as ResourceAttribution from "../resourceTelemetry/ResourceAttribution.ts";
+import type * as ResourceAttribution from "../resourceUsage/ResourceAttribution.ts";
 
 const MEBIBYTE = 1024 * 1024;
 const DAY_MS = 24 * 60 * 60 * 1_000;

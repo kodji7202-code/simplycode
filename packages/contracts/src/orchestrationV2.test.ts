@@ -24,6 +24,7 @@ import {
   OrchestrationV2Subagent,
   OrchestrationV2ThreadShellJson,
   OrchestrationV2SubagentJson,
+  OrchestrationV2DomainEvent,
   OrchestrationV2ThreadHistoryPage,
   OrchestrationV2TurnItem,
   OrchestrationV2TurnItemJson,
@@ -770,5 +771,59 @@ describe("workflow step thread visibility", () => {
   it("never lists a workflow step thread, tagged or not", () => {
     expect(isListedThreadLineage(lineage)).toBe(false);
     expect(isListedThreadLineage({ ...lineage, workflowStep: undefined })).toBe(true);
+  });
+});
+
+const decodeDomainEvent = Schema.decodeUnknownSync(OrchestrationV2DomainEvent);
+const decodeUtcFromString = Schema.decodeUnknownSync(Schema.DateTimeUtcFromString);
+const decodeTurnItemJson = Schema.decodeUnknownSync(OrchestrationV2TurnItemJson);
+
+describe("feedback_request turn item history", () => {
+  // A persisted turn-item event recorded while the agent feedback feature still
+  // existed must still decode and land in the projected turn items.
+  const item = {
+    id: "turn-item:feedback-request:old",
+    threadId: "thread-1",
+    runId: null,
+    nodeId: null,
+    providerThreadId: null,
+    providerTurnId: null,
+    nativeItemRef: null,
+    parentItemId: null,
+    ordinal: 0,
+    status: "waiting",
+    title: null,
+    startedAt: null,
+    completedAt: null,
+    updatedAt: "2026-08-01T00:00:00.000Z",
+    type: "feedback_request",
+    preview: {
+      kind: "bug",
+      subject: "general",
+      expected: "a",
+      actual: "b",
+      workaround: "",
+      trace: null,
+    },
+    feedbackStatus: "sent",
+  };
+
+  it("decodes a persisted turn-item.updated event carrying a feedback_request item", () => {
+    const event = decodeDomainEvent({
+      id: "event:old-feedback",
+      threadId: "thread-1",
+      occurredAt: decodeUtcFromString("2026-08-01T00:00:00.000Z"),
+      type: "turn-item.updated",
+      payload: { ...item, updatedAt: decodeUtcFromString(item.updatedAt) },
+    });
+
+    if (event.type !== "turn-item.updated") throw new Error("expected turn-item.updated");
+    expect(event.payload.type).toBe("feedback_request");
+  });
+
+  it("decodes the wire form of the item so old projections keep it", () => {
+    const decoded = decodeTurnItemJson(item);
+
+    expect(decoded.type).toBe("feedback_request");
   });
 });

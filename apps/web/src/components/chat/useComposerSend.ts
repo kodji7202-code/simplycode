@@ -232,7 +232,6 @@ interface ComposerSendInput {
   readonly composerImagesRef: { current: ComposerImageAttachment[] };
   readonly composerFilesRef: { current: ComposerFileAttachment[] };
   readonly composerTerminalContextsRef: { current: TerminalContextDraft[] };
-  readonly feedbackUploadsInFlightRef: { readonly current: Set<string> };
   readonly queuedRunEdit: ReturnType<typeof useQueuedRunEdit>;
   readonly isRevertingCheckpoint: boolean;
   readonly threadDetailLoading: boolean;
@@ -266,14 +265,15 @@ interface ComposerSendInput {
   readonly setDockedDraftHeroThreadKey: Dispatch<SetStateAction<string | null>>;
   readonly setSetupQueueSendThreadKey: Dispatch<SetStateAction<string | null>>;
   readonly setOptimisticUserMessages: Dispatch<SetStateAction<ChatMessage[]>>;
+  readonly feedbackUploadsInFlightRef: { readonly current: Set<string> };
+  readonly setFeedbackSubmissionsByThreadKey: Dispatch<
+    SetStateAction<Record<string, ReadonlyArray<CodexFeedbackSubmission>>>
+  >;
   /** Takes ownership of, and later releases, an optimistic message's blob previews. */
   readonly optimisticBlobPreviews: {
     readonly track: (message: ChatMessage) => void;
     readonly release: (message: ChatMessage) => void;
   };
-  readonly setFeedbackSubmissionsByThreadKey: Dispatch<
-    SetStateAction<Record<string, ReadonlyArray<CodexFeedbackSubmission>>>
-  >;
   readonly setThreadError: ReturnType<typeof makeThreadErrorSetter>;
   readonly setKeepFullHistory: (threadKey: string, keep: boolean) => void;
   readonly anchorNewTurn: TimelineFollow["anchorNewTurn"];
@@ -331,7 +331,6 @@ export function useComposerSend(input: ComposerSendInput) {
     composerImagesRef,
     composerFilesRef,
     composerTerminalContextsRef,
-    feedbackUploadsInFlightRef,
     queuedRunEdit,
     isRevertingCheckpoint,
     threadDetailLoading,
@@ -351,6 +350,8 @@ export function useComposerSend(input: ComposerSendInput) {
     needsLoadBalancing,
     loadBalancing,
     refreshBeforeSend,
+    feedbackUploadsInFlightRef,
+    setFeedbackSubmissionsByThreadKey,
     readPendingEnvironmentChange,
     pendingApprovals,
     respondingRequestIds,
@@ -365,7 +366,6 @@ export function useComposerSend(input: ComposerSendInput) {
     setSetupQueueSendThreadKey,
     setOptimisticUserMessages,
     optimisticBlobPreviews,
-    setFeedbackSubmissionsByThreadKey,
     setThreadError,
     setKeepFullHistory,
     anchorNewTurn,
@@ -380,10 +380,10 @@ export function useComposerSend(input: ComposerSendInput) {
   const handleNewThread = useNewThreadHandler();
   const navigate = useNavigate();
   const clientSettingsHydrated = useClientSettingsHydrated();
-  const startThreadTurn = useOrchestrationCommand(threadEnvironment.startTurn, {
+  const uploadThreadFeedback = useOrchestrationCommand(threadEnvironment.uploadFeedback, {
     reportFailure: false,
   });
-  const uploadThreadFeedback = useOrchestrationCommand(threadEnvironment.uploadFeedback, {
+  const startThreadTurn = useOrchestrationCommand(threadEnvironment.startTurn, {
     reportFailure: false,
   });
   const setComposerDraftPrompt = useComposerDraftStore((store) => store.setPrompt);

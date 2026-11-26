@@ -448,7 +448,7 @@ describe("scoreThreadSearch with heavy use and loose input", () => {
       thread("Design notes"),
       thread("Link pull request to thread"),
     ];
-    for (const query of ["posthog", "cron", "stripe", "gpu", "fxsb", "lint", "deno"]) {
+    for (const query of ["quasar", "cron", "stripe", "gpu", "fxsb", "lint", "deno"]) {
       expect(rankTitles(query, threads), query).toEqual([]);
     }
   });

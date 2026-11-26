@@ -28,9 +28,24 @@ pipelines.
 - The CLI binary is `simplycode` (upstream's is `t3`); the default home directory
   is `~/.simplycode` and the default server port is 4773, so a fork install never
   collides with an official T3 Code install.
-- Product telemetry is off unless you configure `T3CODE_POSTHOG_KEY` and
-  `T3CODE_POSTHOG_HOST`; the fork ships no T3-owned ingest endpoint.
+- Product telemetry and analytics are removed entirely; see [Privacy](#privacy).
 - There is no hosted web app; desktop/mobile deep links use the `simplycode://` scheme.
+
+## Privacy
+
+**This fork sends no telemetry.**
+
+**Acest fork nu trimite telemetrie.**
+
+SimplyCode ships no product analytics, no ingest endpoint, and no hosted relay.
+Local diagnostics — trace files, the resource monitor, the Diagnostics page —
+never leave your machine. The only external requests that remain are:
+
+- **Agent CLI and model list updates.** SimplyCode checks npm, downloads.claude.ai and api.meta.ai for new versions of the agent CLIs, and refreshes its model list from this repository on GitHub. Turn this off in Settings with **Provider update checks**.
+- **SimplyCode updates.** The app looks up the latest SimplyCode release on npm and GitHub.
+- **Model prices for Usage.** The public LiteLLM price list on GitHub, fetched when the Usage page needs rates.
+- **Things you set up.** Telegram notifications, OpenTelemetry export to your own endpoint, a relay you link, source control and issue tracker integrations, and MCP servers send data only where you point them.
+- **The agents themselves.** Codex, Claude Code, Devin and the other CLIs talk to their own vendors under their own privacy terms.
 
 ## Build
 

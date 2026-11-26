@@ -11,7 +11,7 @@ import * as Option from "effect/Option";
 import * as Stream from "effect/Stream";
 
 import * as ServerConfig from "../config.ts";
-import * as DesktopTelemetryReceiver from "../resourceTelemetry/DesktopTelemetryReceiver.ts";
+import * as DesktopResourceReceiver from "../resourceUsage/DesktopResourceReceiver.ts";
 import * as DesktopAppUpdate from "./DesktopAppUpdate.ts";
 
 function makeState(overrides: Partial<DesktopUpdateState> = {}): DesktopUpdateState {
@@ -78,8 +78,8 @@ const makeHarness = Effect.fn("test.make_desktop_app_update_harness")(function* 
     ...baseConfig,
     mode: options.mode ?? "desktop",
     ...("controlFd" in options
-      ? { desktopTelemetryControlFd: options.controlFd }
-      : { desktopTelemetryControlFd: 5 }),
+      ? { desktopResourceControlFd: options.controlFd }
+      : { desktopResourceControlFd: 5 }),
   };
   const reportsForRun = options.reports ?? (() => []);
   const changes = Stream.unwrap(
@@ -94,7 +94,7 @@ const makeHarness = Effect.fn("test.make_desktop_app_update_harness")(function* 
   const service = yield* DesktopAppUpdate.make().pipe(
     Effect.provide(
       Layer.mergeAll(
-        DesktopTelemetryReceiver.layerTest({
+        DesktopResourceReceiver.layerTest({
           requestDesktopUpdate: (requestId) =>
             Deferred.succeed(requestIdDeferred, requestId).pipe(Effect.asVoid),
           desktopUpdates: Effect.succeed({

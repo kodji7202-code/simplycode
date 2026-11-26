@@ -205,7 +205,7 @@ export const make = Effect.gen(function* () {
   const desktopAppUpdate =
     serverSelfUpdate === "desktop-managed" &&
     serverConfig.desktopAppUpdate === true &&
-    serverConfig.desktopTelemetryControlFd !== undefined;
+    serverConfig.desktopResourceControlFd !== undefined;
 
   const databaseMigration = databaseMigrationHead(serverConfig.dbPath);
   const descriptor: ExecutionEnvironmentDescriptor = {
@@ -306,7 +306,6 @@ export const make = Effect.gen(function* () {
       mcpHostedApproval: true,
       shellThreadFamilies: true,
       shellOlderSettled: true,
-      agentFeedback: true,
     },
   };
 

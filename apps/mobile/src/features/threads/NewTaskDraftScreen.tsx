@@ -1084,8 +1084,6 @@ export function NewTaskDraftScreen(props: {
           environmentRuntime ? runtimeConnectionErrorText(environmentRuntime, m) : null
         }
         environmentLabel={selectedEnvironmentLabel}
-        feedbackSubmissions={[]}
-        onDismissFeedback={() => {}}
         selectedThreadFeed={[]}
         activityRun={null}
         activeWorkStartedAt={null}
@@ -1127,6 +1125,8 @@ export function NewTaskDraftScreen(props: {
         onSendMessage={handleStart}
         offersSideChat={false}
         onSendCommand={async () => null}
+        feedbackSubmissions={[]}
+        onDismissFeedback={() => {}}
         onReconnectEnvironment={() => onReconnectEnvironment(selectedProject.environmentId)}
         canSwitchThreadProvider
         onRespondToApproval={async () => {}}

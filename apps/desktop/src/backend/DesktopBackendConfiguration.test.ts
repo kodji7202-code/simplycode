@@ -749,8 +749,6 @@ describe("DesktopBackendConfiguration", () => {
 
         assert.equal(config.env.OTEL_SDK_DISABLED, "true");
         assert.include((config.env.WSLENV ?? "").split(":"), "OTEL_SDK_DISABLED");
-        assert.equal(config.env.T3CODE_TELEMETRY_ENABLED, "false");
-        assert.include((config.env.WSLENV ?? "").split(":"), "T3CODE_TELEMETRY_ENABLED");
         assert.equal(config.env.OTEL_RESOURCE_ATTRIBUTES, "deployment.environment.name=staging");
         assert.include((config.env.WSLENV ?? "").split(":"), "OTEL_RESOURCE_ATTRIBUTES");
       }).pipe(
@@ -771,7 +769,6 @@ describe("DesktopBackendConfiguration", () => {
         ),
         Effect.provideService(HostProcess.Environment, {
           OTEL_SDK_DISABLED: "true",
-          T3CODE_TELEMETRY_ENABLED: "false",
           OTEL_RESOURCE_ATTRIBUTES: "deployment.environment.name=staging",
         }),
       );
@@ -793,7 +790,7 @@ describe("DesktopBackendConfiguration", () => {
         assert.equal(config.bootstrap.port, 5050);
         assert.equal(config.bootstrap.host, "0.0.0.0");
         assert.equal(config.bootstrap.tailscaleServeEnabled, false);
-        assert.notProperty(config.bootstrap, "desktopTelemetryFd");
+        assert.notProperty(config.bootstrap, "desktopResourceFd");
         assert.notProperty(config.bootstrap, "resourceMonitorPath");
         assert.equal(config.httpBaseUrl.href, "http://172.27.0.99:5050/");
         assert.equal(config.env.OPENAI_API_KEY, "openai-key");
@@ -969,8 +966,8 @@ describe("DesktopBackendConfiguration", () => {
         const configuration = yield* DesktopBackendConfiguration.DesktopBackendConfiguration;
         const config = yield* configuration.resolvePrimary;
         assert.equal(config.bootstrap.resourceMonitorPath, monitorPath);
-        assert.equal(config.bootstrap.desktopTelemetryFd, 4);
-        assert.equal(config.bootstrap.desktopTelemetryControlFd, 5);
+        assert.equal(config.bootstrap.desktopResourceFd, 4);
+        assert.equal(config.bootstrap.desktopResourceControlFd, 5);
       }).pipe(
         Effect.provide(
           layerBackendConfiguration().pipe(

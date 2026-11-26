@@ -451,13 +451,6 @@ export function isSecretRequestActivityGroup(entry: ThreadFeedActivityGroup): bo
   );
 }
 
-export function isFeedbackRequestActivityGroup(entry: ThreadFeedActivityGroup): boolean {
-  return (
-    entry.activities.length === 1 &&
-    entry.activities[0]?.projectedItem.item.type === "feedback_request"
-  );
-}
-
 export function isLinkRequestActivityGroup(entry: ThreadFeedActivityGroup): boolean {
   return (
     entry.activities.length === 1 && entry.activities[0]?.projectedItem.item.type === "link_request"
@@ -627,10 +620,10 @@ function itemIcon(item: OrchestrationV2TurnItem): ThreadFeedActivity["icon"] {
     case "fork":
     case "thread_created":
       return "zap";
-    case "secret_request":
-      return "lock";
     case "feedback_request":
       return "message";
+    case "secret_request":
+      return "lock";
     case "link_request":
       return "globe";
   }
@@ -705,8 +698,6 @@ function itemSummary(
       return resolve(msg("Thread created"));
     case "secret_request":
       return item.label;
-    case "feedback_request":
-      return resolve(msg("Feedback for the T3 team"));
     case "link_request":
       return resolve(msg("Link {target}", { target: linkRequestTargetName(item, resolve) }));
     case "dynamic_tool": {
@@ -727,6 +718,8 @@ function itemSummary(
       }
       return toolPresentation?.displayName ?? item.toolName ?? resolve(msg("Tool call"));
     }
+    case "feedback_request":
+      return resolve(msg("Feedback for the T3 team"));
     case "proposed_plan":
       return resolve(msg("Proposed plan"));
     case "todo_list":
@@ -774,11 +767,11 @@ function itemPreview(item: OrchestrationV2TurnItem, resolve: MessageResolver): s
     case "fork":
     case "thread_created":
       return item.targetThreadId;
+    case "feedback_request":
+      return item.preview.subject;
     case "secret_request":
     case "link_request":
       return item.reason || null;
-    case "feedback_request":
-      return item.preview.subject;
     case "subagent":
       return item.result ?? item.progress ?? item.prompt;
     case "dynamic_tool":

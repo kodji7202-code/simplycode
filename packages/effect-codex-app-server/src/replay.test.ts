@@ -135,7 +135,7 @@ it.effect("still mismatches a genuinely different text", () =>
               input: [{ type: "text", text: "Delete the boundary instead." }],
             });
             // The mismatch is recorded asynchronously; give the transport a beat.
-            yield* client.awaitTermination;
+            return yield* client.awaitTermination;
           }),
       ),
     );

@@ -33,6 +33,7 @@ import {
   childThreadInputsTitle,
   type CodexFeedbackSubmission,
 } from "@t3tools/client-runtime/state/threads";
+import { ComposerFeedback } from "./ComposerFeedback";
 import { useKeyboardScrollToEnd } from "@legendapp/list/keyboard";
 import { resolveProviderSkillsForCwd } from "@t3tools/client-runtime/providerSkills";
 import type { LegendListRef } from "@legendapp/list/react-native";
@@ -184,7 +185,6 @@ import { PendingApprovalCard } from "./PendingApprovalCard";
 import { ComposerErrorNotice } from "./ComposerErrorNotice";
 import { ManagedRuntimeModeNotice } from "./ManagedRuntimeModeNotice";
 import { FreshSessionNotice } from "./FreshSessionNotice";
-import { ComposerFeedback } from "./ComposerFeedback";
 import { ComposerUsageLimits } from "./ComposerUsageLimits";
 import { PendingUserInputCard } from "./PendingUserInputCard";
 import { ProviderSubagentBar } from "./ProviderSubagentBar";
@@ -248,8 +248,6 @@ export interface ThreadDetailScreenProps {
   readonly screenTone: StatusTone;
   readonly connectionError: string | null;
   readonly environmentLabel: string | null;
-  readonly feedbackSubmissions: ReadonlyArray<CodexFeedbackSubmission>;
-  readonly onDismissFeedback: (id: MessageId) => void;
   readonly selectedThreadFeed: ReadonlyArray<ThreadFeedEntry>;
   readonly pendingHandoff?: HandoffEndpoints | null;
   readonly activityRun: ThreadFeedLatestRun | null;
@@ -291,6 +289,8 @@ export interface ThreadDetailScreenProps {
   readonly threadCwd: string | null;
   readonly selectedThreadQueueCount: number;
   readonly queuedMessages: ReadonlyArray<QueuedThreadMessage>;
+  readonly feedbackSubmissions: ReadonlyArray<CodexFeedbackSubmission>;
+  readonly onDismissFeedback: (id: MessageId) => void;
   readonly dispatchingMessageId: MessageId | null;
   readonly serverConfig: T3ServerConfig | null;
   readonly layoutVariant?: LayoutVariant;
@@ -1746,13 +1746,6 @@ function ThreadDetailBody(
                         threadId={props.selectedThread.id}
                       />
                     )}
-                    {props.feedbackSubmissions.map((submission) => (
-                      <ComposerFeedback
-                        key={submission.id}
-                        submission={submission}
-                        onDismiss={() => props.onDismissFeedback(submission.id)}
-                      />
-                    ))}
                     {freshSessionAvailable ? (
                       <FreshSessionNotice threadKey={selectedThreadKey} />
                     ) : null}
@@ -1918,6 +1911,13 @@ function ThreadDetailBody(
                     </View>
                   ) : (
                     <>
+                      {props.feedbackSubmissions.map((submission) => (
+                        <ComposerFeedback
+                          key={submission.id}
+                          submission={submission}
+                          onDismiss={() => props.onDismissFeedback(submission.id)}
+                        />
+                      ))}
                       <ThreadComposer
                         isDraft={Boolean(props.draftMode)}
                         canOperateThread={props.canOperateThread}

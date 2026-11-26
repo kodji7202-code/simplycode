@@ -240,7 +240,7 @@ export function injectMcpAppThemeBootstrap(html: string): string {
     : `<!doctype html>${script}${html}`;
 }
 
-/** Opaque documents throw on cookie reads; analytics startup often expects an empty string instead. */
+/** Opaque documents throw on cookie reads; embedded-script startup often expects an empty string instead. */
 export function injectMcpAppCookieBootstrap(html: string): string {
   const bootstrap = `<script>(function(){try{void document.cookie;}catch(error){if(error&&error.name==="SecurityError"){Object.defineProperty(document,"cookie",{configurable:true,get:function(){return "";},set:function(){}});}}})();</script>`;
   // Preserve captured CSP ahead of executable code, including this bootstrap.

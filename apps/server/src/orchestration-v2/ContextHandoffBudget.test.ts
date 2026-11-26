@@ -303,7 +303,7 @@ describe("handoff budget", () => {
       contextUsageForHandoff({
         sameNativeThread: false,
         sameSelection: false,
-        reuseTelemetry: false,
+        reuseUsageStats: false,
         previousUsage: previous,
       }),
     );
@@ -311,7 +311,7 @@ describe("handoff budget", () => {
       contextUsageForHandoff({
         sameNativeThread: true,
         sameSelection: true,
-        reuseTelemetry: true,
+        reuseUsageStats: true,
         previousUsage: previous,
       }),
       previous,
@@ -320,7 +320,7 @@ describe("handoff budget", () => {
       contextUsageForHandoff({
         sameNativeThread: true,
         sameSelection: false,
-        reuseTelemetry: true,
+        reuseUsageStats: true,
         previousUsage: previous,
       }),
       { usedTokens: 37_321, maxTokens: 258_400 },
@@ -329,7 +329,7 @@ describe("handoff budget", () => {
       contextUsageForHandoff({
         sameNativeThread: true,
         sameSelection: false,
-        reuseTelemetry: false,
+        reuseUsageStats: false,
         previousUsage: previous,
       }),
       { usedTokens: 37_321, maxTokens: 258_400 },
@@ -338,7 +338,7 @@ describe("handoff budget", () => {
       contextUsageForHandoff({
         sameNativeThread: true,
         sameSelection: false,
-        reuseTelemetry: false,
+        reuseUsageStats: false,
         previousUsage: { usedTokens: 30_000, maxTokens: 32_000, autoCompactThreshold: 31_000 },
         knownModelWindow: 1_000_000,
       }),
@@ -348,7 +348,7 @@ describe("handoff budget", () => {
     const preserved = contextUsageForHandoff({
       sameNativeThread: true,
       sameSelection: false,
-      reuseTelemetry: false,
+      reuseUsageStats: false,
       previousUsage: previous,
     });
     assert.equal(

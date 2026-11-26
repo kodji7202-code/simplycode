@@ -23,14 +23,14 @@ import {
   DesktopBackendBootstrap,
   type DesktopBackendBootstrap as DesktopBackendBootstrapValue,
   PRIMARY_LOCAL_ENVIRONMENT_ID,
-  DesktopTelemetryControlMessage,
-  type DesktopTelemetryControlMessage as DesktopTelemetryControlMessageValue,
+  DesktopResourceControlMessage,
+  type DesktopResourceControlMessage as DesktopResourceControlMessageValue,
 } from "@t3tools/contracts";
 import { isRunningDatabaseMigrations } from "@t3tools/shared/databaseMigrationLog";
 import { waitForHttpReady as waitForHttpReadyShared } from "@t3tools/shared/httpReadiness";
 
 import * as DesktopObservability from "../app/DesktopObservability.ts";
-import * as DesktopTelemetryPublisher from "../telemetry/DesktopTelemetryPublisher.ts";
+import * as DesktopResourcePublisher from "../resources/DesktopResourcePublisher.ts";
 import * as DesktopBrowserHost from "../preview/DesktopBrowserHost.ts";
 import * as DesktopWslEnvironment from "../wsl/DesktopWslEnvironment.ts";
 
@@ -199,11 +199,11 @@ export type BackendProcessError = typeof BackendProcessError.Type;
 type TrackBackendProcess = (pid: number) => Effect.Effect<Effect.Effect<void>>;
 
 interface RunBackendProcessOptions extends DesktopBackendStartConfig {
-  readonly desktopTelemetryStream: Stream.Stream<Uint8Array>;
+  readonly desktopResourceStream: Stream.Stream<Uint8Array>;
   readonly desktopBrowserStream?: Stream.Stream<Uint8Array>;
   readonly onDesktopBrowserCommand?: (line: string) => Effect.Effect<void>;
-  readonly onDesktopTelemetryControl?: (
-    message: DesktopTelemetryControlMessageValue,
+  readonly onDesktopResourceControl?: (
+    message: DesktopResourceControlMessageValue,
   ) => Effect.Effect<void>;
   readonly readinessTimeout?: Duration.Duration;
   readonly outputDrainTimeout?: Duration.Duration;
@@ -430,8 +430,8 @@ function drainBackendOutput(
 }
 
 const encodeBootstrapJson = Schema.encodeEffect(Schema.fromJsonString(DesktopBackendBootstrap));
-const decodeDesktopTelemetryControlLine = Schema.decodeUnknownEffect(
-  Schema.fromJsonString(DesktopTelemetryControlMessage),
+const decodeDesktopResourceControlLine = Schema.decodeUnknownEffect(
+  Schema.fromJsonString(DesktopResourceControlMessage),
 );
 
 export const runBackendProcess = Effect.fn("runBackendProcess")(function* (
@@ -458,14 +458,14 @@ export const runBackendProcess = Effect.fn("runBackendProcess")(function* (
       type: "input",
       stream: bootstrapStream,
     };
-    if (options.bootstrap.desktopTelemetryFd !== undefined) {
-      additionalFds[`fd${options.bootstrap.desktopTelemetryFd}`] = {
+    if (options.bootstrap.desktopResourceFd !== undefined) {
+      additionalFds[`fd${options.bootstrap.desktopResourceFd}`] = {
         type: "input",
-        stream: options.desktopTelemetryStream,
+        stream: options.desktopResourceStream,
       };
     }
-    if (options.bootstrap.desktopTelemetryControlFd !== undefined) {
-      additionalFds[`fd${options.bootstrap.desktopTelemetryControlFd}`] = {
+    if (options.bootstrap.desktopResourceControlFd !== undefined) {
+      additionalFds[`fd${options.bootstrap.desktopResourceControlFd}`] = {
         type: "output",
       };
     }
@@ -515,22 +515,22 @@ export const runBackendProcess = Effect.fn("runBackendProcess")(function* (
   const serverReady = yield* Deferred.make<void>();
 
   yield* options.onStarted?.(handle.pid) ?? Effect.void;
-  if (options.bootstrap.desktopTelemetryControlFd !== undefined) {
-    const controlFd = options.bootstrap.desktopTelemetryControlFd;
-    const handleControl = options.onDesktopTelemetryControl ?? (() => Effect.void);
+  if (options.bootstrap.desktopResourceControlFd !== undefined) {
+    const controlFd = options.bootstrap.desktopResourceControlFd;
+    const handleControl = options.onDesktopResourceControl ?? (() => Effect.void);
     yield* handle.getOutputFd(controlFd).pipe(
       Stream.decodeText(),
       Stream.splitLines,
       Stream.filter((line) => line.trim().length > 0),
       Stream.runForEach((line) =>
-        decodeDesktopTelemetryControlLine(line).pipe(
+        decodeDesktopResourceControlLine(line).pipe(
           Effect.flatMap((message) =>
             message.type === "serverReady"
               ? Deferred.succeed(serverReady, undefined)
               : handleControl(message),
           ),
           Effect.catchCause((cause) =>
-            logBackendProcessWarning("ignored invalid desktop telemetry control message", {
+            logBackendProcessWarning("ignored invalid desktop resource control message", {
               fd: controlFd,
               cause: Cause.pretty(cause),
             }),
@@ -538,7 +538,7 @@ export const runBackendProcess = Effect.fn("runBackendProcess")(function* (
         ),
       ),
       Effect.catchCause((cause) =>
-        logBackendProcessWarning("desktop telemetry control stream stopped", {
+        logBackendProcessWarning("desktop resource control stream stopped", {
           fd: controlFd,
           cause: Cause.pretty(cause),
         }),
@@ -609,7 +609,7 @@ export const runBackendProcess = Effect.fn("runBackendProcess")(function* (
   // A backend with a control fd reports readiness there itself, after its HTTP server is up.
   // Backends without the fd, such as WSL, are polled over HTTP.
   const awaitReady =
-    options.bootstrap.desktopTelemetryControlFd === undefined
+    options.bootstrap.desktopResourceControlFd === undefined
       ? waitForHttpReady({ ...readinessContext, timeout: readinessTimeout })
       : Deferred.await(serverReady).pipe(
           Effect.timeoutOrElse({
@@ -698,7 +698,7 @@ export const makeBackendInstance = Effect.fn("makeBackendInstance")(function* (
   | ChildProcessSpawner.ChildProcessSpawner
   | HttpClient.HttpClient
   | DesktopObservability.DesktopBackendOutputLogFactory
-  | DesktopTelemetryPublisher.DesktopTelemetryPublisher
+  | DesktopResourcePublisher.DesktopResourcePublisher
   | DesktopBrowserHost.DesktopBrowserHost
   | DesktopWslEnvironment.DesktopWslEnvironment
   | Scope.Scope
@@ -707,7 +707,7 @@ export const makeBackendInstance = Effect.fn("makeBackendInstance")(function* (
   const fileSystem = yield* FileSystem.FileSystem;
   const backendOutputLogFactory = yield* DesktopObservability.DesktopBackendOutputLogFactory;
   const backendOutputLog = yield* backendOutputLogFactory.forInstance(spec.id);
-  const desktopTelemetryPublisher = yield* DesktopTelemetryPublisher.DesktopTelemetryPublisher;
+  const desktopResourcePublisher = yield* DesktopResourcePublisher.DesktopResourcePublisher;
   const desktopBrowserHost = yield* DesktopBrowserHost.DesktopBrowserHost;
   const wslEnvironment = yield* DesktopWslEnvironment.DesktopWslEnvironment;
   const spawner = yield* ChildProcessSpawner.ChildProcessSpawner;
@@ -941,7 +941,7 @@ export const makeBackendInstance = Effect.fn("makeBackendInstance")(function* (
                 );
 
               if (isCurrentRun) {
-                yield* desktopTelemetryPublisher.removeControlSource(spec.id);
+                yield* desktopResourcePublisher.removeControlSource(spec.id);
                 if (Option.isSome(pid)) {
                   if (exitObserved && !stopRequested) {
                     yield* backendOutputLog.persistFailure({
@@ -974,11 +974,11 @@ export const makeBackendInstance = Effect.fn("makeBackendInstance")(function* (
         const program = runBackendProcess({
           ...config.value,
           ...(spec.trackProcess === undefined ? {} : { trackProcess: spec.trackProcess }),
-          desktopTelemetryStream: desktopTelemetryPublisher.encoded,
+          desktopResourceStream: desktopResourcePublisher.encoded,
           desktopBrowserStream: desktopBrowserHost.events,
           onDesktopBrowserCommand: desktopBrowserHost.handleCommandLine,
-          onDesktopTelemetryControl: (message) =>
-            desktopTelemetryPublisher.handleControlForSource(spec.id, message),
+          onDesktopResourceControl: (message) =>
+            desktopResourcePublisher.handleControlForSource(spec.id, message),
           onStarted: Effect.fn("desktop.backendInstance.onStarted")(function* (pid) {
             yield* updateActiveRun(runId, (run) => ({
               ...run,
@@ -1216,7 +1216,7 @@ export const makeBackendInstance = Effect.fn("makeBackendInstance")(function* (
           ),
         );
         if (cleanup.needsCleanup) {
-          yield* desktopTelemetryPublisher.removeControlSource(spec.id);
+          yield* desktopResourcePublisher.removeControlSource(spec.id);
           yield* backendOutputLog.discardSession;
         }
         if (cleanup.shouldStart) {

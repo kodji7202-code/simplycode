@@ -8,11 +8,6 @@ import * as SchemaGetter from "effect/SchemaGetter";
 import * as SchemaTransformation from "effect/SchemaTransformation";
 
 import {
-  AgentFeedbackPreview,
-  AgentFeedbackRequestStatus,
-  AgentFeedbackTrace,
-} from "./agentFeedback.ts";
-import {
   GitRefName,
   CheckpointId,
   CheckpointRef,
@@ -47,6 +42,11 @@ import {
   TrimmedNonEmptyString,
   TurnItemId,
 } from "./baseSchemas.ts";
+import {
+  AgentFeedbackPreview,
+  AgentFeedbackRequestStatus,
+  AgentFeedbackTrace,
+} from "./agentFeedback.ts";
 import { AuthMcpClientAccess } from "./auth.ts";
 import { ChatAttachment } from "./chatAttachment.ts";
 import { ThreadGuestShare } from "./guestShare.ts";
@@ -4058,18 +4058,6 @@ const OrchestrationV2InternalCommand = Schema.Union([
     delivery: Schema.optional(OrchestrationV2SecretRequestDelivery),
     fields: Schema.optional(Schema.Array(OrchestrationV2SecretRequestField)),
     secretStatus: OrchestrationV2SecretRequestStatus,
-  }),
-  /** Internal so no client can mark a report sent without it being stored and sent. */
-  Schema.Struct({
-    type: Schema.Literal("feedback_request.record"),
-    commandId: CommandId,
-    threadId: ThreadId,
-    runId: RunId,
-    nodeId: NodeId,
-    turnItemId: TurnItemId,
-    preview: AgentFeedbackPreview,
-    conversationTrace: Schema.optionalKey(AgentFeedbackTrace),
-    feedbackStatus: AgentFeedbackRequestStatus,
   }),
   /**
    * Records or updates a link an agent asked the user to make. Internal so no

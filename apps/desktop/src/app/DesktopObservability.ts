@@ -599,7 +599,7 @@ const layerBackendOutputLogFactory = Layer.effect(
   }),
 );
 
-const layerTelemetry = Layer.unwrap(
+const layerResourceUsage = Layer.unwrap(
   Effect.gen(function* () {
     const environment = yield* DesktopEnvironment.DesktopEnvironment;
     const endpoints = yield* resolveOtlpEndpoints;
@@ -697,7 +697,7 @@ const layerTelemetry = Layer.unwrap(
 
 export const layer = Layer.mergeAll(
   layerBackendOutputLogFactory,
-  layerTelemetry,
+  layerResourceUsage,
   Layer.succeed(References.MinimumLogLevel, "Info"),
   Layer.succeed(Tracer.MinimumTraceLevel, "Info"),
   Layer.succeed(References.TracerTimingEnabled, true),
