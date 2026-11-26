@@ -16,14 +16,14 @@ describe("sourceControlClients.parseChangeRequestUrl", () => {
   it("reads a GitHub pull request, lower-casing the repository", () => {
     expect(parse("https://github.com/T3Tools/SimplyCode/pull/123")).toEqual({
       host: "github.com",
-      repository: "t3tools/t3code",
+      repository: "t3tools/simplycode",
       number: 123,
     });
   });
 
   it("reads a GitCafe pull request at its canonical /pull/ path and the older /pulls/ path", () => {
     for (const path of ["pull", "pulls"]) {
-      const url = `https://git.cafe/PingDotGG/SimplyCode/${path}/23897`;
+      const url = `https://git.cafe/Kodji7202-Code/SimplyCode/${path}/23897`;
       expect(parse(url), path).toEqual({
         host: "git.cafe",
         repository: "kodji7202-code/simplycode",
@@ -203,13 +203,13 @@ describe("sourceControlClients.parseChangeRequestUrl", () => {
 });
 
 describe("sourceControlClients.isSameChangeRequest", () => {
-  const linked = "https://github.com/pingdotgg/t3code/pull/42";
+  const linked = "https://github.com/kodji7202-code/simplycode/pull/42";
 
   it("matches the same pull request whatever its case or trailing path", () => {
     expect(
       sourceControlClients.isSameChangeRequest(
         linked,
-        "https://github.com/PingDotGG/SimplyCode/pull/42/files",
+        "https://github.com/Kodji7202-Code/SimplyCode/pull/42/files",
       ),
     ).toBe(true);
   });
@@ -316,19 +316,19 @@ describe("sourceControlClients.recognizeRemote", () => {
 describe("sourceControlClients repository keys", () => {
   // Persisted as `repositoryIdentity.canonicalKey` and in thread pull request keys.
   it.each([
-    ["git@github.com:T3Tools/SimplyCode.git", "github.com/t3tools/t3code"],
+    ["git@github.com:T3Tools/SimplyCode.git", "github.com/t3tools/simplycode"],
     ["ssh://git@gitlab.company.com:2222/team/project.git", "gitlab.company.com/team/project"],
     [
       "git@ssh.dev.azure.com:v3/T3Tools/Platform/SimplyCode",
-      "dev.azure.com/t3tools/platform/_git/t3code",
+      "dev.azure.com/t3tools/platform/_git/simplycode",
     ],
     [
       "T3Tools@vs-ssh.visualstudio.com:v3/T3Tools/Platform/SimplyCode",
-      "t3tools.visualstudio.com/platform/_git/t3code",
+      "t3tools.visualstudio.com/platform/_git/simplycode",
     ],
     [
       "https://T3Tools.visualstudio.com/DefaultCollection/Platform/_git/SimplyCode",
-      "t3tools.visualstudio.com/defaultcollection/platform/_git/t3code",
+      "t3tools.visualstudio.com/defaultcollection/platform/_git/simplycode",
     ],
     ["git@ssh.dev.azure.com:v3/o/p", "ssh.dev.azure.com/v3/o/p"],
     ["ssh.dev.azure.com/v3/o/p/r", "ssh.dev.azure.com/v3/o/p/r"],

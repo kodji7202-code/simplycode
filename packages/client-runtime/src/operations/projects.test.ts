@@ -97,12 +97,12 @@ describe("add project shared logic", () => {
 
   it("clones the repository when given a page URL copied from the browser", () => {
     for (const [pageUrl, pageRoute, repository] of [
-      ["https://github.com/kodji7202-code/simplycode/tree/main", "/tree/", "t3code"],
+      ["https://github.com/kodji7202-code/simplycode/tree/main", "/tree/", "simplycode"],
       ["https://gitlab.com/gitlab-org/gitlab-runner/-/tree/main", "/-/", "gitlab-runner"],
-      ["https://git.cafe/kodji7202-code/simplycode/tree/main", "/tree/", "t3code"],
+      ["https://git.cafe/kodji7202-code/simplycode/tree/main", "/tree/", "simplycode"],
       ["https://gitlab.example.test/g/p/-/blob/main/src/branch/x", "/-/", "p"],
       ["https://code.company.test/g/p/-/tree/main", "/-/", "p"],
-      ["https://github.com/kodji7202-code/simplycode/tree/release.git", "/tree/", "t3code"],
+      ["https://github.com/kodji7202-code/simplycode/tree/release.git", "/tree/", "simplycode"],
     ] as const) {
       const cloneUrl = normalizePastedCloneUrl(pageUrl);
       expect(cloneUrl).not.toContain(pageRoute);

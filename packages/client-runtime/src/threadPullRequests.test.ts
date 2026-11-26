@@ -50,7 +50,7 @@ function link(
     host: "github.com",
     repository: "kodji7202-code/simplycode",
     number,
-    url: `https://github.com/pingdotgg/t3code/pull/${number}`,
+    url: `https://github.com/kodji7202-code/simplycode/pull/${number}`,
     source: "manual",
     linkedAt: `2026-01-01T00:00:${String(number).padStart(2, "0")}.000Z`,
     snapshot: null,
@@ -400,7 +400,7 @@ describe("chain selection and badge state", () => {
 
   it("keeps branch matching case-sensitive while ignoring repository case", () => {
     const bottom = link(1, {
-      repository: "PingDotGG/T3code",
+      repository: "Kodji7202-Code/SimplyCode",
       snapshot: snapshot({ headBranch: "Base" }),
     });
     const top = link(2, { snapshot: snapshot({ headBranch: "top", baseBranch: "base" }) });
@@ -466,7 +466,7 @@ describe("threadPullRequestSearchTerms", () => {
     });
     expect(terms).toContain("#12");
     expect(terms).toContain("kodji7202-code/simplycode#12");
-    expect(terms).toContain("https://github.com/pingdotgg/t3code/pull/12");
+    expect(terms).toContain("https://github.com/kodji7202-code/simplycode/pull/12");
     expect(terms).toContain("Fix login");
     expect(terms).toContain("#34");
     expect(terms.join(" ")).not.toContain("56");
@@ -478,7 +478,7 @@ it("searches the legacy projection when old environments decode to an empty link
     projectId: ProjectId.make("project"),
     repository: "kodji7202-code/simplycode",
     number: 12,
-    url: "https://github.com/pingdotgg/t3code/pull/12",
+    url: "https://github.com/kodji7202-code/simplycode/pull/12",
   };
   expect(threadPullRequestSearchTerms({ pullRequests: [], linkedPullRequest })).toContain("#12");
   expect(
