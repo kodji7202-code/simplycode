@@ -55,6 +55,9 @@ const EXCLUDED_FILES = new Set([
   "README.md",
   "TRADEMARK.md",
   "UPSTREAM.md",
+  // Fuzzy-search fixtures use upstream checkout names as arbitrary folder names;
+  // rewriting them changes the behavior and coverage under test.
+  "packages/client-runtime/src/state/filesystem.test.ts",
   // Native-module docs carry upstream attribution verbatim (vendored branch
   // refs, "T3 Code has substantially modified ..." history).
   "apps/mobile/modules/t3-source-text/UPSTREAM.md",

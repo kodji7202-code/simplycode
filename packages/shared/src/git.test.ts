@@ -19,19 +19,19 @@ import {
 describe("normalizeGitRemoteUrl", () => {
   it("canonicalizes equivalent GitHub remotes across protocol variants", () => {
     expect(normalizeGitRemoteUrl("git@github.com:T3Tools/SimplyCode.git")).toBe(
-      "github.com/t3tools/t3code",
+      "github.com/t3tools/simplycode",
     );
     expect(normalizeGitRemoteUrl("https://github.com/T3Tools/SimplyCode.git")).toBe(
-      "github.com/t3tools/t3code",
+      "github.com/t3tools/simplycode",
     );
     expect(normalizeGitRemoteUrl("ssh://git@github.com/T3Tools/SimplyCode")).toBe(
-      "github.com/t3tools/t3code",
+      "github.com/t3tools/simplycode",
     );
     expect(normalizeGitRemoteUrl("https://github.com/T3Tools/SimplyCode.git?view=compact")).toBe(
-      "github.com/t3tools/t3code",
+      "github.com/t3tools/simplycode",
     );
     expect(normalizeGitRemoteUrl("https://github.com/T3Tools/SimplyCode.git#section")).toBe(
-      "github.com/t3tools/t3code",
+      "github.com/t3tools/simplycode",
     );
     expect(normalizeGitRemoteUrl("https://code.example.test/team/%C3%84pp.git")).toBe(
       normalizeGitRemoteUrl("git@code.example.test:team/Äpp.git"),
@@ -53,10 +53,10 @@ describe("normalizeGitRemoteUrl", () => {
 
   it("preserves nested group paths for providers like GitLab", () => {
     expect(normalizeGitRemoteUrl("git@gitlab.com:T3Tools/platform/SimplyCode.git")).toBe(
-      "gitlab.com/t3tools/platform/t3code",
+      "gitlab.com/t3tools/platform/simplycode",
     );
     expect(normalizeGitRemoteUrl("https://gitlab.com/T3Tools/platform/SimplyCode.git")).toBe(
-      "gitlab.com/t3tools/platform/t3code",
+      "gitlab.com/t3tools/platform/simplycode",
     );
   });
 
