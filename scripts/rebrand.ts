@@ -417,12 +417,6 @@ const FILE_EDITS: ReadonlyArray<{
         "      ...(easProjectId ? { projectId: easProjectId } : {}),",
       ],
       ['  owner: "pingdotgg",', "  ...(easOwner ? { owner: easOwner } : {}),"],
-      // Mobile relay traces default off: without a configured OTLP endpoint the
-      // app must not post to T3's Axiom.
-      [
-        'tracesUrl: repoEnv.EXPO_PUBLIC_OTLP_TRACES_URL ?? "https://api.axiom.co/v1/traces"',
-        "tracesUrl: repoEnv.EXPO_PUBLIC_OTLP_TRACES_URL ?? null",
-      ],
     ],
   },
   {

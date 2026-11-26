@@ -251,7 +251,7 @@ describe("mcpAppFromToolItem", () => {
 });
 
 describe("MCP App cookie bootstrap", () => {
-  const vendor = `<script>document.cookie.split(";");document.cookie="analytics=1";document.root="rendered";</script>`;
+  const vendor = `<script>document.cookie.split(";");document.cookie="tracker=1";document.root="rendered";</script>`;
   const execute = (html: string, document: object) => {
     for (const script of html.matchAll(/<script>([\s\S]*?)<\/script>/g)) {
       NodeVM.runInNewContext(script[1]!, { document });
@@ -277,10 +277,10 @@ describe("MCP App cookie bootstrap", () => {
         throw blocked;
       },
     });
-    const saved = injectMcpAppCsp(vendor, { connectDomains: ["https://analytics.example"] });
+    const saved = injectMcpAppCsp(vendor, { connectDomains: ["https://tracker.example"] });
     const html = injectMcpAppCookieBootstrap(saved);
     expect(html.indexOf("Content-Security-Policy")).toBeLessThan(html.indexOf("<script>"));
-    expect(html).toContain("connect-src https://analytics.example");
+    expect(html).toContain("connect-src https://tracker.example");
     execute(html, document);
     expect(document.root).toBe("rendered");
     expect(document.cookie).toBe("");
