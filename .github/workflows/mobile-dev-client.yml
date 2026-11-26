@@ -161,7 +161,6 @@ jobs:
       - name: Setup dependencies
         uses: ./.github/actions/setup-ci-deps
         with:
-          task-cache-read-token: ${{ secrets.T3_TASK_CACHE_READ_TOKEN }}
           install-args: --filter=@t3tools/mobile... --filter=@t3tools/scripts...
 
       - name: Setup Java
@@ -170,36 +169,8 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      # Only this step's login can write to the cache; pull requests never get it.
-      # Only this login can write to the cache; pull requests never get it.
-      - id: login
-        name: Log in to the native client cache
-        if: github.event_name != 'pull_request'
-        env:
-          WRITE_TOKEN: ${{ secrets.T3_NATIVE_CLIENT_WRITE_TOKEN }}
-        run: |
-          if [ -z "$WRITE_TOKEN" ]; then
-            echo "::warning::T3_NATIVE_CLIENT_WRITE_TOKEN is not set; nothing can be shared, so nothing is built."
-            exit 0
-          fi
-          node --input-type=module <<'NODE'
-          import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-          import { homedir } from "node:os";
-          import { join } from "node:path";
-          const { endpoint } = JSON.parse(readFileSync(".task-cache.json", "utf8"));
-          const directory = join(homedir(), ".config/t3-task-cache");
-          mkdirSync(directory, { recursive: true, mode: 0o700 });
-          writeFileSync(
-            join(directory, "credentials.json"),
-            JSON.stringify({ [endpoint]: { name: "ci-native-clients", token: process.env.WRITE_TOKEN } }),
-            { mode: 0o600 },
-          );
-          NODE
-          echo "T3_NATIVE_CLIENT_SHARE=required" >> "$GITHUB_ENV"
-          echo "ready=true" >> "$GITHUB_OUTPUT"
-
-      - name: Build and share
-        if: github.event_name == 'pull_request' || steps.login.outputs.ready == 'true'
+      - name: Build
+        if: github.event_name == 'pull_request'
         shell: bash # pipefail: a failed build fails the step through tee
         run: |
           node scripts/mobile-native-client.ts ensure android --prepare --abi "$ABI" ${EXPECTED_FINGERPRINT:+--expect-fingerprint "$EXPECTED_FINGERPRINT"} | tee "$RUNNER_TEMP/dev-client.log"
@@ -276,38 +247,10 @@ jobs:
       - name: Setup dependencies
         uses: ./.github/actions/setup-ci-deps
         with:
-          task-cache-read-token: ${{ secrets.T3_TASK_CACHE_READ_TOKEN }}
           install-args: --filter=@t3tools/mobile... --filter=@t3tools/scripts...
 
-      # Only this login can write to the cache; pull requests never get it.
-      - id: login
-        name: Log in to the native client cache
-        if: github.event_name != 'pull_request'
-        env:
-          WRITE_TOKEN: ${{ secrets.T3_NATIVE_CLIENT_WRITE_TOKEN }}
-        run: |
-          if [ -z "$WRITE_TOKEN" ]; then
-            echo "::warning::T3_NATIVE_CLIENT_WRITE_TOKEN is not set; nothing can be shared, so nothing is built."
-            exit 0
-          fi
-          node --input-type=module <<'NODE'
-          import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-          import { homedir } from "node:os";
-          import { join } from "node:path";
-          const { endpoint } = JSON.parse(readFileSync(".task-cache.json", "utf8"));
-          const directory = join(homedir(), ".config/t3-task-cache");
-          mkdirSync(directory, { recursive: true, mode: 0o700 });
-          writeFileSync(
-            join(directory, "credentials.json"),
-            JSON.stringify({ [endpoint]: { name: "ci-native-clients", token: process.env.WRITE_TOKEN } }),
-            { mode: 0o600 },
-          );
-          NODE
-          echo "T3_NATIVE_CLIENT_SHARE=required" >> "$GITHUB_ENV"
-          echo "ready=true" >> "$GITHUB_OUTPUT"
-
-      - name: Build and share
-        if: github.event_name == 'pull_request' || steps.login.outputs.ready == 'true'
+      - name: Build
+        if: github.event_name == 'pull_request'
         shell: bash # pipefail: a failed build fails the step through tee
         run: |
           node scripts/mobile-native-client.ts ensure ios --prepare ${EXPECTED_FINGERPRINT:+--expect-fingerprint "$EXPECTED_FINGERPRINT"} | tee "$RUNNER_TEMP/dev-client.log"

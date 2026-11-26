@@ -32,7 +32,6 @@ const EXCLUDED_PREFIXES = [
   "apps/marketing/",
   "apps/mobile/ios/",
   "apps/mobile/android/",
-  "infra/",
   "docs/internals/",
   "docs/operations/",
   "evals/",
