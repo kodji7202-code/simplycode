@@ -144,7 +144,7 @@ describe("Azure DevOps repository keys", () => {
       "https://T3Tools@dev.azure.com/T3Tools/Platform/_git/SimplyCode",
     ]) {
       expect(registry.repositoryKeyFromRemote(remote), remote).toBe(
-        "dev.azure.com/t3tools/platform/_git/t3code",
+        "dev.azure.com/t3tools/platform/_git/simplycode",
       );
     }
   });
@@ -214,7 +214,7 @@ describe("Azure DevOps repository keys", () => {
       "https://T3Tools.visualstudio.com/Platform/_git/SimplyCode",
     ]) {
       expect(registry.repositoryKeyFromRemote(remote), remote).toBe(
-        "t3tools.visualstudio.com/platform/_git/t3code",
+        "t3tools.visualstudio.com/platform/_git/simplycode",
       );
     }
   });
