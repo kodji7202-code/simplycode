@@ -734,7 +734,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p verify
-          unpacked=$(ls -d "${TMPDIR:-/tmp}"/t3code-desktop-${{ inputs.platform }}-stage-*/app/dist/"$UNPACKED_DIR")
+          unpacked=$(ls -d "${TMPDIR:-/tmp}"/simplycode-desktop-${{ inputs.platform }}-stage-*/app/dist/"$UNPACKED_DIR")
           tar -C "$(dirname "$unpacked")" -cf verify/unpacked.tar "$(basename "$unpacked")"
           esbuild=scripts/node_modules/.bin/esbuild
           banner="import{createRequire as __cr}from'node:module';const require=__cr(import.meta.url);"
