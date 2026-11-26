@@ -62,7 +62,11 @@ const composite = (
     catch: (cause) => new AndroidIconRenderError({ layer, cause }),
   });
 
-const solidCanvas = (layer: string, size: number, background: string) =>
+const solidCanvas = (
+  layer: string,
+  size: number,
+  background: string | { r: number; g: number; b: number; alpha?: number },
+) =>
   Effect.tryPromise({
     try: () =>
       sharp({ create: { width: size, height: size, channels: 4, background } })

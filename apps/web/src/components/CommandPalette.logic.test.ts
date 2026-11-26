@@ -266,7 +266,7 @@ describe("buildThreadActionItems", () => {
       ["New thread in t3code"],
     ]);
     expect(search("new thread", false).map(([label]) => label)).not.toContain("Suggestions");
-    expect(search("simplycode", true)).toEqual([["Projects", ["t3code"]]]);
+    expect(search("t3code", true)).toEqual([["Projects", ["t3code"]]]);
     expect(search("add project", true)).toEqual([["Actions", ["Add project"]]]);
   });
 

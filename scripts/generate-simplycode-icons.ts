@@ -2,6 +2,7 @@
 // from assets/brand-src/simplycode-head.png. The master is a manual artifact:
 // robot-heads@0.3.0 RobotHead (rectangle/happy/emerald, antenna, paused) shot
 // in headless Chrome on a transparent 1024 canvas, trimmed + re-centered.
+// @effect-diagnostics nodeBuiltinImport:off globalConsole:off - Build-time icon renderer writes files directly.
 
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
@@ -114,7 +115,7 @@ async function roundedSquareBg(channel: Channel, canvas: number): Promise<Buffer
 async function fullIconPng(channel: Channel, canvas: number): Promise<Buffer> {
   const small = canvas <= SMALL_ICON_MAX;
   const head = await headLayer(canvas, small ? 0.84 : 0.72);
-  const overlays: sharp.OverlayOptions[] = small
+  const overlays = small
     ? [{ input: head }]
     : [{ input: await glowLayer(head, canvas) }, { input: head }];
   return sharp(await roundedSquareBg(channel, canvas))
@@ -238,7 +239,7 @@ async function main() {
   }
 
   // apps/web/public — checked-in copies of the production web set.
-  const prod = CHANNELS[0];
+  const prod = CHANNELS[0]!;
   await writeIco("apps/web/public/favicon.ico", prod);
   await writePng("apps/web/public/favicon-16x16.png", fullIconPng(prod, 16));
   await writePng("apps/web/public/favicon-32x32.png", fullIconPng(prod, 32));

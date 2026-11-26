@@ -3,6 +3,7 @@
  * Run after every upstream merge: `node scripts/rebrand.ts` (`--no-i18n`
  * when `vp` is unavailable). Lines marked `rebrand-keep` are untouched.
  */
+// @effect-diagnostics nodeBuiltinImport:off globalConsole:off - One-off codemod runs before an Effect runtime exists.
 
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
@@ -1283,11 +1284,12 @@ function applyFileEditsToContent(rel: string, content: string): string {
   for (let i = 0; i < lines.length; i++) {
     // A standalone marker line also guards the code line next to it: formatters
     // can split an inline `{/* rebrand-keep */}` onto its own line.
+    const line = lines[i]!;
     const markerGuard =
-      (i > 0 && isStandaloneKeepLine(lines[i - 1])) ||
-      (i + 1 < lines.length && isStandaloneKeepLine(lines[i + 1]));
-    const next = markerGuard ? lines[i] : applyLine(lines[i], scoped, regexRules);
-    if (next !== lines[i]) {
+      (i > 0 && isStandaloneKeepLine(lines[i - 1]!)) ||
+      (i + 1 < lines.length && isStandaloneKeepLine(lines[i + 1]!));
+    const next = markerGuard ? line : applyLine(line, scoped, regexRules);
+    if (next !== line) {
       lines[i] = next;
       touched = true;
     }
