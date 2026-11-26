@@ -1861,7 +1861,7 @@ function ScheduledTaskEditorForm({
           <Field label={gt("Name")} htmlFor="scheduled-task-title">
             <Input
               id="scheduled-task-title"
-              placeholder={gt("e.g. Check for Sentry issues")}
+              placeholder={gt("e.g. Check for failing CI runs")}
               value={draft.title}
               onChange={(event) =>
                 setDraft((current) => ({ ...current, title: event.target.value }))

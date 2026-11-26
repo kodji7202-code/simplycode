@@ -372,22 +372,6 @@ const FILE_EDITS: ReadonlyArray<{
     edits: [["?? 5733", "?? 6733"]],
   },
   {
-    // Fork default: telemetry stays off unless the operator configures a
-    // PostHog key and host. Empty defaults keep `enabled` harmless.
-    file: "apps/server/src/telemetry/AnalyticsService.ts",
-    edits: [
-      [
-        'Config.withDefault("phc_XOWci4oZP4VvLiEyrFqkFjP4CZn55mjYYBMREK5Wd6m")',
-        'Config.withDefault("")',
-      ],
-      ['Config.withDefault("https://ingest.t3.codes")', 'Config.withDefault("")'],
-      [
-        "if (!telemetryConfig.enabled || !policyAllows) return Effect.succeed(false);",
-        "if (\n      !telemetryConfig.enabled ||\n      !policyAllows ||\n      telemetryConfig.posthogKey.length === 0 ||\n      telemetryConfig.posthogHost.length === 0\n    )\n      return Effect.succeed(false);",
-      ],
-    ],
-  },
-  {
     file: "apps/mobile/app.config.ts",
     edits: [
       [
@@ -917,9 +901,20 @@ pipelines.
 - The CLI binary is \`simplycode\` (upstream's is \`t3\`); the default home directory
   is \`~/.simplycode\` and the default server port is 4773, so a fork install never
   collides with an official T3 Code install.
-- Product telemetry is off unless you configure \`T3CODE_POSTHOG_KEY\` and
-  \`T3CODE_POSTHOG_HOST\`; the fork ships no T3-owned ingest endpoint.
+- Product telemetry and analytics are removed entirely; see [Privacy](#privacy).
 - There is no hosted web app; desktop/mobile deep links use the \`simplycode://\` scheme.
+
+## Privacy
+
+**This fork sends no telemetry.**
+
+**Acest fork nu trimite telemetrie.**
+
+SimplyCode ships no product analytics, no ingest endpoint, and no hosted relay.
+Local diagnostics — trace files, the resource monitor, the Diagnostics page —
+never leave your machine. The only external requests that remain are:
+
+<!-- network list -->
 
 ## Build
 
@@ -948,124 +943,58 @@ Upstream's trademark policy: see
 [TRADEMARK.md in pingdotgg/t3code](https://github.com/pingdotgg/t3code/blob/main/TRADEMARK.md).
 `;
 
-const TELEMETRY_MD = `# Product usage data
+const PRIVACY_MD = `# Privacy
 
-SimplyCode ships with product telemetry **off by default**: the server sends
-nothing unless you set both \`T3CODE_POSTHOG_KEY\` and \`T3CODE_POSTHOG_HOST\` to
-point at an analytics backend you control. The fork ships no ingest endpoint and
-sends no data to T3 Tools, Inc.
+**This fork sends no telemetry.**
 
-When configured, the server posts product usage events to your PostHog host,
-associated with a hashed account or installation identifier. To count how many
-installations one person uses, the server also sends hashed account identifiers:
-your T3 Connect account, your OpenAI and Claude accounts when you are signed in,
-and a random identifier for each device that connects. Events include the
-provider, model, reasoning effort, permission mode, turn and request results,
-duration, release channel, and token counts when available. Child-agent token
-counts are reported separately from the main agent's. Events include the model ID
-the provider used, including custom models and models served by a custom
-endpoint.
+**Acest fork nu trimite telemetrie.**
 
-Product events do not include prompts, responses, file contents, authentication
-tokens, conversation IDs, raw provider events, or child-agent output. The one
-exception is [agent feedback](#agent-feedback), which is off unless you turn it
-on.
+SimplyCode ships no product analytics, no ingest endpoint, and no hosted relay.
+There is no usage-data collection to turn off: the server never sends product
+events, and nothing reports hashed account or device identifiers to anyone.
 
-## Agent feedback
+Local diagnostics — the \`server.trace.ndjson\` file, the resource monitor, and
+the Diagnostics settings page — are written and shown on your machine only.
+Traces are not exported to any relay, and there is no environment variable that
+turns such an export on.
 
-Agent feedback lets agents tell you about SimplyCode: a tool or \`simplycode\`
-command that did not do what they expected, a confusing instruction, or a missing
-capability. Choose a mode in **Agent feedback** in **Settings > Labs**:
+The only external requests that remain are features you use or configure
+yourself:
 
-- **Off**, the default: agents do not see the feedback tools, and \`simplycode feedback\` stops with a
-  message pointing to Labs.
-- **When I ask**: agents send a report only when you ask them to, about anything in SimplyCode.
-- **Automatic**: agents also report SimplyCode problems they hit on their own, such as a tool that
-  failed and made them find another way. These reports carry no outline and no message text, and
-  go out without asking you. \`simplycode feedback --kind bug --subject "thread send" --expected "…" --actual "…"\`
-  sends one the same way, so it works only in this mode.
-
-When you ask your agent for a report, in either mode, SimplyCode shows it in the thread as a card
-with exactly what would leave your machine, and sends it only if you press **Send**. The agent
-carries on without waiting and never learns your answer. The card stays open until you answer it,
-even after the turn ends or the server restarts; **Don't send** sends nothing, and the agent is
-told not to send it another way. Only someone who can run agents on that machine can answer the
-card; people on a guest link cannot.
-
-Each report has the kind of problem, the tool or command it concerns (or \`general\`), and up to
-300 characters each of expected behavior, actual behavior, and workaround, written by the agent,
-which is told not to quote your messages or code. The agent also says how many recent turns the
-problem spans. A report you approved carries an outline of those turns, and of at least the last 5,
-from when the agent asked: who spoke, how long each message was, and which tools ran, whether they
-worked, and how long they took. The outline has no text. Tools from your other MCP servers appear
-only as \`mcp\`. Turn on **Include the conversation** in the card to attach the text of your
-messages and the agent's replies in the turns the problem spans, up to 1,000 characters per
-message and 16 KB in all, oldest text dropped first; the card shows that text before you send it.
-To change a report, such as the turns it covers, ask the agent in the chat: it shows a new card,
-and you can decline the old one. Tool inputs and outputs, files, and attachments are never sent. An agent can
-show you at most 3 report cards and send 3 reports on its own per turn, and \`simplycode feedback\` can
-send at most 10 an hour.
-
-Before anything is saved, SimplyCode removes file paths (when text mentions one, the rest of that line
-goes with it), your user name, machine name, project title, branch, and git remote, and anything
-that looks like a key, token, email address, or URL with a password. It cannot recognise your code
-or a name written in a sentence, so only include the conversation when it holds nothing you would
-not send. Reports from agents also name the provider and the model. No thread IDs or project IDs
-are sent.
-
-Reports stay on your machine; a declined one is not saved at all, and its card keeps
-only what you would have sent without the conversation. \`simplycode feedback list\` shows recent
-reports, the thread each came from, and a line for each outline; \`simplycode feedback list --json\` shows
-exactly what each one holds.
-
-## Relay connection diagnostics
-
-If you opt in to T3 Connect, SimplyCode sends relay connection traces to the
-configured relay to diagnose connectivity. These are separate from product
-events. Depending on the client version, traces can include connection timings,
-environment identifiers and the connected machine's name. Failed spans can
-include error messages and stack traces; error text can quote a value the app was
-handling.
-
-To disable product events and relay tracing from the server, set
-\`T3CODE_TELEMETRY_ENABLED=false\` in its environment before starting it. Relay tracing also stops
-when \`T3CODE_OTEL_SDK_DISABLED\` or \`OTEL_SDK_DISABLED\` turns OpenTelemetry export off.
-
-An administrator can turn product events and relay tracing off in the server and desktop app with
-a [managed policy](./managed-policy.md#other-capabilities). This does not control traces sent by
-separate browser or mobile clients.
-
-The desktop app reads \`T3CODE_TELEMETRY_ENABLED\` from your shell profile (for example \`~/.zshrc\`) on macOS and
-Linux, so export it there and restart the app. On Windows, set it as a user environment variable.
-
-## Mobile app diagnostics
-
-When the iOS or Android app crashes or hits an error, it can send a report: the error
-message, the stack trace, the app version, and the device model and OS version. Each launch also
-sends startup timings, and every report carries a random ID for the install. Reports go through
-the T3 Connect relay and only exist when a relay is configured. They do not include your threads,
-prompts, or connection details, but an error message can quote a value the app was handling.
-
-To stop sending them, turn off **Send crash reports** in **Settings > About SimplyCode > Diagnostics**.
+<!-- network list -->
 
 ## Agent activity for mobile notifications
 
-When **Publish agent activity** is enabled on a host, it sends project and thread titles, model
-names, activity status, and environment and thread identifiers to the configured relay for
-[mobile notifications and live activities](./mobile-notifications.md). This is separate from
-product events and relay diagnostics. The telemetry opt-out does not disable it.
+When **Publish agent activity** is enabled on a host, it sends project and
+thread titles, model names, activity status, and environment and thread
+identifiers to the configured relay for
+[mobile notifications and live activities](./mobile-notifications.md).
 
-To stop publishing, turn off **Publish agent activity** under **Settings > Sharing & access** on
-the host. Turning off notifications on a phone controls that phone's alerts, not the host's
-publishing setting.
+To stop publishing, turn off **Publish agent activity** under
+**Settings > Sharing & access** on the host. Turning off notifications on a
+phone controls that phone's alerts, not the host's publishing setting.
+
+## Mobile app diagnostics
+
+When the iOS or Android app crashes or hits an error, it can send a report: the
+error message, the stack trace, the app version, and the device model and OS
+version. Each launch also sends startup timings, and every report carries a
+random ID for the install. Reports go through the configured relay and only
+exist when a relay is configured. They do not include your threads, prompts, or
+connection details, but an error message can quote a value the app was handling.
+
+To stop sending them, turn off **Send crash reports** in
+**Settings > About SimplyCode > Diagnostics**.
 
 ## Export diagnostics to your own receiver
 
 To send traces, metrics, or logs to an OpenTelemetry receiver, open
-**Settings > Maintenance > Diagnostics**, select an environment, and enter each signal's OTLP HTTP
-endpoint under **OpenTelemetry export** (for example \`http://localhost:4318/v1/traces\`). Save, then
-restart that environment's server. The receiver must be reachable from the server's machine.
-**Test** sends an empty export from the server to check an endpoint before or after you save it.
+**Settings > Maintenance > Diagnostics**, select an environment, and enter each
+signal's OTLP HTTP endpoint under **OpenTelemetry export** (for example
+\`http://localhost:4318/v1/traces\`). Save, then restart that environment's
+server. The receiver must be reachable from the server's machine. **Test**
+sends an empty export from the server to check an endpoint before or after you
+save it.
 `;
 
 const METAINFO_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -1193,7 +1122,7 @@ export function T3Wordmark(props: {
 const FILE_REWRITES: ReadonlyArray<{ file: string; content: string }> = [
   { file: "README.md", content: README_MD },
   { file: "TRADEMARK.md", content: TRADEMARK_MD },
-  { file: "docs/user/telemetry.md", content: TELEMETRY_MD },
+  { file: "docs/user/privacy.md", content: PRIVACY_MD },
   { file: "apps/web/src/components/T3Wordmark.tsx", content: WEB_WORDMARK },
   { file: "apps/mobile/src/components/T3Wordmark.tsx", content: MOBILE_WORDMARK },
   {

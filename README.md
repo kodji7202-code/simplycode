@@ -28,9 +28,20 @@ pipelines.
 - The CLI binary is `simplycode` (upstream's is `t3`); the default home directory
   is `~/.simplycode` and the default server port is 4773, so a fork install never
   collides with an official T3 Code install.
-- Product telemetry is off unless you configure `T3CODE_POSTHOG_KEY` and
-  `T3CODE_POSTHOG_HOST`; the fork ships no T3-owned ingest endpoint.
+- Product telemetry and analytics are removed entirely; see [Privacy](#privacy).
 - There is no hosted web app; desktop/mobile deep links use the `simplycode://` scheme.
+
+## Privacy
+
+**This fork sends no telemetry.**
+
+**Acest fork nu trimite telemetrie.**
+
+SimplyCode ships no product analytics, no ingest endpoint, and no hosted relay.
+Local diagnostics — trace files, the resource monitor, the Diagnostics page —
+never leave your machine. The only external requests that remain are:
+
+<!-- network list -->
 
 ## Build
 

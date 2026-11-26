@@ -30,8 +30,7 @@ The desktop app includes the `simplycode` command; see [The `simplycode` command
   },
   "limits": {
     "maxRuntimeMode": "auto-accept-edits",
-    "clients": ["desktop", "local-browser"],
-    "telemetry": false
+    "clients": ["desktop", "local-browser"]
   }
 }
 ```
@@ -75,8 +74,8 @@ Administrative Templates > SimplyCode. Set **Organization** whenever you set any
 Locks and provider fields go in the two JSON policies, as the same objects a policy file would hold.
 Machines pick up a change at the next Group Policy refresh; run `gpupdate /target:computer /force`
 to apply it now, then restart SimplyCode.
-Setting **Allow T3 Connect**, **Allow webhook tasks**, **Allow importing browser cookies**, or
-**Allow usage data** to **Disabled** turns that feature off. Setting any other SimplyCode policy to
+Setting **Allow T3 Connect**, **Allow webhook tasks**, or **Allow importing browser cookies**
+to **Disabled** turns that feature off. Setting any other SimplyCode policy to
 **Disabled** restricts nothing, the same as **Not Configured**.
 
 **Windows registry value.** Instead of the template, set the `Policy` value (`REG_SZ`) to the whole policy as one line of JSON,
@@ -170,7 +169,6 @@ A few settings need care:
     "webhookTasks": false,
     "browserCookieImport": false,
     "previewTunnel": false,
-    "telemetry": false,
     "providers": {
       "allowedDrivers": ["claudeAgent", "codex"],
       "instances": {
@@ -256,9 +254,6 @@ so restart SimplyCode after that.
   Browser tabs stream from it instead, and port forwarding and **Open on this device** are
   unavailable. This wins over the user's
   [Preview tunnel setting](./remote-access.md#browser-on-a-remote-environment).
-- `telemetry: false`: the server and desktop app send no [product usage data](./telemetry.md) or
-  relay connection traces. A policy cannot turn them on. A browser that opens the server, such as
-  hosted.simplycode.invalid, still sends its own relay traces.
 
 ### Providers
 
