@@ -8,6 +8,28 @@ SimplyCode is an **unofficial community fork** of [T3 Code](https://github.com/p
 > "T3 Code" is a trademark of T3 Tools, Inc. This fork is based on the MIT-licensed
 > T3 Code source code only — it ships no T3 Code branding, wordmark, or icons.
 
+## Public preview install
+
+The first public preview ships a Windows x64 desktop installer and the `simplycode`
+CLI for Windows x64 and Linux x64. macOS, signed installers, and the mobile apps are
+not part of this preview yet.
+
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/kodji7202-code/simplycode/main/scripts/install.ps1 | iex
+```
+
+Linux or npm (Windows x64 / Linux x64):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kodji7202-code/simplycode/main/scripts/install.sh | sh
+npm install -g simplycode
+```
+
+The Windows installer is currently unsigned, so SmartScreen may warn before running it.
+Download desktop installers and checksums from [GitHub Releases](https://github.com/kodji7202-code/simplycode/releases).
+
 ## Bots
 
 Bots are saved, reusable agent profiles: a name, a robot avatar, an optional

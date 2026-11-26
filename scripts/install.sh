@@ -19,7 +19,7 @@ set -eu
 
 repo="kodji7202-code/simplycode"
 base_url="${T3CODE_RELEASE_BASE_URL:-https://github.com/${repo}/releases/download}"
-t3_home="${T3CODE_HOME:-$HOME/.t3}"
+t3_home="${T3CODE_HOME:-$HOME/.simplycode}"
 case "$t3_home" in
   /*) ;;
   *)
@@ -36,7 +36,7 @@ while [ "${bin_dir%/}" != "$bin_dir" ] && [ "$bin_dir" != / ]; do bin_dir="${bin
 case "$bin_dir" in /*) ;; *) bin_dir="$PWD/$bin_dir" ;; esac
 
 fail() {
-  printf '\nt3 install: %s\n' "$1" >&2
+  printf '\nsimplycode install: %s\n' "$1" >&2
   exit 1
 }
 

@@ -248,7 +248,7 @@ if (Test-Path -LiteralPath $shim) {
   if ($existingTarget) { $existingTarget = [System.IO.Path]::GetFullPath($existingTarget) }
   # Exactly <version>\t3.exe, never another program inside a version.
   $owned = $existingTarget.StartsWith($ownedPrefix, [System.StringComparison]::OrdinalIgnoreCase) -and
-    ($existingTarget.Substring($ownedPrefix.Length) -match '^[^\\/]+\\simplycode\.exe$')
+    ($existingTarget.Substring($ownedPrefix.Length) -match '^[^\\/]+\\t3\.exe$')
   if (-not $owned) {
     Fail "another simplycode is already at $shim. Remove it and run this again, or run $(Join-Path $targetDir 't3.exe') directly."
   }

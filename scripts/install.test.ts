@@ -31,7 +31,7 @@ describe.skipIf(HostProcess.Platform.defaultValue() !== "linux")("installer home
       await NodeFSP.mkdir(target, { recursive: true });
       await NodeFSP.writeFile(NodePath.join(target, ".install-complete"), `${version}\n`);
       await NodeFSP.writeFile(
-        NodePath.join(target, "simplycode"),
+        NodePath.join(target, "t3"),
         "#!/bin/sh\necho 'simplycode v1.2.3'\n",
         {
           mode: 0o755,
@@ -57,7 +57,7 @@ describe.skipIf(HostProcess.Platform.defaultValue() !== "linux")("installer home
       expect(status, stdout + stderr).toBe(0);
       expect(stderr).toContain(`Installed SimplyCode ${version}`);
       expect(await NodeFSP.readFile(launcher, "utf8")).toBe(
-        launcherScript(NodePath.join(target, "simplycode")),
+        launcherScript(NodePath.join(target, "t3")),
       );
       expect(
         NodeChildProcess.execFileSync(launcher, ["--version"], {
@@ -481,7 +481,7 @@ describe.skipIf(HostProcess.Platform.defaultValue() !== "linux")("installer chec
           }
           await NodeFSP.mkdir(NodePath.join(root, stem));
           await NodeFSP.writeFile(
-            NodePath.join(root, stem, "simplycode"),
+            NodePath.join(root, stem, "t3"),
             "#!/bin/sh\necho 'simplycode v1.2.3'\n",
             { mode: 0o755 },
           );
@@ -565,7 +565,7 @@ describe.skipIf(HostProcess.Platform.defaultValue() !== "linux")("concurrent ins
       await NodeFSP.mkdir(tools);
       await NodeFSP.mkdir(NodePath.join(root, stem));
       await NodeFSP.writeFile(
-        NodePath.join(root, stem, "simplycode"),
+        NodePath.join(root, stem, "t3"),
         "#!/bin/sh\necho 'simplycode v1.2.3'\n",
         {
           mode: 0o755,

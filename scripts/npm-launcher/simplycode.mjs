@@ -64,7 +64,7 @@ async function download(url, file) {
         shown = step;
         const percent = total ? ` ${step}%` : "";
         process.stderr.write(
-          `\r\x1b[2Kt3: downloading SimplyCode ${version}${percent} (${(received / 1048576).toFixed(1)} MB)`,
+          `\r\x1b[2Ksimplycode: downloading SimplyCode ${version}${percent} (${(received / 1048576).toFixed(1)} MB)`,
         );
       }
     }
@@ -106,7 +106,7 @@ async function install(dir, key) {
     if (extract.status !== 0) throw new Error(`could not extract ${archive}`);
     fs.rmSync(file);
     const validate = spawnSync(
-      path.join(staging, process.platform === "win32" ? "t3.exe" : "simplycode"),
+      path.join(staging, process.platform === "win32" ? "t3.exe" : "t3"),
       ["--version"],
       {
         stdio: ["ignore", "ignore", "pipe"],
@@ -189,7 +189,7 @@ async function main() {
   // Service IPC and signals must reach the child; terminal Ctrl-C already does, so do not forward SIGINT twice.
   const ipc = process.send !== undefined;
   const child = spawn(
-    path.join(dir, process.platform === "win32" ? "t3.exe" : "simplycode"),
+    path.join(dir, process.platform === "win32" ? "t3.exe" : "t3"),
     process.argv.slice(2),
     {
       stdio: ipc ? ["inherit", "inherit", "inherit", "ipc"] : "inherit",

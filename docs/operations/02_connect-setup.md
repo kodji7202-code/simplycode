@@ -1,10 +1,10 @@
 # T3 Connect setup
 
-Deployment and client configuration for T3 Connect. See [T3 Connect](../internals/06_t3-connect.md) for trust boundaries. The relay Worker itself is hosted upstream and is not part of this repository; the client-side configuration below is what this repo carries.
+Deployment and client configuration for T3 Connect. See [T3 Connect](../internals/06_t3-connect.md) for trust boundaries. SimplyCode does not operate a hosted relay. The client-side configuration below is for a compatible relay that you operate yourself.
 
 ## Public application configuration
 
-T3 Connect is disabled in a fresh clone. Copy `.env.example` to `.env` for production, or set these public identifiers in `.env` / `.env.local` (process env > `.env.local` > `.env`):
+T3 Connect is disabled in a fresh clone. Copy `.env.example` to `.env` and fill in your own public identifiers, or set them in `.env` / `.env.local` (process env > `.env.local` > `.env`):
 
 ```dotenv
 T3CODE_CLERK_PUBLISHABLE_KEY=<publishable key>

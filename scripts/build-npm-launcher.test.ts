@@ -64,8 +64,8 @@ exit 7
   yield* fs.makeDirectory(path.join(root, "release", stem, "node_modules/native"), {
     recursive: true,
   });
-  yield* fs.writeFileString(path.join(root, "release", stem, "simplycode"), executable);
-  yield* fs.chmod(path.join(root, "release", stem, "simplycode"), 0o755);
+  yield* fs.writeFileString(path.join(root, "release", stem, "t3"), executable);
+  yield* fs.chmod(path.join(root, "release", stem, "t3"), 0o755);
   const tar = yield* run("tar", ["-czf", archiveName, stem], {
     cwd: path.join(root, "release"),
     env: { PATH: (yield* HostProcess.Environment).PATH },
@@ -188,10 +188,7 @@ it.layer(NodeServices.layer)("build-npm-launcher", (it) => {
           ["--version|", `serve a b|${launcher}`, `--version|${launcher}`],
         );
 
-        yield* fs.writeFileString(
-          path.join(versionDir, "simplycode"),
-          "#!/t3-test-missing-loader\n",
-        );
+        yield* fs.writeFileString(path.join(versionDir, "t3"), "#!/t3-test-missing-loader\n");
         for (const _attempt of [1, 2]) {
           const cached = yield* run(process.execPath, [launcher, "serve"], { cwd: root, env });
           assert.equal(cached.exitCode, 1, cached.stderr);
@@ -243,13 +240,10 @@ it.layer(NodeServices.layer)("build-npm-launcher", (it) => {
         const staleDir = path.join(staleHome, "runtime/versions", VERSION);
         const peerDir = path.join(root, "peer-runtime");
         yield* fs.makeDirectory(staleDir, { recursive: true });
-        yield* fs.writeFileString(path.join(staleDir, "simplycode"), "");
+        yield* fs.writeFileString(path.join(staleDir, "t3"), "");
         yield* fs.makeDirectory(peerDir);
-        yield* fs.writeFileString(
-          path.join(peerDir, "simplycode"),
-          '#!/bin/sh\necho "peer $*"\nexit 7\n',
-        );
-        yield* fs.chmod(path.join(peerDir, "simplycode"), 0o755);
+        yield* fs.writeFileString(path.join(peerDir, "t3"), '#!/bin/sh\necho "peer $*"\nexit 7\n');
+        yield* fs.chmod(path.join(peerDir, "t3"), 0o755);
         yield* fs.writeFileString(path.join(peerDir, ".install-complete"), `${VERSION}\n`);
         yield* fs.writeFileString(path.join(peerDir, "sidecar"), "peer sidecar");
         const peerChecks = path.join(root, "peer-checks.txt");
@@ -454,7 +448,7 @@ syncBuiltinESMExports();
         const orphaned = "provider outlived the runtime by 30s";
         const provider = `process.on("SIGTERM", () => {}); setTimeout(() => { console.log(${JSON.stringify(orphaned)}); process.exit(0); }, 30_000);`;
         yield* fs.writeFileString(
-          path.join(versionDir, "simplycode"),
+          path.join(versionDir, "t3"),
           `#!${process.execPath}
 const provider = require("node:child_process").spawn(process.execPath, ["-e", ${JSON.stringify(provider)}], { stdio: "inherit" });
 process.on("SIGTERM", () => setTimeout(() => { console.log(${JSON.stringify(stuck)}); process.exit(0); }, 30_000));
@@ -462,7 +456,7 @@ setInterval(() => {}, 1 << 30);
 console.log(process.pid, provider.pid);
 `,
         );
-        yield* fs.chmod(path.join(versionDir, "simplycode"), 0o755);
+        yield* fs.chmod(path.join(versionDir, "t3"), 0o755);
 
         const launcher = NodeChildProcess.spawn(
           process.execPath,
