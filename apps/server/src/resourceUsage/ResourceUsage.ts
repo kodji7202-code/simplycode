@@ -1,11 +1,11 @@
 import type {
-  DesktopHostTelemetrySnapshot,
+  DesktopHostResourceSnapshot,
   HostPowerSnapshot,
   ResourceMonitorSnapshotEvent,
-  ResourceTelemetryHealth,
-  ResourceTelemetryHistoryInput,
-  ResourceTelemetryRetryResult,
-  ResourceTelemetrySnapshot,
+  ResourceUsageHealth,
+  ResourceUsageHistoryInput,
+  ResourceUsageRetryResult,
+  ResourceUsageSnapshot,
 } from "@t3tools/contracts";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -21,66 +21,66 @@ import * as Scope from "effect/Scope";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 
-import * as DesktopTelemetryReceiver from "./DesktopTelemetryReceiver.ts";
+import * as DesktopResourceReceiver from "./DesktopResourceReceiver.ts";
 import {
-  emptyTelemetryCounters,
+  emptyResourceCounters,
   mergeProcesses,
   type ProcessState,
-  type TelemetryCounters,
+  type ResourceCounters,
 } from "./Model.ts";
-import * as NativeTelemetryClient from "./NativeTelemetryClient.ts";
+import * as NativeResourceClient from "./NativeResourceClient.ts";
 import * as ResourceAttribution from "./ResourceAttribution.ts";
 import {
-  buildResourceTelemetryHistory,
-  normalizeResourceTelemetryHistoryInput,
-  type ResourceTelemetryHistoryWithLegacyBuckets,
-} from "./ResourceTelemetryHistory.ts";
+  buildResourceUsageHistory,
+  normalizeResourceUsageHistoryInput,
+  type ResourceUsageHistoryWithLegacyBuckets,
+} from "./ResourceUsageHistory.ts";
 import { subscribeBeforeSnapshot } from "../utils/subscribeBeforeSnapshot.ts";
 
-export class ResourceTelemetryRefreshFailed extends Schema.TaggedError<ResourceTelemetryRefreshFailed>()(
-  "ResourceTelemetryRefreshFailed",
+export class ResourceUsageRefreshFailed extends Schema.TaggedError<ResourceUsageRefreshFailed>()(
+  "ResourceUsageRefreshFailed",
   {
     operation: Schema.String,
     cause: Schema.Defect(),
   },
 ) {
   override get message(): string {
-    return `Resource telemetry operation '${this.operation}' failed.`;
+    return `Resource usage operation '${this.operation}' failed.`;
   }
 }
 
-export class ResourceTelemetry extends Context.Service<
-  ResourceTelemetry,
+export class ResourceUsage extends Context.Service<
+  ResourceUsage,
   {
-    readonly latest: Effect.Effect<ResourceTelemetrySnapshot>;
-    readonly changes: Stream.Stream<ResourceTelemetrySnapshot>;
+    readonly latest: Effect.Effect<ResourceUsageSnapshot>;
+    readonly changes: Stream.Stream<ResourceUsageSnapshot>;
     readonly subscribe: Effect.Effect<
       {
-        readonly latest: ResourceTelemetrySnapshot;
-        readonly changes: Stream.Stream<ResourceTelemetrySnapshot>;
+        readonly latest: ResourceUsageSnapshot;
+        readonly changes: Stream.Stream<ResourceUsageSnapshot>;
       },
       never,
       Scope.Scope
     >;
     readonly readHistory: (
-      input: ResourceTelemetryHistoryInput,
-    ) => Effect.Effect<ResourceTelemetryHistoryWithLegacyBuckets>;
-    readonly refresh: Effect.Effect<ResourceTelemetrySnapshot, ResourceTelemetryRefreshFailed>;
-    readonly retry: Effect.Effect<ResourceTelemetryRetryResult>;
+      input: ResourceUsageHistoryInput,
+    ) => Effect.Effect<ResourceUsageHistoryWithLegacyBuckets>;
+    readonly refresh: Effect.Effect<ResourceUsageSnapshot, ResourceUsageRefreshFailed>;
+    readonly retry: Effect.Effect<ResourceUsageRetryResult>;
   }
->()("simplycode/resourceTelemetry/ResourceTelemetry") {}
+>()("simplycode/resourceUsage/ResourceUsage") {}
 
-interface TelemetryState {
+interface UsageState {
   readonly nativeSnapshot: Option.Option<ResourceMonitorSnapshotEvent>;
-  readonly desktopSnapshot: Option.Option<DesktopHostTelemetrySnapshot>;
+  readonly desktopSnapshot: Option.Option<DesktopHostResourceSnapshot>;
   readonly previous: ReadonlyMap<string, ProcessState>;
-  readonly counters: TelemetryCounters;
-  readonly latest: ResourceTelemetrySnapshot;
+  readonly counters: ResourceCounters;
+  readonly latest: ResourceUsageSnapshot;
   readonly lastNativeSequence: number;
   readonly lastNativeGeneration: number;
 }
 
-interface LiveTelemetryState {
+interface LiveUsageState {
   readonly retainCount: number;
   readonly scope: Option.Option<Scope.Closeable>;
 }
@@ -101,10 +101,10 @@ function unknownPower(updatedAt: DateTime.Utc): HostPowerSnapshot {
 }
 
 function buildHealth(input: {
-  readonly native: NativeTelemetryClient.NativeTelemetryClientHealth;
-  readonly desktop: DesktopTelemetryReceiver.DesktopTelemetryReceiverHealth;
+  readonly native: NativeResourceClient.NativeResourceClientHealth;
+  readonly desktop: DesktopResourceReceiver.DesktopResourceReceiverHealth;
   readonly nativeSnapshot: Option.Option<ResourceMonitorSnapshotEvent>;
-}): ResourceTelemetryHealth {
+}): ResourceUsageHealth {
   return {
     native: {
       status: input.native.status,
@@ -139,12 +139,12 @@ function buildHealth(input: {
 }
 
 /** @public */
-export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(function* () {
-  const nativeClient = yield* NativeTelemetryClient.NativeTelemetryClient;
-  const desktopReceiver = yield* DesktopTelemetryReceiver.DesktopTelemetryReceiver;
+export const make = Effect.fn("resourceUsage.resourceUsage.make")(function* () {
+  const nativeClient = yield* NativeResourceClient.NativeResourceClient;
+  const desktopReceiver = yield* DesktopResourceReceiver.DesktopResourceReceiver;
   const attribution = yield* ResourceAttribution.ResourceAttribution;
   const mutex = yield* Semaphore.make(1);
-  const changes = yield* PubSub.sliding<ResourceTelemetrySnapshot>(8);
+  const changes = yield* PubSub.sliding<ResourceUsageSnapshot>(8);
   const initialReadAt = yield* DateTime.now;
   const nativeHealthSubscription = yield* nativeClient.subscribeHealth;
   const desktopHealthSubscription = yield* desktopReceiver.subscribeHealth;
@@ -174,10 +174,10 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
     nativeSnapshot: Option.none(),
     desktopSnapshot: initialDesktop,
     previous: new Map(),
-    counters: emptyTelemetryCounters(),
+    counters: emptyResourceCounters(),
     updatePrevious: false,
   });
-  const initialSnapshot: ResourceTelemetrySnapshot = {
+  const initialSnapshot: ResourceUsageSnapshot = {
     readAt: initialReadAt,
     sampleIntervalMs: initialNativeHealth.sampleIntervalMs,
     processes: initialMerge.processes,
@@ -194,16 +194,16 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
       nativeSnapshot: Option.none(),
     }),
   };
-  const state = yield* Ref.make<TelemetryState>({
+  const state = yield* Ref.make<UsageState>({
     nativeSnapshot: Option.none(),
     desktopSnapshot: initialDesktop,
     previous: new Map(),
-    counters: emptyTelemetryCounters(),
+    counters: emptyResourceCounters(),
     latest: initialSnapshot,
     lastNativeSequence: 0,
     lastNativeGeneration: initialNativeHealth.restartCount,
   });
-  const liveState = yield* Ref.make<LiveTelemetryState>({
+  const liveState = yield* Ref.make<LiveUsageState>({
     retainCount: 0,
     scope: Option.none(),
   });
@@ -215,7 +215,7 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
         nativeClient.health,
         desktopReceiver.health,
       ]);
-      const snapshot: ResourceTelemetrySnapshot = {
+      const snapshot: ResourceUsageSnapshot = {
         ...current.latest,
         health: buildHealth({
           native: nativeHealth,
@@ -234,11 +234,11 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
   );
 
   const rebuild = (input: {
-    readonly nativeSnapshot?: NativeTelemetryClient.NativeTelemetrySnapshot;
-    readonly desktopSnapshot?: DesktopHostTelemetrySnapshot;
+    readonly nativeSnapshot?: NativeResourceClient.NativeResourceSnapshot;
+    readonly desktopSnapshot?: DesktopHostResourceSnapshot;
     readonly updatePrevious: boolean;
     readonly publishWhenLive?: boolean;
-  }): Effect.Effect<ResourceTelemetrySnapshot> =>
+  }): Effect.Effect<ResourceUsageSnapshot> =>
     mutex.withPermits(1)(
       Effect.gen(function* () {
         const current = yield* Ref.get(state);
@@ -290,7 +290,7 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
           updatePrevious: input.updatePrevious,
         });
         const readAt = DateTime.makeUnsafe(merged.sampledAtMs);
-        const snapshot: ResourceTelemetrySnapshot = {
+        const snapshot: ResourceUsageSnapshot = {
           readAt,
           sampleIntervalMs: nativeHealth.sampleIntervalMs,
           processes: merged.processes,
@@ -327,11 +327,11 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
       }),
     );
 
-  const ingestNative = (snapshot: NativeTelemetryClient.NativeTelemetrySnapshot) =>
+  const ingestNative = (snapshot: NativeResourceClient.NativeResourceSnapshot) =>
     rebuild({ nativeSnapshot: snapshot, updatePrevious: true });
   const ingestDesktop =
-    /* Desktop samples arrive continuously; avoid a span per telemetry sample. */
-    Effect.fnUntraced(function* (snapshot: DesktopHostTelemetrySnapshot) {
+    /* Desktop samples arrive continuously; avoid a span per sample. */
+    Effect.fnUntraced(function* (snapshot: DesktopHostResourceSnapshot) {
       const electronRoot = snapshot.electronProcesses.find(
         (process) => process.pid === snapshot.electronPid,
       );
@@ -370,7 +370,7 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
         yield* nativeClient.snapshots.pipe(
           Stream.runForEach(ingestNative),
           Effect.catch((error) =>
-            Effect.logWarning("Native resource telemetry stream stopped", {
+            Effect.logWarning("Native resource usage stream stopped", {
               cause: error.message,
             }),
           ),
@@ -409,14 +409,14 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
   );
   const liveChanges = Stream.unwrap(Effect.map(subscribe, ({ changes }) => changes));
 
-  const readHistory: ResourceTelemetry["Service"]["readHistory"] = Effect.fn(
-    "ResourceTelemetry.readHistory",
+  const readHistory: ResourceUsage["Service"]["readHistory"] = Effect.fn(
+    "ResourceUsage.readHistory",
   )(function* (input) {
     const readAt = yield* DateTime.now;
-    const normalizedInput = normalizeResourceTelemetryHistoryInput(input);
+    const normalizedInput = normalizeResourceUsageHistoryInput(input);
     const historyResult = yield* Effect.result(nativeClient.readHistory(normalizedInput.windowMs));
     if (Result.isFailure(historyResult)) {
-      yield* Effect.logWarning("Failed to read native resource telemetry history", {
+      yield* Effect.logWarning("Failed to read native resource usage history", {
         cause: historyResult.failure.message,
       });
     }
@@ -425,7 +425,7 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
       desktopReceiver.health,
     ]);
     const current = yield* Ref.get(state);
-    return buildResourceTelemetryHistory({
+    return buildResourceUsageHistory({
       readAt,
       windowMs: normalizedInput.windowMs,
       bucketMs: normalizedInput.bucketMs,
@@ -450,18 +450,18 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
     Effect.forkScoped,
   );
 
-  const refresh: ResourceTelemetry["Service"]["refresh"] = nativeClient.sampleNow.pipe(
+  const refresh: ResourceUsage["Service"]["refresh"] = nativeClient.sampleNow.pipe(
     Effect.flatMap(ingestNative),
     Effect.mapError(
       (cause) =>
-        new ResourceTelemetryRefreshFailed({
+        new ResourceUsageRefreshFailed({
           operation: "refresh",
           cause,
         }),
     ),
   );
 
-  return ResourceTelemetry.of({
+  return ResourceUsage.of({
     latest,
     changes: liveChanges,
     subscribe,
@@ -469,7 +469,7 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
     refresh,
     retry: nativeClient.retry.pipe(
       Effect.zip(Ref.get(state)),
-      Effect.map(([accepted, current]): ResourceTelemetryRetryResult => ({
+      Effect.map(([accepted, current]): ResourceUsageRetryResult => ({
         accepted,
         snapshot: current.latest,
       })),
@@ -477,4 +477,4 @@ export const make = Effect.fn("resourceTelemetry.resourceTelemetry.make")(functi
   });
 });
 
-export const layer = Layer.effect(ResourceTelemetry, make());
+export const layer = Layer.effect(ResourceUsage, make());

@@ -4893,7 +4893,7 @@ const awaitClaudeUserInputAnswers = Effect.fn("awaitClaudeUserInputAnswers")(fun
   return yield* Effect.raceFirst(Deferred.await(answers), cancellation);
 });
 
-/** Exclude CLI-internal "[ede_diagnostic] ..." telemetry from error banners. */
+/** Exclude CLI-internal "[ede_diagnostic] ..." noise from error banners. */
 function resultUserFacingError(result: SDKResultMessage): string | undefined {
   const errors = "errors" in result && Array.isArray(result.errors) ? result.errors : [];
   if (result.subtype === "success" && !result.is_error) {
@@ -12064,12 +12064,12 @@ export const makeClaudeAdapterV2 = Effect.fn("makeClaudeAdapterV2")(function* (
               liveQuery.nativeThreadId,
               message.task_id,
             );
-            const carriesWorkflowTelemetry = hasClaudeWorkflowSnapshot(message);
+            const carriesWorkflowUsage = hasClaudeWorkflowSnapshot(message);
             const isWorkflowCoordinator =
               (yield* Ref.get(sessionSubagentsByTaskId)).get(message.task_id)?.task.workflow !==
               undefined;
             if (
-              (carriesWorkflowTelemetry || (progress.length > 0 && !isWorkflowCoordinator)) &&
+              (carriesWorkflowUsage || (progress.length > 0 && !isWorkflowCoordinator)) &&
               !context.ignoredTaskIds.has(message.task_id) &&
               !isBackgroundTask
             ) {

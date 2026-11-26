@@ -146,7 +146,7 @@ it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))("ServerEnvironmen
                 ServerConfig.layer({
                   ...config,
                   mode: "desktop",
-                  desktopTelemetryControlFd: 5,
+                  desktopResourceControlFd: 5,
                   desktopAppUpdate,
                 }),
               ),

@@ -1,8 +1,8 @@
 import { RegistryContext } from "@effect/atom-react";
 import {
   EnvironmentId,
-  type ResourceTelemetryHistory,
-  type ResourceTelemetrySnapshot,
+  type ResourceUsageHistory,
+  type ResourceUsageSnapshot,
 } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import * as DateTime from "effect/DateTime";
@@ -16,18 +16,18 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import { act, render } from "../../test/render";
 
 const monitor = vi.hoisted(() => ({
-  telemetry:
+  usage:
     vi.fn<
       (args: {
         environmentId: EnvironmentId;
-      }) => Atom.Atom<AsyncResult.AsyncResult<ResourceTelemetrySnapshot, MonitorError>>
+      }) => Atom.Atom<AsyncResult.AsyncResult<ResourceUsageSnapshot, MonitorError>>
     >(),
   history:
     vi.fn<
       (args: {
         environmentId: EnvironmentId;
         input: { windowMs: number; bucketMs: number };
-      }) => Atom.Atom<AsyncResult.AsyncResult<ResourceTelemetryHistory, MonitorError>>
+      }) => Atom.Atom<AsyncResult.AsyncResult<ResourceUsageHistory, MonitorError>>
     >(),
   retry: vi.fn(),
 }));
@@ -56,13 +56,13 @@ vi.mock("../state/session", () => ({
 }));
 vi.mock("../state/server", () => ({
   serverEnvironment: {
-    resourceTelemetry: monitor.telemetry,
-    resourceTelemetryHistory: monitor.history,
+    resourceUsage: monitor.usage,
+    resourceUsageHistory: monitor.history,
   },
 }));
 vi.mock("../state/use-atom-command", () => ({ useAtomCommand: () => monitor.retry }));
 
-import { ResourceTelemetryDiagnostics } from "../components/settings/ResourceTelemetryDiagnostics";
+import { ResourceUsageDiagnostics } from "../components/settings/ResourceUsageDiagnostics";
 
 class MonitorError extends Schema.TaggedError<MonitorError>()("MonitorError", {
   message: Schema.String,
@@ -92,7 +92,7 @@ function setup({ retryFails = false, holdRetry = false } = {}) {
     lastSampleAt: Option.some(readAt),
     lastError: Option.none<string>(),
   };
-  const snapshot: ResourceTelemetrySnapshot = {
+  const snapshot: ResourceUsageSnapshot = {
     readAt,
     sampleIntervalMs: 1000,
     processes: [],
@@ -123,7 +123,7 @@ function setup({ retryFails = false, holdRetry = false } = {}) {
       inaccessibleProcessCount: 0,
     },
   };
-  const history: ResourceTelemetryHistory = {
+  const history: ResourceUsageHistory = {
     readAt,
     windowMs: 900000,
     bucketMs: 30000,
@@ -134,15 +134,15 @@ function setup({ retryFails = false, holdRetry = false } = {}) {
     health: snapshot.health,
   };
   let running = false;
-  const telemetryQueries = Atom.family((_environmentId: EnvironmentId) =>
+  const usageQueries = Atom.family((_environmentId: EnvironmentId) =>
     Atom.make(
       Effect.suspend(() =>
         running ? Effect.succeed(snapshot) : Effect.fail(new MonitorError({ message: startError })),
       ),
     ).pipe(Atom.keepAlive),
   );
-  monitor.telemetry.mockReset();
-  monitor.telemetry.mockImplementation(({ environmentId }) => telemetryQueries(environmentId));
+  monitor.usage.mockReset();
+  monitor.usage.mockImplementation(({ environmentId }) => usageQueries(environmentId));
   const historyReads = vi.fn<(key: string) => void>();
   const historyQueries = Atom.family((key: string) =>
     Atom.make(
@@ -186,7 +186,7 @@ describe("resource monitor retry", () => {
     using fixture = setup();
     await using screen = await render(
       <RegistryContext.Provider value={fixture.registry}>
-        <ResourceTelemetryDiagnostics environmentId={environmentId} />
+        <ResourceUsageDiagnostics environmentId={environmentId} />
       </RegistryContext.Provider>,
     );
     await expect.element(screen.getByText(startError, { exact: true })).toBeVisible();
@@ -208,7 +208,7 @@ describe("resource monitor retry", () => {
       using fixture = setup({ holdRetry: true });
       const view = (selectedEnvironment: EnvironmentId) => (
         <RegistryContext.Provider value={fixture.registry}>
-          <ResourceTelemetryDiagnostics environmentId={selectedEnvironment} />
+          <ResourceUsageDiagnostics environmentId={selectedEnvironment} />
         </RegistryContext.Provider>
       );
       await using screen = await render(view(environmentId));
@@ -253,7 +253,7 @@ describe("resource monitor retry", () => {
     using fixture = setup({ retryFails: true });
     await using screen = await render(
       <RegistryContext.Provider value={fixture.registry}>
-        <ResourceTelemetryDiagnostics environmentId={environmentId} />
+        <ResourceUsageDiagnostics environmentId={environmentId} />
       </RegistryContext.Provider>,
     );
     await expect.element(screen.getByText(startError, { exact: true })).toBeVisible();
@@ -269,45 +269,40 @@ describe("resource monitor retry", () => {
 
   it("stops showing refresh as pending after the first live snapshot arrives", async () => {
     using fixture = setup();
-    const liveTelemetry = Atom.make<
-      AsyncResult.AsyncResult<ResourceTelemetrySnapshot, MonitorError>
-    >(AsyncResult.initial(true)).pipe(Atom.keepAlive);
-    monitor.telemetry.mockImplementation(() => liveTelemetry);
+    const liveUsage = Atom.make<AsyncResult.AsyncResult<ResourceUsageSnapshot, MonitorError>>(
+      AsyncResult.initial(true),
+    ).pipe(Atom.keepAlive);
+    monitor.usage.mockImplementation(() => liveUsage);
 
     await using screen = await render(
       <RegistryContext.Provider value={fixture.registry}>
-        <ResourceTelemetryDiagnostics environmentId={environmentId} />
+        <ResourceUsageDiagnostics environmentId={environmentId} />
       </RegistryContext.Provider>,
     );
-    const refreshButton = screen.getByRole("button", { name: "Refresh resource telemetry" });
+    const refreshButton = screen.getByRole("button", { name: "Refresh resource usage" });
     await expect.element(refreshButton).toBeDisabled();
 
     await act(() => {
-      fixture.registry.set(
-        liveTelemetry,
-        AsyncResult.waiting(AsyncResult.success(fixture.snapshot)),
-      );
+      fixture.registry.set(liveUsage, AsyncResult.waiting(AsyncResult.success(fixture.snapshot)));
     });
     await expect.element(refreshButton).toBeEnabled();
   });
 
   it("stops showing refresh as pending after a live subscription error", async () => {
     using fixture = setup();
-    const liveTelemetry = Atom.make<
-      AsyncResult.AsyncResult<ResourceTelemetrySnapshot, MonitorError>
-    >(AsyncResult.waiting(AsyncResult.fail(new MonitorError({ message: startError })))).pipe(
-      Atom.keepAlive,
-    );
-    monitor.telemetry.mockImplementation(() => liveTelemetry);
+    const liveUsage = Atom.make<AsyncResult.AsyncResult<ResourceUsageSnapshot, MonitorError>>(
+      AsyncResult.waiting(AsyncResult.fail(new MonitorError({ message: startError }))),
+    ).pipe(Atom.keepAlive);
+    monitor.usage.mockImplementation(() => liveUsage);
 
     await using screen = await render(
       <RegistryContext.Provider value={fixture.registry}>
-        <ResourceTelemetryDiagnostics environmentId={environmentId} />
+        <ResourceUsageDiagnostics environmentId={environmentId} />
       </RegistryContext.Provider>,
     );
     await expect.element(screen.getByText(startError, { exact: true })).toBeVisible();
     await expect
-      .element(screen.getByRole("button", { name: "Refresh resource telemetry" }))
+      .element(screen.getByRole("button", { name: "Refresh resource usage" }))
       .toBeEnabled();
   });
 });

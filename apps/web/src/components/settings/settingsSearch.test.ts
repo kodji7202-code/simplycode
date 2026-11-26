@@ -257,9 +257,9 @@ describe("searchSettings", () => {
 });
 
 describe("settings search targets", () => {
-  it("requires an environment for the resolved telemetry export destination", () => {
+  it("requires an environment for the resolved export destination", () => {
     const result = searchSettings("OpenTelemetry export").find(
-      (item) => item.id === "telemetry-export",
+      (item) => item.id === "otel-export",
     )!;
     const target = getSettingsSearchTargetScope(result.targetId ?? result.id)!;
     expect(isSettingsSearchScopeAvailable(target.scope, "all")).toBe(false);

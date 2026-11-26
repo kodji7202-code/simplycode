@@ -1,6 +1,6 @@
 import {
   type DesktopElectronProcessMetric,
-  type DesktopHostTelemetrySnapshot,
+  type DesktopHostResourceSnapshot,
   type ResourceMonitorProcessSample,
   type ResourceMonitorSnapshotEvent,
 } from "@t3tools/contracts";
@@ -8,7 +8,7 @@ import { describe, expect, it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
 import * as Option from "effect/Option";
 
-import { emptyTelemetryCounters, mergeProcesses, type MergeProcessesResult } from "./Model.ts";
+import { emptyResourceCounters, mergeProcesses, type MergeProcessesResult } from "./Model.ts";
 
 const SERVER_PID = 100;
 const BASE_TIME_MS = DateTime.toEpochMillis(DateTime.makeUnsafe("2026-06-17T12:00:00.000Z"));
@@ -67,11 +67,11 @@ function electronMetric(
 function desktopSnapshot(
   sampledAtUnixMs: number,
   electronProcesses: ReadonlyArray<DesktopElectronProcessMetric>,
-): DesktopHostTelemetrySnapshot {
+): DesktopHostResourceSnapshot {
   const sampledAt = DateTime.makeUnsafe(sampledAtUnixMs);
   return {
     version: 1,
-    type: "desktopTelemetry",
+    type: "desktopResource",
     sequence: 1,
     sampledAtUnixMs,
     electronPid: electronProcesses[0]?.pid ?? 10_000,
@@ -94,7 +94,7 @@ function desktopSnapshot(
 
 function merge(input: {
   readonly native: ResourceMonitorSnapshotEvent;
-  readonly desktop?: DesktopHostTelemetrySnapshot;
+  readonly desktop?: DesktopHostResourceSnapshot;
   readonly previous?: MergeProcessesResult;
   readonly sidecarPid?: number;
 }): MergeProcessesResult {
@@ -105,12 +105,12 @@ function merge(input: {
     nativeSnapshot: Option.some(input.native),
     desktopSnapshot: Option.fromUndefinedOr(input.desktop),
     previous: input.previous?.previous ?? new Map(),
-    counters: input.previous?.counters ?? emptyTelemetryCounters(),
+    counters: input.previous?.counters ?? emptyResourceCounters(),
     updatePrevious: true,
   });
 }
 
-describe("resource telemetry process model", () => {
+describe("resource usage process model", () => {
   it("builds complete descendant depths and isolates monitor overhead", () => {
     const result = merge({
       sidecarPid: 900,
@@ -374,7 +374,7 @@ describe("resource telemetry process model", () => {
         ]),
       ),
       previous: new Map(),
-      counters: emptyTelemetryCounters(),
+      counters: emptyResourceCounters(),
       updatePrevious: true,
     });
     const reused = mergeProcesses({

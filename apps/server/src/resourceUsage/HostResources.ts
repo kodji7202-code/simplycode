@@ -13,7 +13,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 export class HostResources extends Context.Service<
   HostResources,
   { readonly read: Effect.Effect<HostResourcesSnapshot> }
->()("simplycode/resourceTelemetry/HostResources") {}
+>()("simplycode/resourceUsage/HostResources") {}
 
 // Linux CPU list syntax, as in Cpus_allowed_list: "0-3,8,10-11".
 function parseCpuList(list: string): ReadonlySet<number> | null {

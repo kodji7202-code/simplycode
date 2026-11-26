@@ -1,5 +1,5 @@
 import { assert, describe, it } from "@effect/vitest";
-import type { ResourceTelemetryProcess, ResourceTelemetrySnapshot } from "@t3tools/contracts";
+import type { ResourceUsageProcess, ResourceUsageSnapshot } from "@t3tools/contracts";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -10,7 +10,7 @@ import * as TestClock from "effect/testing/TestClock";
 
 import * as ServerConfig from "../config.ts";
 import * as ProcessGroupMetrics from "./ProcessGroupMetrics.ts";
-import * as ResourceTelemetry from "./ResourceTelemetry.ts";
+import * as ResourceUsage from "./ResourceUsage.ts";
 
 const { groupProcesses } = ProcessGroupMetrics;
 
@@ -18,7 +18,7 @@ const process = (
   pid: number,
   ppid: number,
   name: string,
-  category: ResourceTelemetryProcess["category"] = "server-child",
+  category: ResourceUsageProcess["category"] = "server-child",
   command = name,
 ) =>
   ({
@@ -29,7 +29,7 @@ const process = (
     category,
     residentBytes: pid * 1_000,
     cpuPercent: pid,
-  }) as ResourceTelemetryProcess;
+  }) as ResourceUsageProcess;
 
 describe("groupProcesses", () => {
   it("sums each direct child of the server with its whole subtree", () => {
@@ -70,23 +70,23 @@ describe("groupProcesses", () => {
 });
 
 describe("ProcessGroupMetrics.layer", () => {
-  const notRunning = new ResourceTelemetry.ResourceTelemetryRefreshFailed({
+  const notRunning = new ResourceUsage.ResourceUsageRefreshFailed({
     operation: "refresh",
     cause: new Error("Resource monitor is unavailable: sidecar is not running"),
   });
   const logsAfter = (
-    refresh: ResourceTelemetry.ResourceTelemetry["Service"]["refresh"],
+    refresh: ResourceUsage.ResourceUsage["Service"]["refresh"],
     afterStart: Effect.Effect<void>,
   ) => {
     const logs: Array<string> = [];
     const logger = Logger.make(({ logLevel, message }) => {
       logs.push(`${logLevel.toUpperCase()} ${String([message].flat()[0])}`);
     });
-    const telemetry = { refresh } as unknown as ResourceTelemetry.ResourceTelemetry["Service"];
+    const usage = { refresh } as unknown as ResourceUsage.ResourceUsage["Service"];
     return Effect.gen(function* () {
       yield* Layer.build(
         ProcessGroupMetrics.layer.pipe(
-          Layer.provide(Layer.succeed(ResourceTelemetry.ResourceTelemetry, telemetry)),
+          Layer.provide(Layer.succeed(ResourceUsage.ResourceUsage, usage)),
           Layer.provide(
             ServerConfig.layer({
               otlpMetricsUrl: "http://localhost:4318/v1/metrics",
@@ -106,7 +106,7 @@ describe("ProcessGroupMetrics.layer", () => {
       ),
     );
   };
-  const emptySnapshot = { processes: [] } as unknown as ResourceTelemetrySnapshot;
+  const emptySnapshot = { processes: [] } as unknown as ResourceUsageSnapshot;
 
   it.effect("logs the first failed sample and the recovery, not every repeat", () =>
     Effect.gen(function* () {

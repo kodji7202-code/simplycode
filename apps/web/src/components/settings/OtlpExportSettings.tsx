@@ -97,22 +97,22 @@ function endpointStatus(
   }
 }
 
-export function TelemetryExportSettings() {
+export function OtlpExportSettings() {
   const gt = useGT();
   const { environment, scope } = useSettingsScope();
   if (scope.kind !== "environment" || !environment) {
     return (
-      <SettingsSection title={gt("OpenTelemetry export")} id="telemetry-export">
+      <SettingsSection title={gt("OpenTelemetry export")} id="otel-export">
         <SettingsScopeNotice target="environment">
-          {gt("Choose one environment to configure its telemetry exports.")}
+          {gt("Choose one environment to configure its OpenTelemetry exports.")}
         </SettingsScopeNotice>
       </SettingsSection>
     );
   }
-  return <TelemetryExportForm key={environment.environmentId} />;
+  return <OtlpExportForm key={environment.environmentId} />;
 }
 
-function TelemetryExportForm() {
+function OtlpExportForm() {
   const messages = useMessages();
   const gt = useGT();
   const { environment } = useSettingsScope();
@@ -174,7 +174,7 @@ function TelemetryExportForm() {
   }, [canCheck]);
 
   return (
-    <SettingsSection title={gt("OpenTelemetry export")} id="telemetry-export">
+    <SettingsSection title={gt("OpenTelemetry export")} id="otel-export">
       <form
         className="grid gap-4 px-4 py-4 sm:px-5"
         onSubmit={async (event) => {

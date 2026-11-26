@@ -95,7 +95,7 @@ import * as DirectEndpoints from "./environment/DirectEndpoints.ts";
 import * as EnvironmentAuth from "./auth/EnvironmentAuth.ts";
 import * as EnvironmentTheme from "./environmentTheme.ts";
 import * as GitWorkflowService from "./git/GitWorkflowService.ts";
-import * as HostResources from "./resourceTelemetry/HostResources.ts";
+import * as HostResources from "./resourceUsage/HostResources.ts";
 import * as ManagedProjectFolders from "./project/ManagedProjectFolders.ts";
 import * as ScratchThreadPromotion from "./project/ScratchThreadPromotion.ts";
 import * as McpAppRequests from "./mcpApps/McpAppRequests.ts";
@@ -131,7 +131,7 @@ import * as PullRequestSyncReactor from "./orchestration-v2/PullRequestSyncReact
 import * as RelayClient from "@t3tools/shared/relayClient";
 import * as RemoteOpenTargets from "./environment/RemoteOpenTargets.ts";
 import * as RepositoryIdentityResolver from "./project/RepositoryIdentityResolver.ts";
-import * as ResourceTelemetry from "./resourceTelemetry/ResourceTelemetry.ts";
+import * as ResourceUsage from "./resourceUsage/ResourceUsage.ts";
 import * as ReviewService from "./review/ReviewService.ts";
 import * as ScheduledTasks from "./scheduledTasks/ScheduledTaskService.ts";
 import * as BotService from "./bots/BotService.ts";
@@ -889,7 +889,7 @@ const layerUnusedConfigRpcServices = Layer.mergeAll(
   Layer.mock(PullRequestSyncReactor.PullRequestSyncReactor)({}),
   Layer.mock(RelayClient.RelayClient)({}),
   Layer.mock(RepositoryIdentityResolver.RepositoryIdentityResolver)({}),
-  Layer.mock(ResourceTelemetry.ResourceTelemetry)({}),
+  Layer.mock(ResourceUsage.ResourceUsage)({}),
   Layer.mock(ReviewService.ReviewService)({}),
   Layer.mock(ScheduledTasks.ScheduledTaskService)({}),
   Layer.mock(BotService.BotService)({}),

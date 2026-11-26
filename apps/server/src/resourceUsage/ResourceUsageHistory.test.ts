@@ -1,14 +1,14 @@
 import type {
-  DesktopHostTelemetrySnapshot,
+  DesktopHostResourceSnapshot,
   ResourceMonitorProcessSample,
   ResourceMonitorSnapshotEvent,
-  ResourceTelemetryHealth,
+  ResourceUsageHealth,
 } from "@t3tools/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
 import * as Option from "effect/Option";
 
-import { buildResourceTelemetryHistory } from "./ResourceTelemetryHistory.ts";
+import { buildResourceUsageHistory } from "./ResourceUsageHistory.ts";
 
 const SERVER_PID = 100;
 const ELECTRON_PID = 200;
@@ -73,7 +73,7 @@ function snapshot(
   };
 }
 
-const health: ResourceTelemetryHealth = {
+const health: ResourceUsageHealth = {
   native: {
     status: "healthy",
     lastSampleAt: Option.none(),
@@ -93,11 +93,11 @@ const health: ResourceTelemetryHealth = {
   inaccessibleProcessCount: 0,
 };
 
-function desktopSnapshot(): DesktopHostTelemetrySnapshot {
+function desktopSnapshot(): DesktopHostResourceSnapshot {
   const sampledAt = DateTime.makeUnsafe(STARTED_AT_MS + 1_000);
   return {
     version: 1,
-    type: "desktopTelemetry",
+    type: "desktopResource",
     sequence: 1,
     sampledAtUnixMs: STARTED_AT_MS + 1_000,
     electronPid: ELECTRON_PID,
@@ -128,9 +128,9 @@ function desktopSnapshot(): DesktopHostTelemetrySnapshot {
   };
 }
 
-describe("buildResourceTelemetryHistory", () => {
+describe("buildResourceUsageHistory", () => {
   it("replays native snapshots on demand without applying current Electron metrics", () => {
-    const history = buildResourceTelemetryHistory({
+    const history = buildResourceUsageHistory({
       readAt: DateTime.makeUnsafe(STARTED_AT_MS + 2_000),
       windowMs: 10_000,
       bucketMs: 10_000,
@@ -158,7 +158,7 @@ describe("buildResourceTelemetryHistory", () => {
   it("uses observed RSS for the history-window peak instead of the lifetime process peak", () => {
     const first = snapshot(1, STARTED_AT_MS, 100, 1_000);
     const second = snapshot(2, STARTED_AT_MS + 1_000, 200, 2_000);
-    const history = buildResourceTelemetryHistory({
+    const history = buildResourceUsageHistory({
       readAt: DateTime.makeUnsafe(STARTED_AT_MS + 2_000),
       windowMs: 10_000,
       bucketMs: 10_000,
@@ -196,7 +196,7 @@ describe("buildResourceTelemetryHistory", () => {
     const first = snapshot(1, STARTED_AT_MS, 100, 1_000);
     const absent = snapshot(2, STARTED_AT_MS + 1_000, 0, 0);
     const returned = snapshot(3, STARTED_AT_MS + 2_000, 350, 5_000);
-    const history = buildResourceTelemetryHistory({
+    const history = buildResourceUsageHistory({
       readAt: DateTime.makeUnsafe(STARTED_AT_MS + 3_000),
       windowMs: 10_000,
       bucketMs: 10_000,
@@ -222,7 +222,7 @@ describe("buildResourceTelemetryHistory", () => {
 
   it("uses the preceding sample as a baseline without attributing pre-window deltas", () => {
     const readAtMs = STARTED_AT_MS + 10_000;
-    const history = buildResourceTelemetryHistory({
+    const history = buildResourceUsageHistory({
       readAt: DateTime.makeUnsafe(readAtMs),
       windowMs: 5_000,
       bucketMs: 5_000,
@@ -250,7 +250,7 @@ describe("buildResourceTelemetryHistory", () => {
 
   it("prorates a cumulative delta that crosses the history window boundary", () => {
     const readAtMs = STARTED_AT_MS + 10_000;
-    const history = buildResourceTelemetryHistory({
+    const history = buildResourceUsageHistory({
       readAt: DateTime.makeUnsafe(readAtMs),
       windowMs: 5_000,
       bucketMs: 5_000,
@@ -274,7 +274,7 @@ describe("buildResourceTelemetryHistory", () => {
   it("replays the Electron root identity recorded with each native sample", () => {
     const oldElectron = snapshot(1, STARTED_AT_MS, 100, 1_000);
     const restartedElectron = snapshot(2, STARTED_AT_MS + 1_000, 200, 2_000);
-    const history = buildResourceTelemetryHistory({
+    const history = buildResourceUsageHistory({
       readAt: DateTime.makeUnsafe(STARTED_AT_MS + 2_000),
       windowMs: 10_000,
       bucketMs: 10_000,

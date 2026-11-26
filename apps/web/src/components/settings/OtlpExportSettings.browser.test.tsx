@@ -59,7 +59,7 @@ vi.mock(import("./useScopedSettings"), async (original) => ({
   useScopedSettings: ((select: (settings: typeof state) => unknown) => select(state)) as never,
 }));
 
-import { TelemetryExportSettings } from "./TelemetryExportSettings";
+import { OtlpExportSettings } from "./OtlpExportSettings";
 
 function setup() {
   updateSettings.mockClear();
@@ -67,14 +67,14 @@ function setup() {
   state.serverConfig = { environment: { capabilities: {} } };
 }
 
-describe("TelemetryExportSettings", () => {
+describe("OtlpExportSettings", () => {
   it("does not resend a field the user restored after another client changed it", async () => {
     setup();
     state.observability = {
       ...DEFAULT_SERVER_SETTINGS.observability,
       otlpTracesUrl: "http://old/v1/traces",
     };
-    await using screen = await render(<TelemetryExportSettings />);
+    await using screen = await render(<OtlpExportSettings />);
 
     const { container } = screen;
     const field = (id: string) => container.querySelector<HTMLInputElement>(`#${id}`)!;
@@ -85,7 +85,7 @@ describe("TelemetryExportSettings", () => {
     await replace("otlpTracesUrl", "http://draft/v1/traces");
     await replace("otlpTracesUrl", "http://old/v1/traces");
     state.observability = { ...state.observability, otlpTracesUrl: "http://other/v1/traces" };
-    await screen.rerender(<TelemetryExportSettings />);
+    await screen.rerender(<OtlpExportSettings />);
     await replace("otlpMetricsUrl", "http://new/v1/metrics");
     const save = [...container.querySelectorAll("button")].find(
       (button) => button.textContent === "Save",
@@ -115,7 +115,7 @@ describe("TelemetryExportSettings", () => {
         otlpLogsEnabled: false,
       },
     };
-    await using screen = await render(<TelemetryExportSettings />);
+    await using screen = await render(<OtlpExportSettings />);
 
     await expect
       .element(screen.getByText("Set by environment · Connected · 12 ms"))
@@ -151,7 +151,7 @@ describe("TelemetryExportSettings", () => {
       .mockReturnValueOnce(first.promise)
       .mockReturnValueOnce(corrected.promise)
       .mockReturnValueOnce(latest.promise);
-    await using screen = await render(<TelemetryExportSettings />);
+    await using screen = await render(<OtlpExportSettings />);
 
     const traces = screen.getByLabelText("Traces endpoint");
     const testTraces = screen.getByRole("button", { name: "Test" }).first();

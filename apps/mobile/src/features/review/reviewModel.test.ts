@@ -154,24 +154,24 @@ describe("buildReviewParsedDiff", () => {
   });
 
   it.each(["", "\n\n[truncated]"])(
-    "preserves the final blank context in the resourceTelemetry excerpt with suffix %j",
+    "preserves the final blank context in the resourceUsage excerpt with suffix %j",
     (suffix) => {
       const parsed = buildReviewParsedDiff(
         [
-          "diff --git a/packages/contracts/src/resourceTelemetry.ts b/packages/contracts/src/resourceTelemetry.ts",
-          "--- a/packages/contracts/src/resourceTelemetry.ts",
-          "+++ b/packages/contracts/src/resourceTelemetry.ts",
+          "diff --git a/packages/contracts/src/resourceUsage.ts b/packages/contracts/src/resourceUsage.ts",
+          "--- a/packages/contracts/src/resourceUsage.ts",
+          "+++ b/packages/contracts/src/resourceUsage.ts",
           "@@ -350,6 +371,7 @@",
-          "   DesktopTelemetryRequestDesktopUpdate,",
-          "   DesktopTelemetryCommitDesktopUpdate,",
-          "   DesktopTelemetryCancelDesktopUpdate,",
+          "   DesktopResourceRequestDesktopUpdate,",
+          "   DesktopResourceCommitDesktopUpdate,",
+          "   DesktopResourceCancelDesktopUpdate,",
           "+  DesktopUpdateRestartPolicyResult,",
           " ]);",
-          " export type DesktopTelemetryControlMessage = typeof DesktopTelemetryControlMessage.Type;",
+          " export type DesktopResourceControlMessage = typeof DesktopResourceControlMessage.Type;",
           " ",
           "",
         ].join("\n") + suffix,
-        "resource-telemetry",
+        "resource-usage",
       );
       expect(parsed.kind).toBe("files");
       if (parsed.kind !== "files") return;

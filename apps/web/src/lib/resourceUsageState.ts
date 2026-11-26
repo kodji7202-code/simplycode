@@ -2,8 +2,8 @@ import { AuthDiagnosticsReadScope } from "@t3tools/contracts";
 import { AuthEnvironmentMaintainScope } from "@t3tools/contracts";
 import type {
   EnvironmentId,
-  ResourceTelemetryHistoryInput,
-  ResourceTelemetrySnapshot,
+  ResourceUsageHistoryInput,
+  ResourceUsageSnapshot,
 } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import { msg, useMessages } from "gt-react";
@@ -15,17 +15,15 @@ import { serverEnvironment } from "../state/server";
 import { readEnvironmentScope, useEnvironmentScope } from "../state/session";
 import { useAtomCommand } from "../state/use-atom-command";
 
-export interface ResourceTelemetryState {
-  readonly data: ResourceTelemetrySnapshot | null;
+export interface ResourceUsageState {
+  readonly data: ResourceUsageSnapshot | null;
   readonly error: string | null;
   readonly isPending: boolean;
   readonly refresh: () => void;
-  readonly retry: () => Promise<ResourceTelemetrySnapshot>;
+  readonly retry: () => Promise<ResourceUsageSnapshot>;
 }
 
-export function useResourceTelemetry(
-  targetEnvironmentId?: EnvironmentId | null,
-): ResourceTelemetryState {
+export function useResourceUsage(targetEnvironmentId?: EnvironmentId | null): ResourceUsageState {
   const primaryEnvironment = usePrimaryEnvironment();
   const environmentId =
     targetEnvironmentId === undefined
@@ -36,10 +34,10 @@ export function useResourceTelemetry(
   const query = useEnvironmentQuery(
     environmentId === null || !canReadDiagnostics
       ? null
-      : serverEnvironment.resourceTelemetry({ environmentId, input: {} }),
+      : serverEnvironment.resourceUsage({ environmentId, input: {} }),
     resolve,
   );
-  const retryCommand = useAtomCommand(serverEnvironment.retryResourceTelemetry, {
+  const retryCommand = useAtomCommand(serverEnvironment.retryResourceUsage, {
     reportFailure: false,
   });
   const retry = async () => {
@@ -65,8 +63,8 @@ export function useResourceTelemetry(
   return { ...query, isPending, retry };
 }
 
-export function useResourceTelemetryHistory(
-  input: ResourceTelemetryHistoryInput,
+export function useResourceUsageHistory(
+  input: ResourceUsageHistoryInput,
   targetEnvironmentId?: EnvironmentId | null,
 ) {
   const primaryEnvironment = usePrimaryEnvironment();
@@ -79,7 +77,7 @@ export function useResourceTelemetryHistory(
   return useEnvironmentQuery(
     environmentId === null || !canReadDiagnostics
       ? null
-      : serverEnvironment.resourceTelemetryHistory({ environmentId, input }),
+      : serverEnvironment.resourceUsageHistory({ environmentId, input }),
     resolve,
   );
 }

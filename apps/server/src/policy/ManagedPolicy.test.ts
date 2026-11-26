@@ -78,17 +78,29 @@ it.layer(NodeServices.layer)("ManagedPolicy.load", (it) => {
         JSON.stringify({
           schemaVersion: 1,
           organization: "Example Corp",
-          limits: { webhookTasks: false, telemetry: true, previewTunnel: false },
+          limits: { webhookTasks: false, previewTunnel: false },
         }),
       );
       assert.deepEqual(policy.summary?.limits, {
         webhookTasks: false,
-        telemetry: true,
         previewTunnel: false,
       });
       assert.equal(ManagedPolicy.deniedBy(policy, "webhookTasks"), "Example Corp");
       assert.equal(ManagedPolicy.deniedBy(policy, "previewTunnel"), "Example Corp");
-      assert.isUndefined(ManagedPolicy.deniedBy(policy, "telemetry"));
+    }),
+  );
+
+  it.effect("loads a policy written before the telemetry limit was retired", () =>
+    Effect.gen(function* () {
+      const policy = yield* loadFrom(
+        JSON.stringify({
+          schemaVersion: 1,
+          organization: "Example Corp",
+          limits: { webhookTasks: false, telemetry: false },
+        }),
+      );
+      // The retired key is dropped, not enforced or forwarded to clients.
+      assert.deepEqual(policy.summary?.limits, { webhookTasks: false });
     }),
   );
 

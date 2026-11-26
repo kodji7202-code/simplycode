@@ -1,17 +1,17 @@
 import type {
-  DesktopHostTelemetrySnapshot,
+  DesktopHostResourceSnapshot,
   ResourceMonitorSnapshotEvent,
-  ResourceTelemetryHealth,
-  ResourceTelemetryHistory,
-  ResourceTelemetryHistoryBucket,
-  ResourceTelemetryProcess,
-  ResourceTelemetryProcessSummary,
+  ResourceUsageHealth,
+  ResourceUsageHistory,
+  ResourceUsageHistoryBucket,
+  ResourceUsageProcess,
+  ResourceUsageProcessSummary,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Option from "effect/Option";
 
 import {
-  emptyTelemetryCounters,
+  emptyResourceCounters,
   mergeProcesses,
   processIdentityKey,
   type ProcessState,
@@ -19,7 +19,7 @@ import {
 
 const MAX_HISTORY_WINDOW_MS = 60 * 60_000;
 
-export function normalizeResourceTelemetryHistoryInput(input: {
+export function normalizeResourceUsageHistoryInput(input: {
   readonly windowMs: number;
   readonly bucketMs: number;
 }): { readonly windowMs: number; readonly bucketMs: number } {
@@ -41,31 +41,31 @@ interface AggregateSample {
 
 interface ProcessSample {
   readonly sampledAtMs: number;
-  readonly process: ResourceTelemetryProcess;
+  readonly process: ResourceUsageProcess;
   readonly cpuTimeMs: number;
   readonly ioReadBytes: number;
   readonly ioWriteBytes: number;
 }
 
-export interface BuildResourceTelemetryHistoryInput {
+export interface BuildResourceUsageHistoryInput {
   readonly readAt: DateTime.Utc;
   readonly windowMs: number;
   readonly bucketMs: number;
   readonly sampleIntervalMs: number;
   readonly serverPid: number;
   readonly sidecarPid: Option.Option<number>;
-  readonly desktopSnapshot: Option.Option<DesktopHostTelemetrySnapshot>;
+  readonly desktopSnapshot: Option.Option<DesktopHostResourceSnapshot>;
   readonly snapshots: ReadonlyArray<ResourceMonitorSnapshotEvent>;
-  readonly health: ResourceTelemetryHealth;
+  readonly health: ResourceUsageHealth;
 }
 
-export type ResourceTelemetryHistoryWithLegacyBuckets = ResourceTelemetryHistory & {
-  readonly legacyBackendBuckets?: ReadonlyArray<ResourceTelemetryHistoryBucket>;
+export type ResourceUsageHistoryWithLegacyBuckets = ResourceUsageHistory & {
+  readonly legacyBackendBuckets?: ReadonlyArray<ResourceUsageHistoryBucket>;
 };
 
 function summarizeProcesses(
   samples: ReadonlyArray<ProcessSample>,
-): ReadonlyArray<ResourceTelemetryProcessSummary> {
+): ReadonlyArray<ResourceUsageProcessSummary> {
   const groups = new Map<string, ProcessSample[]>();
   for (const sample of samples) {
     const identityKey = processIdentityKey(
@@ -78,7 +78,7 @@ function summarizeProcesses(
   }
 
   return [...groups.values()]
-    .map((processSamples): ResourceTelemetryProcessSummary => {
+    .map((processSamples): ResourceUsageProcessSummary => {
       const sorted = processSamples.toSorted((left, right) => left.sampledAtMs - right.sampledAtMs);
       const first = sorted[0]!;
       const latest = sorted[sorted.length - 1]!;
@@ -114,9 +114,9 @@ function buildBuckets(input: {
   readonly nowMs: number;
   readonly windowMs: number;
   readonly bucketMs: number;
-}): ReadonlyArray<ResourceTelemetryHistoryBucket> {
+}): ReadonlyArray<ResourceUsageHistoryBucket> {
   const windowStartMs = input.nowMs - input.windowMs;
-  const buckets: ResourceTelemetryHistoryBucket[] = [];
+  const buckets: ResourceUsageHistoryBucket[] = [];
   for (let startedAtMs = windowStartMs; startedAtMs < input.nowMs; startedAtMs += input.bucketMs) {
     const endedAtMs = Math.min(input.nowMs, startedAtMs + input.bucketMs);
     const samples = input.samples.filter(
@@ -143,13 +143,13 @@ function buildBuckets(input: {
   return buckets;
 }
 
-export function buildResourceTelemetryHistory(
-  input: BuildResourceTelemetryHistoryInput,
-): ResourceTelemetryHistoryWithLegacyBuckets & {
-  readonly legacyBackendBuckets: ReadonlyArray<ResourceTelemetryHistoryBucket>;
+export function buildResourceUsageHistory(
+  input: BuildResourceUsageHistoryInput,
+): ResourceUsageHistoryWithLegacyBuckets & {
+  readonly legacyBackendBuckets: ReadonlyArray<ResourceUsageHistoryBucket>;
 } {
   const readAtMs = DateTime.toEpochMillis(input.readAt);
-  const { windowMs, bucketMs } = normalizeResourceTelemetryHistoryInput(input);
+  const { windowMs, bucketMs } = normalizeResourceUsageHistoryInput(input);
   const windowStartMs = readAtMs - windowMs;
   const eligibleSnapshots = input.snapshots
     .filter((snapshot) => snapshot.sampledAtUnixMs <= readAtMs)
@@ -167,7 +167,7 @@ export function buildResourceTelemetryHistory(
   const legacyBackendAggregateSamples: AggregateSample[] = [];
   const processSamples: ProcessSample[] = [];
   const previous = new Map<string, ProcessState>();
-  const counters = emptyTelemetryCounters();
+  const counters = emptyResourceCounters();
   let previousSnapshotAtMs: number | undefined;
 
   for (const snapshot of snapshots) {

@@ -20,7 +20,7 @@ export class ResourceAttribution extends Context.Service<
     readonly record: (input: ResourceAttributionRecord) => Effect.Effect<void>;
     readonly snapshot: Effect.Effect<ResourceAttributionSnapshot>;
   }
->()("simplycode/resourceTelemetry/ResourceAttribution") {}
+>()("simplycode/resourceUsage/ResourceAttribution") {}
 
 function key(input: Pick<ResourceAttributionRecord, "component" | "operation">): string {
   return `${input.component}\u0000${input.operation}`;
@@ -32,7 +32,7 @@ function nonNegativeInteger(value: number | undefined, fallback: number): number
   return Math.max(0, Math.round(value));
 }
 
-const make = Effect.fn("resourceTelemetry.resourceAttribution.make")(function* () {
+const make = Effect.fn("resourceUsage.resourceAttribution.make")(function* () {
   const entries = yield* Ref.make(new Map<string, ResourceAttributionEntry>());
 
   const record: ResourceAttribution["Service"]["record"] = (input) =>

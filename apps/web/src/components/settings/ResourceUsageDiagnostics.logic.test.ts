@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import type { ResourceTelemetryProcess } from "@t3tools/contracts";
+import type { ResourceUsageProcess } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 
 import {
   formatCpuTime,
   formatSamplingStatus,
-  visibleResourceTelemetryProcesses,
-} from "./ResourceTelemetryDiagnostics.logic";
+  visibleResourceUsageProcesses,
+} from "./ResourceUsageDiagnostics.logic";
 
-const process = (pid: number, ppid: number, depth: number): ResourceTelemetryProcess => ({
+const process = (pid: number, ppid: number, depth: number): ResourceUsageProcess => ({
   identity: { pid, startTimeMs: pid * 1_000 },
   ppid,
   childPids: [],
@@ -33,7 +33,7 @@ const process = (pid: number, ppid: number, depth: number): ResourceTelemetryPro
   lastSeenAt: DateTime.makeUnsafe(0),
 });
 
-describe("visibleResourceTelemetryProcesses", () => {
+describe("visibleResourceUsageProcesses", () => {
   it("hides descendants by parentage even when rows are not depth-first", () => {
     const processes = [
       process(1, 0, 0),
@@ -43,7 +43,7 @@ describe("visibleResourceTelemetryProcesses", () => {
       process(3, 2, 2),
     ];
 
-    expect(visibleResourceTelemetryProcesses(processes, new Set(["1:1000"]))).toEqual([
+    expect(visibleResourceUsageProcesses(processes, new Set(["1:1000"]))).toEqual([
       processes[0],
       processes[1],
       processes[3],
@@ -53,7 +53,7 @@ describe("visibleResourceTelemetryProcesses", () => {
   it("keeps a root row visible when its launcher is collapsed", () => {
     const processes = [process(1, 10, 0), process(2, 1, 1), process(10, 0, 0), process(11, 10, 1)];
 
-    expect(visibleResourceTelemetryProcesses(processes, new Set(["10:10000"]))).toEqual([
+    expect(visibleResourceUsageProcesses(processes, new Set(["10:10000"]))).toEqual([
       processes[0],
       processes[1],
       processes[2],

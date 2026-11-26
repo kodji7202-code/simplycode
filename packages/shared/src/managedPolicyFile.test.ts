@@ -138,7 +138,7 @@ describe("readManagedPolicy", () => {
       );
       // Keys beside the wrapper, or a second entry, are refused rather than dropped or merged.
       for (const ambiguous of [
-        { Forced: [{ mcx_preference_settings: settings }], limits: { telemetry: false } },
+        { Forced: [{ mcx_preference_settings: settings }], limits: { connect: false } },
         { Forced: [{ mcx_preference_settings: settings }, { mcx_preference_settings: settings }] },
       ]) {
         assert.include(
@@ -252,7 +252,6 @@ describe("readManagedPolicy", () => {
           settings: { enableAgentBrowserAccess: { value: false, locked: true } },
           limits: {
             maxRuntimeMode: "auto-accept-edits",
-            telemetry: false,
             updates: { mode: "off", allowNightly: true },
             clients: ["desktop", "local-browser", "remote"],
             providers: { allowedDrivers: ["codex", "claudeAgent", "UnknownDriver"] },
@@ -279,7 +278,7 @@ describe("readManagedPolicy", () => {
             disabledGroups,
           ),
         ),
-        { schemaVersion: 1, organization: "Société 日本 ✓", limits: { telemetry: false } },
+        { schemaVersion: 1, organization: "Société 日本 ✓" },
       );
       // With nothing else configured, that is no policy rather than one missing Organization.
       assert.isUndefined(
@@ -293,7 +292,7 @@ describe("readManagedPolicy", () => {
 
       // Anything the template does not write fails closed rather than being ignored.
       for (const [registry, reason] of [
-        [policyKey([organization, dword("Telemetry", 2)]), "DWORD of 0 or 1"],
+        [policyKey([organization, dword("WebhookTasks", 2)]), "DWORD of 0 or 1"],
         [policyKey([organization, text("MaxMode", "auto")]), "not a SimplyCode policy value"],
         [policyKey([organization], { Other: { x: 1 } }), "Other is not a SimplyCode policy key"],
         [

@@ -113,7 +113,7 @@ describe("ResourceMonitorBinary", () => {
         yield* fileSystem.chmod(binaryPath, 0o755);
 
         const service = yield* ResourceMonitorBinary.make().pipe(
-          // The bundled module lives in dist rather than src/resourceTelemetry.
+          // The bundled module lives in dist rather than src/resourceUsage.
           Effect.provideService(Path.Path, {
             ...path,
             resolve: (...segments) =>

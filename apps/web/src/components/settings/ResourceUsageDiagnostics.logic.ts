@@ -1,17 +1,17 @@
-import type { ResourceTelemetryProcess, ResourceTelemetrySourceStatus } from "@t3tools/contracts";
+import type { ResourceUsageProcess, ResourceUsageSourceStatus } from "@t3tools/contracts";
 import { msg } from "gt-react";
 
 import { m, type MessageResolver } from "../../i18n/messages";
 
-export function processIdentityKey(process: Pick<ResourceTelemetryProcess, "identity">): string {
+export function processIdentityKey(process: Pick<ResourceUsageProcess, "identity">): string {
   return `${process.identity.pid}:${process.identity.startTimeMs}`;
 }
 
-export function visibleResourceTelemetryProcesses(
-  processes: ReadonlyArray<ResourceTelemetryProcess>,
+export function visibleResourceUsageProcesses(
+  processes: ReadonlyArray<ResourceUsageProcess>,
   collapsed: ReadonlySet<string>,
-): ReadonlyArray<ResourceTelemetryProcess> {
-  const childrenByParent = new Map<number, ResourceTelemetryProcess[]>();
+): ReadonlyArray<ResourceUsageProcess> {
+  const childrenByParent = new Map<number, ResourceUsageProcess[]>();
   for (const process of processes) {
     const children = childrenByParent.get(process.ppid) ?? [];
     children.push(process);
@@ -38,7 +38,7 @@ export function visibleResourceTelemetryProcesses(
 }
 
 export function shouldShowResourceMonitorRetry(input: {
-  readonly nativeStatus: ResourceTelemetrySourceStatus | null;
+  readonly nativeStatus: ResourceUsageSourceStatus | null;
   readonly error: string | null;
 }): boolean {
   return (

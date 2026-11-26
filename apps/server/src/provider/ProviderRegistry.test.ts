@@ -91,7 +91,7 @@ import { mergeProviderInstanceEnvironment } from "@t3tools/provider-core/server/
 import { makeManualOnlyProviderMaintenanceCapabilities } from "@t3tools/provider-core/server/maintenanceResolver";
 import * as SecretResolver from "@t3tools/secret-provider-core/server/SecretResolver";
 import * as ProviderHostPathWatcher from "./ProviderHostPathWatcher.ts";
-import * as DesktopTelemetryReceiver from "../resourceTelemetry/DesktopTelemetryReceiver.ts";
+import * as DesktopResourceReceiver from "../resourceUsage/DesktopResourceReceiver.ts";
 import { providerHostEnvironment } from "../policy/managedProviders.ts";
 vi.mock("@anthropic-ai/claude-agent-sdk", { spy: true });
 
@@ -1821,7 +1821,7 @@ it.layer(
           { organization: "PATH test", lockedSettings: [] },
           host,
         );
-        const updates = yield* DesktopTelemetryReceiver.makeDesktopShellEnvironmentUpdates(
+        const updates = yield* DesktopResourceReceiver.makeDesktopShellEnvironmentUpdates(
           host,
           "linux",
         );
@@ -1920,7 +1920,7 @@ it.layer(
             yield* Layer.build(
               ProviderHostPathWatcher.layer.pipe(
                 Layer.provide(
-                  DesktopTelemetryReceiver.layerTest({ pathChanges: updates.pathChanges }),
+                  DesktopResourceReceiver.layerTest({ pathChanges: updates.pathChanges }),
                 ),
                 Layer.provide(
                   Layer.succeed(ProviderRegistry.ProviderRegistry, {

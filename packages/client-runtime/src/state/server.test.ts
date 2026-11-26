@@ -1885,9 +1885,9 @@ describe("provider setup commands", () => {
   );
 });
 
-describe("resource telemetry history", () => {
+describe("resource usage history", () => {
   it.effect.each([
-    ["resourceTelemetryHistory", WS_METHODS.serverGetResourceTelemetryHistory],
+    ["resourceUsageHistory", WS_METHODS.serverGetResourceUsageHistory],
     ["processResourceHistory", WS_METHODS.serverGetProcessResourceHistory],
   ] as const)(
     "%s refreshes an initially empty history while mounted and stops after unmount",

@@ -209,16 +209,16 @@ import * as ServerSelfUpdate from "./cloud/selfUpdate.ts";
 import * as DesktopAppUpdate from "./desktopUpdate/DesktopAppUpdate.ts";
 import * as ServiceLauncherClient from "./cloud/serviceLauncherClient.ts";
 import * as ProcessDiagnostics from "./diagnostics/ProcessDiagnostics.ts";
-import * as HostResources from "./resourceTelemetry/HostResources.ts";
+import * as HostResources from "./resourceUsage/HostResources.ts";
 import * as ProcessResourceMonitor from "./diagnostics/ProcessResourceMonitor.ts";
 import * as TraceDiagnostics from "./diagnostics/TraceDiagnostics.ts";
 import * as TriageService from "./triage/TriageService.ts";
-import * as DesktopTelemetryReceiver from "./resourceTelemetry/DesktopTelemetryReceiver.ts";
-import * as NativeTelemetryClient from "./resourceTelemetry/NativeTelemetryClient.ts";
-import * as ResourceAttribution from "./resourceTelemetry/ResourceAttribution.ts";
-import * as ResourceMonitorBinary from "./resourceTelemetry/ResourceMonitorBinary.ts";
-import * as ProcessGroupMetrics from "./resourceTelemetry/ProcessGroupMetrics.ts";
-import * as ResourceTelemetry from "./resourceTelemetry/ResourceTelemetry.ts";
+import * as DesktopResourceReceiver from "./resourceUsage/DesktopResourceReceiver.ts";
+import * as NativeResourceClient from "./resourceUsage/NativeResourceClient.ts";
+import * as ResourceAttribution from "./resourceUsage/ResourceAttribution.ts";
+import * as ResourceMonitorBinary from "./resourceUsage/ResourceMonitorBinary.ts";
+import * as ProcessGroupMetrics from "./resourceUsage/ProcessGroupMetrics.ts";
+import * as ResourceUsage from "./resourceUsage/ResourceUsage.ts";
 import * as AntigravityUsage from "./provider/Drivers/AntigravityUsage.ts";
 import { MuseUsageHome } from "@t3tools/provider-muse/server";
 import * as CursorAccountReader from "@t3tools/provider-cursor/server/CursorAccountReader";
@@ -295,25 +295,25 @@ const layerServerSettings = ServerSettings.layer.pipe(
   Layer.provideMerge(SqlitePersistence.layerConfig),
 );
 
-const layerNativeTelemetry = NativeTelemetryClient.layer.pipe(
+const layerNativeResource = NativeResourceClient.layer.pipe(
   Layer.provide(ResourceMonitorBinary.layer),
 );
-const layerDesktopTelemetryReceiver = DesktopTelemetryReceiver.layer.pipe(
+const layerDesktopResourceReceiver = DesktopResourceReceiver.layer.pipe(
   Layer.provideMerge(layerServerSettings),
 );
 
-const layerResourceTelemetry = ResourceTelemetry.layer.pipe(
-  Layer.provideMerge(layerNativeTelemetry),
-  Layer.provideMerge(layerDesktopTelemetryReceiver),
+const layerResourceUsage = ResourceUsage.layer.pipe(
+  Layer.provideMerge(layerNativeResource),
+  Layer.provideMerge(layerDesktopResourceReceiver),
 );
 
 const layerHostPowerMonitor = HostPowerMonitor.layer.pipe(
-  Layer.provide(layerDesktopTelemetryReceiver),
+  Layer.provide(layerDesktopResourceReceiver),
 );
 
-// A fresh receiver layer would open a second reader on the desktop telemetry fd.
+// A fresh receiver layer would open a second reader on the desktop resource fd.
 const layerDesktopAppUpdate = DesktopAppUpdate.layer.pipe(
-  Layer.provide(layerDesktopTelemetryReceiver),
+  Layer.provide(layerDesktopResourceReceiver),
 );
 
 const layerBackground = BackgroundPolicy.layer.pipe(
@@ -335,10 +335,10 @@ const layerUsage = UsageService.layer.pipe(
 
 const layerResourceDiagnostics = Layer.mergeAll(
   HostResources.layer,
-  layerResourceTelemetry,
-  ProcessDiagnostics.layer.pipe(Layer.provide(layerResourceTelemetry)),
-  ProcessResourceMonitor.layer.pipe(Layer.provide(layerResourceTelemetry)),
-  ProcessGroupMetrics.layer.pipe(Layer.provide(layerResourceTelemetry)),
+  layerResourceUsage,
+  ProcessDiagnostics.layer.pipe(Layer.provide(layerResourceUsage)),
+  ProcessResourceMonitor.layer.pipe(Layer.provide(layerResourceUsage)),
+  ProcessGroupMetrics.layer.pipe(Layer.provide(layerResourceUsage)),
 );
 
 const layerRelayClient = Layer.unwrap(
@@ -542,7 +542,7 @@ const layerTerminal = TerminalManager.layer(
 ).pipe(
   Layer.provide(layerPtyAdapter),
   Layer.provide(layerPortScanner),
-  Layer.provide(layerNativeTelemetry),
+  Layer.provide(layerNativeResource),
 );
 
 const layerPreview = Layer.empty.pipe(
@@ -729,7 +729,7 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
     Layer.provide(TelegramBotApi.layer),
     Layer.provide(FetchHttpClient.layer),
   ),
-  ProviderHostPathWatcher.layer.pipe(Layer.provide(layerDesktopTelemetryReceiver)),
+  ProviderHostPathWatcher.layer.pipe(Layer.provide(layerDesktopResourceReceiver)),
   HeldHooksWaker.layer,
   layerThreadSettlementWorker,
   layerIdleCompactionWorker,
@@ -993,7 +993,7 @@ const layerMakeServer = Layer.unwrap(
     const layerDesktopReadySignal = Layer.effectDiscard(
       Effect.gen(function* () {
         const startup = yield* ServerRuntimeStartup.ServerRuntimeStartup;
-        const receiver = yield* DesktopTelemetryReceiver.DesktopTelemetryReceiver;
+        const receiver = yield* DesktopResourceReceiver.DesktopResourceReceiver;
         yield* startup.awaitCommandReady.pipe(
           Effect.andThen(receiver.announceServerReady),
           Effect.ignore,

@@ -302,8 +302,8 @@ export const load: Effect.Effect<OtelEnvironment> = Config.all({
     if (disabled) {
       warnings.push(
         t3.value
-          ? "T3CODE_OTEL_SDK_DISABLED is set, so no telemetry is exported, whatever configured it"
-          : "OTEL_SDK_DISABLED is set, so no telemetry is exported, whatever configured it; set T3CODE_OTEL_SDK_DISABLED=false to export anyway",
+          ? "T3CODE_OTEL_SDK_DISABLED is set, so no signals are exported, whatever configured it"
+          : "OTEL_SDK_DISABLED is set, so no signals are exported, whatever configured it; set T3CODE_OTEL_SDK_DISABLED=false to export anyway",
       );
     }
     return {

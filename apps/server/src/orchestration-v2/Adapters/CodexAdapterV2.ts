@@ -285,7 +285,7 @@ export function normalizeCodexThreadLoadModelSelection(selection: ModelSelection
   return { ...rest, ...(loadOptions?.length ? { options: loadOptions } : {}) };
 }
 
-// Reasoning-effort changes preserve the tokenizer and context window; other changes need fresh telemetry.
+// Reasoning-effort changes preserve the tokenizer and context window; other changes need fresh usage data.
 export function canReuseCodexContextUsage(previous: ModelSelection, next: ModelSelection): boolean {
   return modelSelectionsEqual(
     {

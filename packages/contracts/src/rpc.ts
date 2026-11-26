@@ -403,11 +403,11 @@ import {
 } from "./server.ts";
 import {
   HostResourcesSnapshot,
-  ResourceTelemetryHistory,
-  ResourceTelemetryHistoryInput,
-  ResourceTelemetryRetryResult,
-  ResourceTelemetrySnapshot,
-} from "./resourceTelemetry.ts";
+  ResourceUsageHistory,
+  ResourceUsageHistoryInput,
+  ResourceUsageRetryResult,
+  ResourceUsageSnapshot,
+} from "./resourceUsage.ts";
 import {
   UsageLimitSourceError,
   ProviderConsumeResetCreditInput,
@@ -663,8 +663,8 @@ export const WS_METHODS = {
   serverGetProcessDiagnostics: "server.getProcessDiagnostics",
   serverGetHostResources: "server.getHostResources",
   serverGetProcessResourceHistory: "server.getProcessResourceHistory",
-  serverGetResourceTelemetryHistory: "server.getResourceTelemetryHistory",
-  serverRetryResourceTelemetry: "server.retryResourceTelemetry",
+  serverGetResourceUsageHistory: "server.getResourceUsageHistory",
+  serverRetryResourceUsage: "server.retryResourceUsage",
   serverCheckOtlpEndpoint: "server.checkOtlpEndpoint",
   serverListTextGeneratorModels: "server.listTextGeneratorModels",
   serverPrepareTriage: "server.prepareTriage",
@@ -797,7 +797,7 @@ export const WS_METHODS = {
   subscribeServerConfig: "subscribeServerConfig",
   subscribeServerLifecycle: "subscribeServerLifecycle",
   subscribeAuthAccess: "subscribeAuthAccess",
-  subscribeResourceTelemetry: "subscribeResourceTelemetry",
+  subscribeResourceUsage: "subscribeResourceUsage",
 } as const;
 
 const WsServerUpsertKeybindingRpc = Rpc.make(WS_METHODS.serverUpsertKeybinding, {
@@ -1199,18 +1199,15 @@ const WsServerGetProcessResourceHistoryRpc = Rpc.make(WS_METHODS.serverGetProces
   error: EnvironmentAuthorizationError,
 });
 
-const WsServerGetResourceTelemetryHistoryRpc = Rpc.make(
-  WS_METHODS.serverGetResourceTelemetryHistory,
-  {
-    payload: ResourceTelemetryHistoryInput,
-    success: ResourceTelemetryHistory,
-    error: EnvironmentAuthorizationError,
-  },
-);
+const WsServerGetResourceUsageHistoryRpc = Rpc.make(WS_METHODS.serverGetResourceUsageHistory, {
+  payload: ResourceUsageHistoryInput,
+  success: ResourceUsageHistory,
+  error: EnvironmentAuthorizationError,
+});
 
-const WsServerRetryResourceTelemetryRpc = Rpc.make(WS_METHODS.serverRetryResourceTelemetry, {
+const WsServerRetryResourceUsageRpc = Rpc.make(WS_METHODS.serverRetryResourceUsage, {
   payload: Schema.Struct({}),
-  success: ResourceTelemetryRetryResult,
+  success: ResourceUsageRetryResult,
   error: EnvironmentAuthorizationError,
 });
 
@@ -2630,9 +2627,9 @@ const WsSubscribeAuthAccessRpc = Rpc.make(WS_METHODS.subscribeAuthAccess, {
   stream: true,
 });
 
-const WsSubscribeResourceTelemetryRpc = Rpc.make(WS_METHODS.subscribeResourceTelemetry, {
+const WsSubscribeResourceUsageRpc = Rpc.make(WS_METHODS.subscribeResourceUsage, {
   payload: Schema.Struct({}),
-  success: ResourceTelemetrySnapshot,
+  success: ResourceUsageSnapshot,
   error: EnvironmentAuthorizationError,
   stream: true,
 });
@@ -2716,8 +2713,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerGetProcessDiagnosticsRpc,
   WsServerGetHostResourcesRpc,
   WsServerGetProcessResourceHistoryRpc,
-  WsServerGetResourceTelemetryHistoryRpc,
-  WsServerRetryResourceTelemetryRpc,
+  WsServerGetResourceUsageHistoryRpc,
+  WsServerRetryResourceUsageRpc,
   WsServerCheckOtlpEndpointRpc,
   WsServerListTextGeneratorModelsRpc,
   WsServerPrepareTriageRpc,
@@ -2895,7 +2892,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsSubscribeServerConfigRpc,
   WsSubscribeServerLifecycleRpc,
   WsSubscribeAuthAccessRpc,
-  WsSubscribeResourceTelemetryRpc,
+  WsSubscribeResourceUsageRpc,
   WsOrchestrationV2DispatchCommandRpc,
   WsOrchestrationV2GetWorkflowScriptRpc,
   WsOrchestrationV2GetNativeChildWorkRpc,

@@ -78,7 +78,7 @@ import { increment, terminalSessionsTotal } from "../observability/Metrics.ts";
 import { expandHomeVariable } from "@t3tools/provider-core/server/pathExpansion";
 import * as ProcessRunner from "../processRunner.ts";
 import * as PortScanner from "../preview/PortScanner.ts";
-import * as NativeTelemetryClient from "../resourceTelemetry/NativeTelemetryClient.ts";
+import * as NativeResourceClient from "../resourceUsage/NativeResourceClient.ts";
 import { terminalOutputStream } from "./OutputProtocol.ts";
 import * as PtyAdapter from "@t3tools/shared/PtyAdapter";
 
@@ -1792,7 +1792,7 @@ export const make = Effect.fn("TerminalManager.make")(function* (
   const { terminalLogsDir, providerStatusCacheDir, baseDir } = yield* ServerConfig.ServerConfig;
   const ptyAdapter = yield* PtyAdapter.PtyAdapter;
   const portDiscovery = yield* PortScanner.PortDiscovery;
-  const nativeTelemetry = yield* NativeTelemetryClient.NativeTelemetryClient;
+  const nativeResource = yield* NativeResourceClient.NativeResourceClient;
   const serverSettings = yield* ServerSettings.ServerSettingsService;
   const path = yield* Path.Path;
   const resolveProviderInstanceEnvironment = Effect.fn(
@@ -1809,7 +1809,7 @@ export const make = Effect.fn("TerminalManager.make")(function* (
   return yield* makeWithOptions({
     logsDir: terminalLogsDir,
     ptyAdapter,
-    processTable: nativeTelemetry.processTable.pipe(
+    processTable: nativeResource.processTable.pipe(
       Effect.mapError(
         (cause) => new TerminalSubprocessCheckError({ cause, command: "resource-monitor" }),
       ),

@@ -15,10 +15,10 @@ import { describe, expect } from "vite-plus/test";
 
 import {
   makeApplyDesktopShellEnvironmentSnapshot,
-  requireDesktopTelemetryWriteProgress,
-} from "./DesktopTelemetryReceiver.ts";
+  requireDesktopResourceWriteProgress,
+} from "./DesktopResourceReceiver.ts";
 
-describe("DesktopTelemetryReceiver", () => {
+describe("DesktopResourceReceiver", () => {
   it.live(
     "preserves system and bundled roots when the first snapshot withdraws overlapping extras",
     () =>
@@ -46,7 +46,7 @@ import * as NodeCrypto from "node:crypto";
 import * as NodeTls from "node:tls";
 import * as Effect from "effect/Effect";
 import * as NodeServices from "@effect/platform-node/NodeServices";
-import { makeApplyDesktopShellEnvironmentSnapshot } from ${JSON.stringify(new URL("./DesktopTelemetryReceiver.ts", import.meta.url).href)};
+import { makeApplyDesktopShellEnvironmentSnapshot } from ${JSON.stringify(new URL("./DesktopResourceReceiver.ts", import.meta.url).href)};
 const fingerprints = (certificates) => [...new Set(certificates.map((pem) => new NodeCrypto.X509Certificate(pem).fingerprint256))].sort();
 const expected = fingerprints([...NodeTls.getCACertificates("bundled"), ...NodeTls.getCACertificates("system")]);
 const applySnapshot = makeApplyDesktopShellEnvironmentSnapshot(process.env, process.platform);
@@ -192,15 +192,15 @@ NodeAssert.deepEqual(fingerprints(NodeTls.getCACertificates("default")), expecte
 
   it.effect("models a zero-byte control write as a stalled descriptor", () =>
     Effect.gen(function* () {
-      const error = yield* requireDesktopTelemetryWriteProgress(7, 42, 0).pipe(Effect.flip);
+      const error = yield* requireDesktopResourceWriteProgress(7, 42, 0).pipe(Effect.flip);
 
-      expect(error._tag).toBe("DesktopTelemetryControlStalled");
+      expect(error._tag).toBe("DesktopResourceControlStalled");
       expect(error.fd).toBe(7);
       expect(error.remainingBytes).toBe(42);
       expect(error.message).toBe(
-        "Desktop telemetry control stalled on fd 7 with 42 bytes remaining.",
+        "Desktop resource control stalled on fd 7 with 42 bytes remaining.",
       );
-      yield* requireDesktopTelemetryWriteProgress(7, 42, 1);
+      yield* requireDesktopResourceWriteProgress(7, 42, 1);
     }),
   );
 });

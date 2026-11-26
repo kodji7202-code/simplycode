@@ -56,7 +56,7 @@ export class ResourceMonitorBinary extends Context.Service<
   {
     readonly resolve: Effect.Effect<string, ResourceMonitorBinaryError>;
   }
->()("simplycode/resourceTelemetry/ResourceMonitorBinary") {}
+>()("simplycode/resourceUsage/ResourceMonitorBinary") {}
 
 function binaryName(platform: NodeJS.Platform): string {
   return platform === "win32" ? "t3-resource-monitor.exe" : "t3-resource-monitor";
@@ -107,7 +107,7 @@ function resourceMonitorRustTarget(
   return undefined;
 }
 
-export const make = Effect.fn("resourceTelemetry.resourceMonitorBinary.make")(function* () {
+export const make = Effect.fn("resourceUsage.resourceMonitorBinary.make")(function* () {
   const config = yield* ServerConfig.ServerConfig;
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;

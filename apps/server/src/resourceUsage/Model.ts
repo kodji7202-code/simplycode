@@ -1,11 +1,11 @@
 import type {
   DesktopElectronProcessMetric,
-  DesktopHostTelemetrySnapshot,
+  DesktopHostResourceSnapshot,
   ResourceMonitorProcessSample,
   ResourceMonitorSnapshotEvent,
-  ResourceTelemetryAggregate,
-  ResourceTelemetryProcess,
-  ResourceTelemetryProcessCategory,
+  ResourceUsageAggregate,
+  ResourceUsageProcess,
+  ResourceUsageProcessCategory,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Option from "effect/Option";
@@ -14,7 +14,7 @@ const MAX_DELTA_INTERVAL_MS = 30_000;
 const ELECTRON_IDENTITY_TOLERANCE_MS = 2_000;
 
 export interface ProcessState {
-  readonly process: ResourceTelemetryProcess;
+  readonly process: ResourceUsageProcess;
   readonly sampledAtMs: number;
 }
 
@@ -26,7 +26,7 @@ export interface GroupCounters {
   readonly processExits: number;
 }
 
-export interface TelemetryCounters {
+export interface ResourceCounters {
   readonly backend: GroupCounters;
   readonly electron: GroupCounters;
   readonly monitor: GroupCounters;
@@ -35,7 +35,7 @@ export interface TelemetryCounters {
 
 export interface ProcessDelta {
   readonly identityKey: string;
-  readonly category: ResourceTelemetryProcessCategory;
+  readonly category: ResourceUsageProcessCategory;
   readonly cpuTimeMs: number;
   readonly ioReadBytes: number;
   readonly ioWriteBytes: number;
@@ -46,25 +46,25 @@ export interface MergeProcessesInput {
   readonly sidecarPid: Option.Option<number>;
   readonly fallbackSampledAtMs: number;
   readonly nativeSnapshot: Option.Option<ResourceMonitorSnapshotEvent>;
-  readonly desktopSnapshot: Option.Option<DesktopHostTelemetrySnapshot>;
+  readonly desktopSnapshot: Option.Option<DesktopHostResourceSnapshot>;
   readonly electronRootPids?: ReadonlySet<number>;
   readonly electronRootStartTimes?: ReadonlyMap<number, number>;
   readonly previous: ReadonlyMap<string, ProcessState>;
-  readonly counters: TelemetryCounters;
+  readonly counters: ResourceCounters;
   readonly updatePrevious: boolean;
   readonly accumulateCounters?: boolean;
 }
 
 export interface MergeProcessesResult {
   readonly sampledAtMs: number;
-  readonly processes: ReadonlyArray<ResourceTelemetryProcess>;
+  readonly processes: ReadonlyArray<ResourceUsageProcess>;
   readonly previous: ReadonlyMap<string, ProcessState>;
-  readonly counters: TelemetryCounters;
+  readonly counters: ResourceCounters;
   readonly groups: {
-    readonly backend: ResourceTelemetryAggregate;
-    readonly electron: ResourceTelemetryAggregate;
-    readonly monitor: ResourceTelemetryAggregate;
-    readonly allT3: ResourceTelemetryAggregate;
+    readonly backend: ResourceUsageAggregate;
+    readonly electron: ResourceUsageAggregate;
+    readonly monitor: ResourceUsageAggregate;
+    readonly allT3: ResourceUsageAggregate;
   };
   readonly deltas: ReadonlyArray<ProcessDelta>;
 }
@@ -77,7 +77,7 @@ const emptyGroupCounters = (): GroupCounters => ({
   processExits: 0,
 });
 
-export const emptyTelemetryCounters = (): TelemetryCounters => ({
+export const emptyResourceCounters = (): ResourceCounters => ({
   backend: emptyGroupCounters(),
   electron: emptyGroupCounters(),
   monitor: emptyGroupCounters(),
@@ -92,15 +92,13 @@ function finiteNonNegative(value: number): number {
   return Number.isFinite(value) ? Math.max(0, value) : 0;
 }
 
-function categoryGroup(
-  category: ResourceTelemetryProcessCategory,
-): "backend" | "electron" | "monitor" {
+function categoryGroup(category: ResourceUsageProcessCategory): "backend" | "electron" | "monitor" {
   if (category === "resource-monitor") return "monitor";
   if (category.startsWith("electron-")) return "electron";
   return "backend";
 }
 
-function electronCategory(metric: DesktopElectronProcessMetric): ResourceTelemetryProcessCategory {
+function electronCategory(metric: DesktopElectronProcessMetric): ResourceUsageProcessCategory {
   switch (metric.type) {
     case "Browser":
       return "electron-main";
@@ -115,7 +113,7 @@ function electronCategory(metric: DesktopElectronProcessMetric): ResourceTelemet
 
 function inferredElectronCategory(
   process: ResourceMonitorProcessSample,
-): ResourceTelemetryProcessCategory {
+): ResourceUsageProcessCategory {
   const command = process.command.toLowerCase();
   if (command.includes("--type=renderer")) return "electron-renderer";
   if (command.includes("--type=gpu-process")) return "electron-gpu";
@@ -225,11 +223,11 @@ function hasElectronAncestor(
 }
 
 function orderProcessTree(
-  processes: ReadonlyArray<ResourceTelemetryProcess>,
+  processes: ReadonlyArray<ResourceUsageProcess>,
   rootPids: ReadonlyArray<number>,
-): ReadonlyArray<ResourceTelemetryProcess> {
+): ReadonlyArray<ResourceUsageProcess> {
   const processesByPid = new Map(processes.map((process) => [process.identity.pid, process]));
-  const childrenByParent = new Map<number, ResourceTelemetryProcess[]>();
+  const childrenByParent = new Map<number, ResourceUsageProcess[]>();
   for (const process of processes) {
     const children = childrenByParent.get(process.ppid) ?? [];
     children.push(process);
@@ -239,9 +237,9 @@ function orderProcessTree(
     children.sort((left, right) => left.identity.pid - right.identity.pid);
   }
 
-  const ordered: ResourceTelemetryProcess[] = [];
+  const ordered: ResourceUsageProcess[] = [];
   const visited = new Set<number>();
-  const visit = (process: ResourceTelemetryProcess): void => {
+  const visit = (process: ResourceUsageProcess): void => {
     if (visited.has(process.identity.pid)) return;
     visited.add(process.identity.pid);
     ordered.push(process);
@@ -288,11 +286,11 @@ function incrementCounters(counters: GroupCounters, update: Partial<GroupCounter
 }
 
 function applyLifecycleCounters(input: {
-  readonly counters: TelemetryCounters;
+  readonly counters: ResourceCounters;
   readonly deltas: ReadonlyArray<ProcessDelta>;
   readonly current: ReadonlyMap<string, ProcessState>;
   readonly previous: ReadonlyMap<string, ProcessState>;
-}): TelemetryCounters {
+}): ResourceCounters {
   let backend = input.counters.backend;
   let electron = input.counters.electron;
   let monitor = input.counters.monitor;
@@ -351,9 +349,9 @@ function applyLifecycleCounters(input: {
 }
 
 function aggregate(
-  processes: ReadonlyArray<ResourceTelemetryProcess>,
+  processes: ReadonlyArray<ResourceUsageProcess>,
   counters: GroupCounters,
-): ResourceTelemetryAggregate {
+): ResourceUsageAggregate {
   return {
     processCount: processes.length,
     currentCpuPercent: processes.reduce((total, process) => total + process.cpuPercent, 0),
@@ -472,7 +470,7 @@ export function mergeProcesses(input: MergeProcessesInput): MergeProcessesResult
 
   const nextPrevious = new Map<string, ProcessState>();
   const processDeltas: ProcessDelta[] = [];
-  const normalized = processes.map((process): ResourceTelemetryProcess => {
+  const normalized = processes.map((process): ResourceUsageProcess => {
     const identityKey = processIdentityKey(process.pid, process.startTimeMs);
     const previous = input.previous.get(identityKey);
     const counterSampledAtMs = nativeProcessPids.has(process.pid)
@@ -501,7 +499,7 @@ export function mergeProcesses(input: MergeProcessesInput): MergeProcessesResult
         })
       : 0;
     const electronMetric = matchElectronMetric(process, metricsByPid);
-    const category: ResourceTelemetryProcessCategory =
+    const category: ResourceUsageProcessCategory =
       process.pid === input.serverPid
         ? "server"
         : Option.contains(input.sidecarPid, process.pid)
@@ -520,7 +518,7 @@ export function mergeProcesses(input: MergeProcessesInput): MergeProcessesResult
       : previous && elapsedMs > 0 && elapsedMs <= MAX_DELTA_INTERVAL_MS
         ? (cpuTimeDelta / elapsedMs) * 100
         : finiteNonNegative(process.cpuPercent);
-    const normalizedProcess: ResourceTelemetryProcess = {
+    const normalizedProcess: ResourceUsageProcess = {
       identity: {
         pid: process.pid,
         startTimeMs: process.startTimeMs,

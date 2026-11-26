@@ -1161,7 +1161,7 @@ export const layer: Layer.Layer<
         const previousUsage = measuredContext
           ? { ...threadUsage, ...measuredContext.usage }
           : threadUsage;
-        const reuseTelemetry =
+        const reuseUsageStats =
           sameSelection ||
           (previousSelection !== undefined &&
             session.canReuseContextUsage?.(previousSelection, run.modelSelection) === true);
@@ -1172,7 +1172,7 @@ export const layer: Layer.Layer<
         const handoffUsage = contextUsageForHandoff({
           sameNativeThread,
           sameSelection,
-          reuseTelemetry,
+          reuseUsageStats,
           previousUsage,
           knownModelWindow,
         });
@@ -1258,7 +1258,7 @@ export const layer: Layer.Layer<
         });
         const modelContextWindow =
           knownModelWindow ??
-          (handoffUsage !== null || reuseTelemetry ? previousUsage?.maxTokens : undefined);
+          (handoffUsage !== null || reuseUsageStats ? previousUsage?.maxTokens : undefined);
         const budgetProviderThread = {
           ...loadedProviderThread,
           contextUsage: handoffUsage,

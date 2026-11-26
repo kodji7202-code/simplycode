@@ -1384,7 +1384,7 @@ describe("UsageService", () => {
               .join("\n") + "\n",
           );
           await NodeFSP.writeFile(
-            NodePath.join(child, "telemetry.jsonl"),
+            NodePath.join(child, "usage.jsonl"),
             encodeUnknownJsonString(entry("not-a-session")) + "\n",
           );
         });

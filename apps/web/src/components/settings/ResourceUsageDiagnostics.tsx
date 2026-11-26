@@ -18,14 +18,14 @@ import type {
   BackgroundBooleanState,
   EnvironmentId,
   ResourceAttributionEntry,
-  ResourceTelemetryAggregate,
-  ResourceTelemetryHistoryBucket,
-  ResourceTelemetryIoSemantics,
-  ResourceTelemetryProcess,
-  ResourceTelemetryProcessCategory,
-  ResourceTelemetryProcessSummary,
-  ResourceTelemetrySourceHealth,
-  ResourceTelemetrySourceStatus,
+  ResourceUsageAggregate,
+  ResourceUsageHistoryBucket,
+  ResourceUsageIoSemantics,
+  ResourceUsageProcess,
+  ResourceUsageProcessCategory,
+  ResourceUsageProcessSummary,
+  ResourceUsageSourceHealth,
+  ResourceUsageSourceStatus,
   ServerProcessSignal,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
@@ -39,10 +39,7 @@ import {
 import { msg, T, useGT, useMessages, Var } from "gt-react";
 import { m, type MessageResolver } from "../../i18n/messages";
 
-import {
-  useResourceTelemetry,
-  useResourceTelemetryHistory,
-} from "../../lib/resourceTelemetryState";
+import { useResourceUsage, useResourceUsageHistory } from "../../lib/resourceUsageState";
 import { cn } from "../../lib/utils";
 import { formatBytes } from "../../lib/formatBytes";
 import { ensureLocalApi } from "../../localApi";
@@ -62,8 +59,8 @@ import {
   resourceHistoryBarHeight,
   resourceHistoryCpuScaleMax,
   shouldShowResourceMonitorRetry,
-  visibleResourceTelemetryProcesses,
-} from "./ResourceTelemetryDiagnostics.logic";
+  visibleResourceUsageProcesses,
+} from "./ResourceUsageDiagnostics.logic";
 import { SettingsSection } from "./settingsLayout";
 
 const HISTORY_WINDOWS = [
@@ -83,7 +80,7 @@ function formatDurationMicros(value: number): string {
   return `${(value / 1_000_000).toFixed(2).replace(/\.0+$/, "")} s`;
 }
 
-function formatProcessName(process: Pick<ResourceTelemetryProcess, "command" | "name">): string {
+function formatProcessName(process: Pick<ResourceUsageProcess, "command" | "name">): string {
   if (process.name.trim()) return process.name;
   const firstToken = process.command.trim().split(/\s+/)[0] ?? process.command;
   const normalized = firstToken.replace(/^['"]|['"]$/g, "");
@@ -91,7 +88,7 @@ function formatProcessName(process: Pick<ResourceTelemetryProcess, "command" | "
 }
 
 function categoryLabel(
-  category: ResourceTelemetryProcessCategory,
+  category: ResourceUsageProcessCategory,
   resolve: MessageResolver = m,
 ): string {
   switch (category) {
@@ -118,7 +115,7 @@ function categoryLabel(
   }
 }
 
-function categoryDotClass(category: ResourceTelemetryProcessCategory): string {
+function categoryDotClass(category: ResourceUsageProcessCategory): string {
   if (category === "resource-monitor") return "bg-warning";
   if (category.startsWith("electron-")) return "bg-info";
   if (category === "server") return "bg-violet-500";
@@ -126,7 +123,7 @@ function categoryDotClass(category: ResourceTelemetryProcessCategory): string {
 }
 
 function ioSemanticsLabel(
-  semantics: ResourceTelemetryIoSemantics,
+  semantics: ResourceUsageIoSemantics,
   resolve: MessageResolver = m,
 ): string {
   switch (semantics) {
@@ -151,7 +148,7 @@ function booleanStateLabel(
   return resolve(msg("Unknown"));
 }
 
-function sourceStatusTone(status: ResourceTelemetrySourceStatus): "default" | "warning" | "danger" {
+function sourceStatusTone(status: ResourceUsageSourceStatus): "default" | "warning" | "danger" {
   if (status === "healthy") return "default";
   if (status === "starting" || status === "degraded") return "warning";
   return "danger";
@@ -163,7 +160,7 @@ function SourceStatusBadge({
   presentation,
 }: {
   label: string;
-  status: ResourceTelemetrySourceStatus;
+  status: ResourceUsageSourceStatus;
   presentation?:
     | {
         readonly label: string;
@@ -271,7 +268,7 @@ function AggregateCard({
 }: {
   label: string;
   accentClass: string;
-  aggregate: ResourceTelemetryAggregate;
+  aggregate: ResourceUsageAggregate;
 }) {
   const gt = useGT();
   return (
@@ -308,7 +305,7 @@ function MetricPair({ label, value }: { label: string; value: string }) {
   );
 }
 
-function HealthSource({ label, health }: { label: string; health: ResourceTelemetrySourceHealth }) {
+function HealthSource({ label, health }: { label: string; health: ResourceUsageSourceHealth }) {
   const gt = useGT();
   const expectedInBrowser =
     health.status === "unavailable" &&
@@ -393,11 +390,7 @@ function HistoryWindowSelector({
   );
 }
 
-function ResourceHistoryChart({
-  buckets,
-}: {
-  buckets: ReadonlyArray<ResourceTelemetryHistoryBucket>;
-}) {
+function ResourceHistoryChart({ buckets }: { buckets: ReadonlyArray<ResourceUsageHistoryBucket> }) {
   const gt = useGT();
   const maxCpu = resourceHistoryCpuScaleMax(buckets);
   const maxIo = Math.max(1, ...buckets.map((bucket) => bucket.ioReadBytes + bucket.ioWriteBytes));
@@ -477,9 +470,9 @@ function ProcessTreeName({
   collapsed,
   onToggle,
 }: {
-  process: ResourceTelemetryProcess;
+  process: ResourceUsageProcess;
   collapsed: boolean;
-  onToggle: (process: ResourceTelemetryProcess) => void;
+  onToggle: (process: ResourceUsageProcess) => void;
 }) {
   const gt = useGT();
   const name = formatProcessName(process);
@@ -518,7 +511,7 @@ function ProcessTreeName({
   );
 }
 
-function canSignalProcess(process: ResourceTelemetryProcess): boolean {
+function canSignalProcess(process: ResourceUsageProcess): boolean {
   return (
     process.category === "server-child" ||
     process.category === "provider-root" ||
@@ -532,10 +525,10 @@ function ProcessActions({
   signalingKeys,
   onSignal,
 }: {
-  process: ResourceTelemetryProcess;
+  process: ResourceUsageProcess;
   canMaintainEnvironment: boolean;
   signalingKeys: ReadonlySet<string>;
-  onSignal: (process: ResourceTelemetryProcess, signal: ServerProcessSignal) => void;
+  onSignal: (process: ResourceUsageProcess, signal: ServerProcessSignal) => void;
 }) {
   if (!canSignalProcess(process)) {
     return <span className="text-3xs text-muted-foreground/35">-</span>;
@@ -555,15 +548,15 @@ function ProcessTable({
   signalingKeys,
   onSignal,
 }: {
-  processes: ReadonlyArray<ResourceTelemetryProcess>;
+  processes: ReadonlyArray<ResourceUsageProcess>;
   canMaintainEnvironment: boolean;
   signalingKeys: ReadonlySet<string>;
-  onSignal: (process: ResourceTelemetryProcess, signal: ServerProcessSignal) => void;
+  onSignal: (process: ResourceUsageProcess, signal: ServerProcessSignal) => void;
 }) {
   const messages = useMessages();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
-  const visible = visibleResourceTelemetryProcesses(processes, collapsed);
-  const toggle = (process: ResourceTelemetryProcess) => {
+  const visible = visibleResourceUsageProcesses(processes, collapsed);
+  const toggle = (process: ResourceUsageProcess) => {
     const identityKey = processIdentityKey(process);
     setCollapsed((current) => {
       const next = new Set(current);
@@ -704,7 +697,7 @@ function ProcessTable({
 function HistoryProcessTable({
   processes,
 }: {
-  processes: ReadonlyArray<ResourceTelemetryProcessSummary>;
+  processes: ReadonlyArray<ResourceUsageProcessSummary>;
 }) {
   const messages = useMessages();
   return (
@@ -881,22 +874,16 @@ function AttributionTable({ entries }: { entries: ReadonlyArray<ResourceAttribut
   );
 }
 
-export function ResourceTelemetryDiagnostics({
+export function ResourceUsageDiagnostics({
   environmentId,
 }: {
   environmentId: EnvironmentId | null;
 }) {
   // Pending signals and retries belong to one environment, so a switch starts fresh.
-  return (
-    <ResourceTelemetryDiagnosticsBody key={environmentId ?? ""} environmentId={environmentId} />
-  );
+  return <ResourceUsageDiagnosticsBody key={environmentId ?? ""} environmentId={environmentId} />;
 }
 
-function ResourceTelemetryDiagnosticsBody({
-  environmentId,
-}: {
-  environmentId: EnvironmentId | null;
-}) {
+function ResourceUsageDiagnosticsBody({ environmentId }: { environmentId: EnvironmentId | null }) {
   const messages = useMessages();
   const gt = useGT();
   const registry = useContext(RegistryContext);
@@ -904,9 +891,9 @@ function ResourceTelemetryDiagnosticsBody({
   const selectedWindow =
     HISTORY_WINDOWS.find((option) => option.windowMs === windowMs) ?? HISTORY_WINDOWS[1];
   const canMaintainEnvironment = useEnvironmentScope(environmentId, AuthEnvironmentMaintainScope);
-  const telemetry = useResourceTelemetry(environmentId);
-  const retryTelemetry = telemetry.retry;
-  const history = useResourceTelemetryHistory(
+  const usage = useResourceUsage(environmentId);
+  const retryUsage = usage.retry;
+  const history = useResourceUsageHistory(
     {
       windowMs: selectedWindow.windowMs,
       bucketMs: selectedWindow.bucketMs,
@@ -919,10 +906,10 @@ function ResourceTelemetryDiagnosticsBody({
   const [signalingKeys, setSignalingKeys] = useState<ReadonlySet<string>>(() => new Set());
   const signalingKeysRef = useRef<ReadonlySet<string>>(new Set());
   const [isRetrying, setIsRetrying] = useState(false);
-  const snapshot = telemetry.data;
+  const snapshot = usage.data;
   const allT3 = snapshot?.groups.allT3;
 
-  const signalProcess = async (process: ResourceTelemetryProcess, signal: ServerProcessSignal) => {
+  const signalProcess = async (process: ResourceUsageProcess, signal: ServerProcessSignal) => {
     const targetEnvironmentId = environmentId;
     if (
       targetEnvironmentId === null ||
@@ -1018,13 +1005,13 @@ function ResourceTelemetryDiagnosticsBody({
     )
       return;
     setIsRetrying(true);
-    void retryTelemetry()
+    void retryUsage()
       .then(() => {
         // The user can pick another window while the retry runs; refreshing every window
         // re-reads the one on screen and only invalidates the rest.
         for (const option of HISTORY_WINDOWS) {
           registry.refresh(
-            serverEnvironment.resourceTelemetryHistory({
+            serverEnvironment.resourceUsageHistory({
               environmentId,
               input: { windowMs: option.windowMs, bucketMs: option.bucketMs },
             }),
@@ -1049,7 +1036,7 @@ function ResourceTelemetryDiagnosticsBody({
   const speedLimit = snapshot ? Option.getOrNull(snapshot.speedLimitPercent) : null;
   const collectorNeedsRetry = shouldShowResourceMonitorRetry({
     nativeStatus: snapshot?.health.native.status ?? null,
-    error: telemetry.error,
+    error: usage.error,
   });
   const hasHostPowerSignal =
     snapshot !== null &&
@@ -1076,16 +1063,16 @@ function ResourceTelemetryDiagnosticsBody({
                   <Button
                     size="icon-micro"
                     variant="ghost"
-                    disabled={telemetry.isPending}
-                    onClick={telemetry.refresh}
-                    aria-label={gt("Refresh resource telemetry")}
+                    disabled={usage.isPending}
+                    onClick={usage.refresh}
+                    aria-label={gt("Refresh resource usage")}
                   >
-                    <RefreshIcon size="xs" refreshing={telemetry.isPending} />
+                    <RefreshIcon size="xs" refreshing={usage.isPending} />
                   </Button>
                 }
               />
               <TooltipPopup side="top">
-                <T>Refresh telemetry snapshot</T>
+                <T>Refresh usage snapshot</T>
               </TooltipPopup>
             </Tooltip>
           </div>
@@ -1193,10 +1180,10 @@ function ResourceTelemetryDiagnosticsBody({
               tone={speedLimit !== null && speedLimit < 80 ? "warning" : "default"}
             />
           </div>
-          {telemetry.error ? (
+          {usage.error ? (
             <div className="flex items-start gap-2 border-t border-destructive/20 bg-destructive/5 px-4 py-3 text-xs text-destructive sm:px-5">
               <AlertTriangleIcon className="size-3.5 h-lh shrink-0" />
-              <span>{telemetry.error}</span>
+              <span>{usage.error}</span>
             </div>
           ) : null}
           {snapshot ? (
@@ -1305,7 +1292,7 @@ function ResourceTelemetryDiagnosticsBody({
                 <p className="mt-1.5 max-w-sm text-2xs leading-relaxed text-muted-foreground/70">
                   <T>
                     Power, idle, lock, and thermal state are supplied by the desktop host. Process
-                    telemetry remains fully active in this browser session.
+                    usage collection remains fully active in this browser session.
                   </T>
                 </p>
               </div>

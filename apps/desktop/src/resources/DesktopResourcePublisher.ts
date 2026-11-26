@@ -1,10 +1,10 @@
 import {
-  DesktopHostTelemetryMessage,
-  type DesktopHostTelemetrySnapshot,
-  type DesktopTelemetryControlMessage,
-  type DesktopTelemetryCancelDesktopUpdate,
-  type DesktopTelemetryCommitDesktopUpdate,
-  type DesktopTelemetryRequestDesktopUpdate,
+  DesktopHostResourceMessage,
+  type DesktopHostResourceSnapshot,
+  type DesktopResourceControlMessage,
+  type DesktopResourceCancelDesktopUpdate,
+  type DesktopResourceCommitDesktopUpdate,
+  type DesktopResourceRequestDesktopUpdate,
   type DesktopUpdateStatusReport,
   type HostPowerSnapshot,
 } from "@t3tools/contracts";
@@ -32,7 +32,7 @@ const CONSTRAINED_SAMPLE_INTERVAL = Duration.seconds(15);
 const DEFAULT_HOST_POWER_ACTIVE_INTERVAL = Duration.seconds(30);
 const DEFAULT_HOST_POWER_IDLE_INTERVAL = Duration.minutes(2);
 const IDLE_THRESHOLD_SECONDS = 60;
-const encodeMessage = Schema.encodeSync(Schema.fromJsonString(DesktopHostTelemetryMessage));
+const encodeMessage = Schema.encodeSync(Schema.fromJsonString(DesktopHostResourceMessage));
 const textEncoder = new TextEncoder();
 
 type PowerEvent =
@@ -59,23 +59,23 @@ interface HostPowerIntervals {
   readonly idle: Duration.Duration;
 }
 
-export class DesktopTelemetryPublisher extends Context.Service<
-  DesktopTelemetryPublisher,
+export class DesktopResourcePublisher extends Context.Service<
+  DesktopResourcePublisher,
   {
-    readonly latest: Effect.Effect<Option.Option<DesktopHostTelemetrySnapshot>>;
-    readonly changes: Stream.Stream<DesktopHostTelemetrySnapshot>;
+    readonly latest: Effect.Effect<Option.Option<DesktopHostResourceSnapshot>>;
+    readonly changes: Stream.Stream<DesktopHostResourceSnapshot>;
     readonly encoded: Stream.Stream<Uint8Array>;
     readonly handleControlForSource: (
       sourceId: string,
-      message: DesktopTelemetryControlMessage,
+      message: DesktopResourceControlMessage,
     ) => Effect.Effect<void>;
     readonly removeControlSource: (sourceId: string) => Effect.Effect<void>;
     readonly publishUpdateReport: (report: DesktopUpdateStatusReport) => Effect.Effect<void>;
-    readonly updateRequests: Stream.Stream<DesktopTelemetryRequestDesktopUpdate>;
-    readonly updateCommits: Stream.Stream<DesktopTelemetryCommitDesktopUpdate>;
-    readonly updateCancellations: Stream.Stream<DesktopTelemetryCancelDesktopUpdate>;
+    readonly updateRequests: Stream.Stream<DesktopResourceRequestDesktopUpdate>;
+    readonly updateCommits: Stream.Stream<DesktopResourceCommitDesktopUpdate>;
+    readonly updateCancellations: Stream.Stream<DesktopResourceCancelDesktopUpdate>;
   }
->()("@t3tools/desktop/telemetry/DesktopTelemetryPublisher") {}
+>()("@t3tools/desktop/resources/DesktopResourcePublisher") {}
 
 function booleanState(value: boolean): HostPowerSnapshot["onBattery"] {
   return value ? "true" : "false";
@@ -143,7 +143,7 @@ function sampleInterval(
 }
 
 /** @public */
-export const make = Effect.fn("desktop.telemetryPublisher.make")(function* () {
+export const make = Effect.fn("desktop.resourcePublisher.make")(function* () {
   const electronApp = yield* ElectronApp.ElectronApp;
   const powerMonitor = yield* ElectronPowerMonitor.ElectronPowerMonitor;
   const rendererHistory = yield* DesktopRendererHistory.DesktopRendererHistory;
@@ -169,14 +169,14 @@ export const make = Effect.fn("desktop.telemetryPublisher.make")(function* () {
   const powerEvents = yield* Queue.unbounded<PowerEvent>();
   const sampleTriggers = yield* Queue.sliding<void>(1);
   const diagnosticsDemandSources = yield* Ref.make<ReadonlySet<string>>(new Set());
-  const latest = yield* Ref.make(Option.none<DesktopHostTelemetrySnapshot>());
-  const changes = yield* PubSub.sliding<DesktopHostTelemetrySnapshot>(8);
+  const latest = yield* Ref.make(Option.none<DesktopHostResourceSnapshot>());
+  const changes = yield* PubSub.sliding<DesktopHostResourceSnapshot>(8);
   const sequence = yield* Ref.make(0);
   const latestUpdateReport = yield* Ref.make(Option.none<DesktopUpdateStatusReport>());
   const updateReportChanges = yield* PubSub.sliding<DesktopUpdateStatusReport>(16);
-  const updateRequestQueue = yield* Queue.unbounded<DesktopTelemetryRequestDesktopUpdate>();
-  const updateCommitQueue = yield* Queue.unbounded<DesktopTelemetryCommitDesktopUpdate>();
-  const updateCancellationQueue = yield* Queue.unbounded<DesktopTelemetryCancelDesktopUpdate>();
+  const updateRequestQueue = yield* Queue.unbounded<DesktopResourceRequestDesktopUpdate>();
+  const updateCommitQueue = yield* Queue.unbounded<DesktopResourceCommitDesktopUpdate>();
+  const updateCancellationQueue = yield* Queue.unbounded<DesktopResourceCancelDesktopUpdate>();
 
   const offer = (event: PowerEvent): void => {
     Queue.offerUnsafe(powerEvents, event);
@@ -202,7 +202,7 @@ export const make = Effect.fn("desktop.telemetryPublisher.make")(function* () {
   ).pipe(Effect.forkScoped);
 
   const sampleOnce =
-    /* Periodic telemetry sampling should not generate its own tracing traffic. */
+    /* Periodic resource sampling should not generate its own tracing traffic. */
     Effect.fnUntraced(
       function* (allowSuspendRecovery: boolean) {
         const sampledAt = yield* DateTime.now;
@@ -255,9 +255,9 @@ export const make = Effect.fn("desktop.telemetryPublisher.make")(function* () {
           return [next, next] as const;
         });
         const nextSequence = yield* Ref.modify(sequence, (current) => [current + 1, current + 1]);
-        const snapshot: DesktopHostTelemetrySnapshot = {
+        const snapshot: DesktopHostResourceSnapshot = {
           version: 1,
-          type: "desktopTelemetry",
+          type: "desktopResource",
           sequence: nextSequence,
           sampledAtUnixMs,
           electronPid: process.pid,
@@ -296,7 +296,7 @@ export const make = Effect.fn("desktop.telemetryPublisher.make")(function* () {
       Effect.catchCauseIf(
         (cause) => !Cause.hasInterrupts(cause),
         (cause) =>
-          Effect.logWarning("Failed to sample Electron telemetry", {
+          Effect.logWarning("Failed to sample Electron resources", {
             cause: String(cause),
           }),
       ),
@@ -319,7 +319,7 @@ export const make = Effect.fn("desktop.telemetryPublisher.make")(function* () {
     }
   }).pipe(Effect.forkScoped);
 
-  const handleControlForSource: DesktopTelemetryPublisher["Service"]["handleControlForSource"] = (
+  const handleControlForSource: DesktopResourcePublisher["Service"]["handleControlForSource"] = (
     sourceId,
     message,
   ) => {
@@ -356,7 +356,7 @@ export const make = Effect.fn("desktop.telemetryPublisher.make")(function* () {
         return Effect.void;
     }
   };
-  const removeControlSource: DesktopTelemetryPublisher["Service"]["removeControlSource"] = (
+  const removeControlSource: DesktopResourcePublisher["Service"]["removeControlSource"] = (
     sourceId,
   ) =>
     Ref.modify(diagnosticsDemandSources, (sources) => {
@@ -401,13 +401,13 @@ export const make = Effect.fn("desktop.telemetryPublisher.make")(function* () {
   const encoded = Stream.concat(
     Stream.make({
       version: 1,
-      type: "desktopTelemetryHello",
+      type: "desktopResourceHello",
       electronPid: process.pid,
     } as const),
     Stream.merge(Stream.merge(snapshots, updateReports), shellEnvironment.updates),
   ).pipe(Stream.map((message) => textEncoder.encode(`${encodeMessage(message)}\n`)));
 
-  const publishUpdateReport: DesktopTelemetryPublisher["Service"]["publishUpdateReport"] = (
+  const publishUpdateReport: DesktopResourcePublisher["Service"]["publishUpdateReport"] = (
     report,
   ) =>
     Ref.set(latestUpdateReport, Option.some(report)).pipe(
@@ -415,7 +415,7 @@ export const make = Effect.fn("desktop.telemetryPublisher.make")(function* () {
       Effect.asVoid,
     );
 
-  return DesktopTelemetryPublisher.of({
+  return DesktopResourcePublisher.of({
     latest: Ref.get(latest),
     changes: Stream.fromPubSub(changes),
     encoded,
@@ -428,4 +428,4 @@ export const make = Effect.fn("desktop.telemetryPublisher.make")(function* () {
   });
 });
 
-export const layer = Layer.effect(DesktopTelemetryPublisher, make());
+export const layer = Layer.effect(DesktopResourcePublisher, make());

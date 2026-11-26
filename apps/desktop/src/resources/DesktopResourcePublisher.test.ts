@@ -19,7 +19,7 @@ import * as NodeEvents from "node:events";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
 import * as ElectronApp from "../electron/ElectronApp.ts";
 import * as ElectronPowerMonitor from "../electron/ElectronPowerMonitor.ts";
-import * as DesktopTelemetryPublisher from "./DesktopTelemetryPublisher.ts";
+import * as DesktopResourcePublisher from "./DesktopResourcePublisher.ts";
 import * as DesktopRendererHistory from "./DesktopRendererHistory.ts";
 import * as DesktopShellEnvironment from "../shell/DesktopShellEnvironment.ts";
 
@@ -61,9 +61,9 @@ function layerElectronApp(
   } satisfies ElectronApp.ElectronApp["Service"]);
 }
 
-describe("DesktopTelemetryPublisher", () => {
+describe("DesktopResourcePublisher", () => {
   it.effect(
-    "forwards shell discovery while a telemetry sample is pending and stops on scope close",
+    "forwards shell discovery while a resource sample is pending and stops on scope close",
     () =>
       Effect.gen(function* () {
         const pollStarted = yield* Deferred.make<void>();
@@ -83,7 +83,7 @@ describe("DesktopTelemetryPublisher", () => {
             onSpeedLimitChange: () => Effect.void,
           }),
         );
-        const layer = DesktopTelemetryPublisher.layer.pipe(
+        const layer = DesktopResourcePublisher.layer.pipe(
           Layer.provide(
             Layer.mergeAll(
               layerElectronApp([]),
@@ -108,7 +108,7 @@ describe("DesktopTelemetryPublisher", () => {
         const scope = yield* Scope.make();
 
         const context = yield* Layer.buildWithScope(layer, scope);
-        const publisher = Context.get(context, DesktopTelemetryPublisher.DesktopTelemetryPublisher);
+        const publisher = Context.get(context, DesktopResourcePublisher.DesktopResourcePublisher);
         const update = yield* publisher.encoded.pipe(
           Stream.filter((bytes) => new TextDecoder().decode(bytes).includes("shellEnvironment")),
           Stream.runHead,

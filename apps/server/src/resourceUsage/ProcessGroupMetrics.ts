@@ -1,4 +1,4 @@
-import type { ResourceTelemetryProcess } from "@t3tools/contracts";
+import type { ResourceUsageProcess } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -7,7 +7,7 @@ import * as Ref from "effect/Ref";
 
 import * as ServerConfig from "../config.ts";
 import { metricAttributes } from "../observability/Metrics.ts";
-import * as ResourceTelemetry from "./ResourceTelemetry.ts";
+import * as ResourceUsage from "./ResourceUsage.ts";
 
 const SAMPLE_INTERVAL = "1 minute";
 
@@ -61,11 +61,11 @@ export interface ProcessGroupTotals {
 }
 
 export function groupProcesses(
-  processes: ReadonlyArray<ResourceTelemetryProcess>,
+  processes: ReadonlyArray<ResourceUsageProcess>,
 ): ReadonlyMap<string, ProcessGroupTotals> {
   const byPid = new Map(processes.map((process) => [process.identity.pid, process]));
   const serverPid = processes.find((process) => process.category === "server")?.identity.pid;
-  const groupOf = (process: ResourceTelemetryProcess): string => {
+  const groupOf = (process: ResourceUsageProcess): string => {
     if (process.category === "server") return "server";
     if (process.category === "resource-monitor") return "resource-monitor";
     if (process.category.startsWith("electron-")) return "electron";
@@ -101,11 +101,11 @@ export const layer = Layer.effectDiscard(
   Effect.gen(function* () {
     const config = yield* ServerConfig.ServerConfig;
     if (config.otlpMetricsUrl === undefined) return;
-    const telemetry = yield* ResourceTelemetry.ResourceTelemetry;
+    const usage = yield* ResourceUsage.ResourceUsage;
     // A group that empties reads zero rather than holding its last value.
     const seen = new Set<string>();
     const sample = Effect.fn("ProcessGroupMetrics.sample")(function* () {
-      const totals = groupProcesses((yield* telemetry.refresh).processes);
+      const totals = groupProcesses((yield* usage.refresh).processes);
       for (const group of totals.keys()) seen.add(group);
       for (const group of seen) {
         const total = totals.get(group) ?? { residentBytes: 0, cpuPercent: 0, count: 0 };
@@ -123,7 +123,7 @@ export const layer = Layer.effectDiscard(
         wasFailing ? Effect.logInfo("process group metrics sample recovered") : Effect.void,
       ),
     );
-    const recordFailure = (error: ResourceTelemetry.ResourceTelemetryRefreshFailed) => {
+    const recordFailure = (error: ResourceUsage.ResourceUsageRefreshFailed) => {
       const cause = Cause.fail(error);
       return Ref.getAndSet(failing, true).pipe(
         Effect.flatMap((wasFailing) =>

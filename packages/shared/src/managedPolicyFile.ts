@@ -56,21 +56,39 @@ const decodeDocumentExit = Schema.decodeUnknownExit(ManagedPolicyDocument, {
   onExcessProperty: "error",
 });
 
+// `limits.telemetry` gated uploads nothing remains to deny; policies written before it was
+// retired must still load, so it is dropped before the strict decode. Any other unknown key
+// still fails closed.
+const stripRetiredLimits = (value: unknown): unknown => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
+  const record = value as Record<string, unknown>;
+  const limits = record.limits;
+  if (typeof limits !== "object" || limits === null || !("telemetry" in limits)) return value;
+  const { telemetry: _retired, ...rest } = limits as Record<string, unknown>;
+  return { ...record, limits: rest };
+};
+
+const decodeJsonUnknownExit = Schema.decodeExit(Schema.fromJsonString(Schema.Unknown));
+
 /** Decode a policy from JSON text, or from a value a profile already parsed. */
-const decodeDocument = (path: string, raw: unknown) => {
-  const decoded = typeof raw === "string" ? decodeDocumentJsonExit(raw) : decodeDocumentExit(raw);
-  if (Exit.isSuccess(decoded)) return Effect.succeed(decoded.value);
+const decodeDocument = Effect.fn("decodeDocument")(function* (path: string, raw: unknown) {
+  // Not JSON: leave the string to the JSON decoder, which produces the error detail.
+  const parsed = typeof raw === "string" ? decodeJsonUnknownExit(raw) : null;
+  const value = parsed !== null && Exit.isSuccess(parsed) ? parsed.value : raw;
+  const decoded =
+    typeof value === "string"
+      ? decodeDocumentJsonExit(value)
+      : decodeDocumentExit(stripRetiredLimits(value));
+  if (Exit.isSuccess(decoded)) return decoded.value;
   const error = Cause.squash(decoded.cause);
   // The schema message names the offending key, e.g. `Expected no excess property at ["limits"]`.
   const detail = Schema.isSchemaError(error) ? ` (${error.message.replace(/\s*\n\s*/g, " ")})` : "";
-  return Effect.fail(
-    new ManagedPolicyFileError({
-      path,
-      reason: `it is not valid JSON or does not match the policy schema${detail}`,
-      cause: decoded.cause,
-    }),
-  );
-};
+  return yield* new ManagedPolicyFileError({
+    path,
+    reason: `it is not valid JSON or does not match the policy schema${detail}`,
+    cause: decoded.cause,
+  });
+});
 
 /** Read the policy document at `path`; a missing file means no policy. */
 export const readManagedPolicyFile = Effect.fn("readManagedPolicyFile")(function* (path: string) {
@@ -112,7 +130,6 @@ export const WINDOWS_POLICY_VALUES = {
   MaxRuntimeMode: { type: "string", path: ["limits", "maxRuntimeMode"] },
   Connect: { type: "boolean", path: ["limits", "connect"] },
   WebhookTasks: { type: "boolean", path: ["limits", "webhookTasks"] },
-  Telemetry: { type: "boolean", path: ["limits", "telemetry"] },
   BrowserCookieImport: { type: "boolean", path: ["limits", "browserCookieImport"] },
   PreviewTunnel: { type: "boolean", path: ["limits", "previewTunnel"] },
   ProviderInstances: { type: "json", path: ["limits", "providers", "instances"] },
@@ -129,6 +146,8 @@ export const WINDOWS_POLICY_LISTS = {
   Clients: ["limits", "clients"],
   AllowedDrivers: ["limits", "providers", "allowedDrivers"],
 } as const satisfies Record<string, ReadonlyArray<string>>;
+/** Registry values older templates wrote; still tolerated so deployed machines keep starting. */
+const WINDOWS_POLICY_RETIRED_VALUES = new Set(["telemetry"]);
 // A disabled policy still writes its checkboxes' falseValue; its own DWORD disambiguates it.
 export const WINDOWS_POLICY_GROUPS = {
   ...WINDOWS_POLICY_LISTS,
@@ -427,6 +446,8 @@ function windowsPolicyDocument(
       continue;
     }
     if (Object.hasOwn(WINDOWS_POLICY_GROUPS, value.name)) continue;
+    // Values retired since an older Group Policy template wrote them are ignored outright.
+    if (WINDOWS_POLICY_RETIRED_VALUES.has(value.name.toLowerCase())) continue;
     if (!Object.hasOwn(WINDOWS_POLICY_VALUES, value.name)) {
       return { error: `${value.name} is not a SimplyCode policy value` };
     }

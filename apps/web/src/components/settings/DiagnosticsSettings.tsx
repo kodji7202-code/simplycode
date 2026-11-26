@@ -45,12 +45,12 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { toastManager } from "../ui/toast";
 import { formatDiagnosticsDuration } from "./DiagnosticsSettings.logic";
 import { ExpandableText } from "./ExpandableText";
-import { ResourceTelemetryDiagnostics } from "./ResourceTelemetryDiagnostics";
-import { formatCpuTime } from "./ResourceTelemetryDiagnostics.logic";
+import { ResourceUsageDiagnostics } from "./ResourceUsageDiagnostics";
+import { formatCpuTime } from "./ResourceUsageDiagnostics.logic";
 import { SettingsPageContainer, SettingsSection } from "./settingsLayout";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useSettingsScope } from "./SettingsScopeContext";
-import { TelemetryExportSettings } from "./TelemetryExportSettings";
+import { OtlpExportSettings } from "./OtlpExportSettings";
 
 const NUMBER_FORMAT = new Intl.NumberFormat();
 
@@ -1004,7 +1004,7 @@ function DiagnosticsSettingsBody() {
 
   return (
     <SettingsPageContainer width="expanded" className="gap-10">
-      <ResourceTelemetryDiagnostics environmentId={environmentId} />
+      <ResourceUsageDiagnostics environmentId={environmentId} />
 
       <SettingsSection
         title={gt("Live Processes")}
@@ -1442,7 +1442,7 @@ function DiagnosticsSettingsBody() {
           />
         )}
       </SettingsSection>
-      {exportFormEnvironmentId === environmentId && <TelemetryExportSettings />}
+      {exportFormEnvironmentId === environmentId && <OtlpExportSettings />}
     </SettingsPageContainer>
   );
 }

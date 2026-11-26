@@ -254,8 +254,8 @@ import * as RpcAuthorization from "./auth/RpcAuthorization.ts";
 import { RpcInstrumentation, rpcInstrumentationLayer } from "./observability/RpcInstrumentation.ts";
 import * as ProcessDiagnostics from "./diagnostics/ProcessDiagnostics.ts";
 import * as ProcessResourceMonitor from "./diagnostics/ProcessResourceMonitor.ts";
-import * as ResourceTelemetry from "./resourceTelemetry/ResourceTelemetry.ts";
-import * as HostResources from "./resourceTelemetry/HostResources.ts";
+import * as ResourceUsage from "./resourceUsage/ResourceUsage.ts";
+import * as HostResources from "./resourceUsage/HostResources.ts";
 import * as UsageService from "./usage/UsageService.ts";
 import * as TraceDiagnostics from "./diagnostics/TraceDiagnostics.ts";
 import * as TriageService from "./triage/TriageService.ts";
@@ -1528,7 +1528,7 @@ export const layerWsRpc = (
       const triage = yield* TriageService.TriageService;
       const hostResources = yield* HostResources.HostResources;
       const processResourceMonitor = yield* ProcessResourceMonitor.ProcessResourceMonitor;
-      const resourceTelemetry = yield* ResourceTelemetry.ResourceTelemetry;
+      const resourceUsage = yield* ResourceUsage.ResourceUsage;
       const relayClient = yield* RelayClient.RelayClient;
       // Webhook URLs start agents; expose them only to operate-scoped sessions while keeping tasks readable.
       const withVisibleWebhookUrls = (result: ScheduledTaskListResult): ScheduledTaskListResult =>
@@ -2759,11 +2759,10 @@ export const layerWsRpc = (
         [WS_METHODS.serverGetHostResources]: (_input) => hostResources.read,
         [WS_METHODS.serverGetProcessResourceHistory]: (input) =>
           processResourceMonitor.readHistory(input),
-        [WS_METHODS.serverGetResourceTelemetryHistory]: (input) =>
-          resourceTelemetry.readHistory(input),
+        [WS_METHODS.serverGetResourceUsageHistory]: (input) => resourceUsage.readHistory(input),
         [WS_METHODS.serverGetUsageSummary]: (input) => usage.readSummary(input),
         [WS_METHODS.serverRefreshUsageRates]: (_input) => usage.refreshRates,
-        [WS_METHODS.serverRetryResourceTelemetry]: (_input) => resourceTelemetry.retry,
+        [WS_METHODS.serverRetryResourceUsage]: (_input) => resourceUsage.retry,
         [WS_METHODS.serverCheckOtlpEndpoint]: (input) => otlpEndpointCheck.check(input),
         [WS_METHODS.notificationsTelegramTest]: (input) =>
           telegramNotifier.sendTest(input).pipe(Effect.as({ ok: true as const })),
@@ -3653,9 +3652,9 @@ export const layerWsRpc = (
               );
             }),
           ),
-        [WS_METHODS.subscribeResourceTelemetry]: (_input) =>
+        [WS_METHODS.subscribeResourceUsage]: (_input) =>
           Stream.unwrap(
-            Effect.map(resourceTelemetry.subscribe, ({ latest, changes }) =>
+            Effect.map(resourceUsage.subscribe, ({ latest, changes }) =>
               Stream.concat(Stream.make(latest), changes),
             ),
           ),
