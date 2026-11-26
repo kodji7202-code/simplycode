@@ -16,7 +16,11 @@ turns such an export on.
 The only external requests that remain are features you use or configure
 yourself:
 
-<!-- network list -->
+- **Agent CLI and model list updates.** SimplyCode checks npm, downloads.claude.ai and api.meta.ai for new versions of the agent CLIs, and refreshes its model list from this repository on GitHub. Turn this off in Settings with **Provider update checks**.
+- **SimplyCode updates.** The app looks up the latest SimplyCode release on npm and GitHub.
+- **Model prices for Usage.** The public LiteLLM price list on GitHub, fetched when the Usage page needs rates.
+- **Things you set up.** Telegram notifications, OpenTelemetry export to your own endpoint, a relay you link, source control and issue tracker integrations, and MCP servers send data only where you point them.
+- **The agents themselves.** Codex, Claude Code, Devin and the other CLIs talk to their own vendors under their own privacy terms.
 
 ## Agent activity for mobile notifications
 
