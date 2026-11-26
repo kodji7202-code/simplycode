@@ -48,7 +48,7 @@ describe("parseNewThreadLink", () => {
       value: {
         kind: "new",
         prompt: { text: "Rate me", hiddenCharacters: 0 },
-        repository: { owner: "pingdotgg", name: "t3code" },
+        repository: { owner: "kodji7202-code", name: "simplycode" },
         provider: "codex",
         model: "gpt-5",
       },
@@ -59,13 +59,13 @@ describe("parseNewThreadLink", () => {
     for (const pr of [
       "kodji7202-code/simplycode/42",
       "kodji7202-code/simplycode%2342",
-      "https://github.com/pingdotgg/t3code/pull/42/files",
+      "https://github.com/kodji7202-code/simplycode/pull/42/files",
     ]) {
       expect(parseNewThreadLink(`?pr=${pr}`)).toEqual({
         ok: true,
         value: {
           kind: "pull-request",
-          pullRequest: { owner: "pingdotgg", name: "t3code", number: 42 },
+          pullRequest: { owner: "kodji7202-code", name: "simplycode", number: 42 },
           prompt: null,
         },
       });
@@ -96,7 +96,7 @@ describe("link round trips", () => {
   it("builds a link that parses back to the same prompt", () => {
     const link = buildNewThreadLink({
       prompt: "Swear count & rating?",
-      repository: { owner: "pingdotgg", name: "t3code" },
+      repository: { owner: "kodji7202-code", name: "simplycode" },
       provider: "claudeAgent",
       model: "opus",
     });

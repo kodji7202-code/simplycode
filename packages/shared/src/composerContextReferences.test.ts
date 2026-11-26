@@ -582,19 +582,19 @@ describe("threadLinkContextReferences", () => {
         "[Written](https://hosted.simplycode.invalid/threads/env-2/t3)",
       ].join(" "),
       [],
-      ({ threadId }) => (threadId === "simplycode" ? undefined : `Title ${threadId}`),
+      ({ threadId }) => (threadId === "t3" ? undefined : `Title ${threadId}`),
     );
     expect(pasted.text).toBe(
       [
         reference("env-1", "t1", "Title t1"),
         reference("env-1", "t2", "Title t2"),
-        reference("env-2", "simplycode", "Written"),
+        reference("env-2", "t3", "Written"),
       ].join(" "),
     );
     expect(pasted.records).toEqual([
       threadContextRecord(thread("env-1", "t1"), "Title t1"),
       threadContextRecord(thread("env-1", "t2"), "Title t2"),
-      threadContextRecord(thread("env-2", "simplycode"), "Written"),
+      threadContextRecord(thread("env-2", "t3"), "Written"),
     ]);
   });
 

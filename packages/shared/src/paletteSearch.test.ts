@@ -199,9 +199,11 @@ describe("scoreThreadSearch", () => {
   });
 
   it("finds a branch pasted with the app's worktree prefix", () => {
-    const subject = thread("Cmd+K search", { branch: "t3/cmdk-search-v2" });
-    expect(scoreThreadSearch(foldSearchQuery("t3/cmdk-search-v2"), subject, NOW)).not.toBeNull();
-    expect(scoreThreadSearch(foldSearchQuery("t3/cmdk"), subject, NOW)).not.toBeNull();
+    const subject = thread("Cmd+K search", { branch: "simplycode/cmdk-search-v2" });
+    expect(
+      scoreThreadSearch(foldSearchQuery("simplycode/cmdk-search-v2"), subject, NOW),
+    ).not.toBeNull();
+    expect(scoreThreadSearch(foldSearchQuery("simplycode/cmdk"), subject, NOW)).not.toBeNull();
   });
 
   it("ranks a title holding the words above the app's own branch prefix and project name", () => {
@@ -210,15 +212,19 @@ describe("scoreThreadSearch", () => {
       rankTitles("simplycode connect", [
         thread("Diagnose Connect provisioning failures", {
           ...busy,
-          branch: "t3/diagnose-connect",
-          projectTitle: "t3code",
+          branch: "simplycode/diagnose-connect",
+          projectTitle: "simplycode",
         }),
-        thread("T3 Connect Tunnel Lifecycle Review", { projectTitle: "t3code" }),
+        thread("SimplyCode Connect Tunnel Lifecycle Review", { projectTitle: "simplycode" }),
       ])[0],
-    ).toBe("T3 Connect Tunnel Lifecycle Review");
+    ).toBe("SimplyCode Connect Tunnel Lifecycle Review");
     expect(
-      rankTitles("t3code", [
-        thread("Fix sidebar lag", { ...busy, projectTitle: "t3code", branch: "t3code/sidebar" }),
+      rankTitles("simplycode", [
+        thread("Fix sidebar lag", {
+          ...busy,
+          projectTitle: "simplycode",
+          branch: "simplycode/sidebar",
+        }),
         thread("SimplyCode vs Gemini Token Volume", { projectTitle: "slophouse" }),
       ])[0],
     ).toBe("SimplyCode vs Gemini Token Volume");
@@ -226,11 +232,11 @@ describe("scoreThreadSearch", () => {
 
   it("matches pull request numbers, branches, and projects with every token somewhere", () => {
     const subject = thread("Trim model lists", {
-      branch: "t3/trim-mcp-models",
-      projectTitle: "t3code",
+      branch: "simplycode/trim-mcp-models",
+      projectTitle: "simplycode",
       pullRequests: [{ number: 22889, title: "Smaller MCP payloads" }],
     });
-    for (const query of ["#22889", "22889", "trim mcp", "payloads t3code", "models trim"]) {
+    for (const query of ["#22889", "22889", "trim mcp", "payloads simplycode", "models trim"]) {
       expect(scoreThreadSearch(foldSearchQuery(query), subject, NOW), query).not.toBeNull();
     }
     expect(scoreThreadSearch("trim lakebed", subject, NOW)).toBeNull();
@@ -317,7 +323,7 @@ describe("scoreThreadSearch beyond Latin text and titles", () => {
 
   it("says which field matched when the title does not", () => {
     const subject = thread("Trim model lists", {
-      branch: "t3/cleanup-payloads",
+      branch: "simplycode/cleanup-payloads",
       pullRequests: [{ number: 22889, title: "Smaller MCP payloads" }],
     });
     for (const query of ["#22889", "pr 22889", "pr22889", "pull request #22889"]) {
@@ -337,11 +343,15 @@ describe("scoreThreadSearch beyond Latin text and titles", () => {
     });
     expect(scoreThreadSearch("trim", subject, NOW)?.explain?.()).toBeUndefined();
     // Nor is it in the flat t3-<hex> form used when a `simplycode` branch blocks nested refs.
-    const flat = thread("Add search", { branch: "t3-abcd1234" });
+    const flat = thread("Add search", { branch: "simplycode-abcd1234" });
     expect(scoreThreadSearch("simplycode", flat, NOW)).toBeNull();
     expect(scoreThreadSearch("simplycode connect", flat, NOW)).toBeNull();
     expect(scoreThreadSearch("abcd1234", flat, NOW)).not.toBeNull();
-    for (const query of ["t3-abcd", "t3-abcd1234 connect", "connect t3-abcd1234"]) {
+    for (const query of [
+      "simplycode-abcd",
+      "simplycode-abcd1234 connect",
+      "connect simplycode-abcd1234",
+    ]) {
       expect(scoreThreadSearch(query, { ...flat, projectTitle: "connect" }, NOW)).not.toBeNull();
     }
   });
@@ -371,7 +381,7 @@ describe("scoreThreadSearch beyond Latin text and titles", () => {
     // Short words before a mere prefix are a coincidence.
     expect(rankTitles("inth", [thread("Show skill names in thread overview")])).toEqual([]);
     expect(rankTitles("tos", [thread("Move Client State to Server")])).toEqual([]);
-    expect(rankTitles("t3co", [thread("SimplyCode vs Gemini")])).toEqual(["SimplyCode vs Gemini"]);
+    expect(rankTitles("t3co", [thread("T3 Code vs Gemini")])).toEqual(["T3 Code vs Gemini"]);
     expect(rankTitles('"sidebar lag"', [thread("Fix sidebar lag")])).toEqual(["Fix sidebar lag"]);
     // A pasted query with a separate accent mark matches the composed title.
     expect(rankTitles("cafe\u0301", [thread("Café menu")])).toEqual(["Café menu"]);
@@ -462,15 +472,15 @@ describe("scoreThreadSearch with heavy use and loose input", () => {
           number: 22889,
           references: [
             "kodji7202-code/simplycode#22889",
-            "https://github.com/pingdotgg/t3code/pull/22889",
+            "https://github.com/kodji7202-code/simplycode/pull/22889",
           ],
         },
       ],
     });
     for (const query of [
-      "t3code#22889",
-      "github.com/pingdotgg/t3code/pull/22889",
-      "https://github.com/pingdotgg/t3code/pull/22889/files",
+      "simplycode#22889",
+      "github.com/kodji7202-code/simplycode/pull/22889",
+      "https://github.com/kodji7202-code/simplycode/pull/22889/files",
       "5fe6f59c",
       "beebox",
     ]) {
@@ -478,7 +488,7 @@ describe("scoreThreadSearch with heavy use and loose input", () => {
     }
     expect(scoreThreadSearch("github.com", subject, NOW)).toBeNull();
     // A number is never cut short.
-    for (const query of ["github.com/pingdotgg/t3code/pull/2288", "t3code#2288"]) {
+    for (const query of ["github.com/kodji7202-code/simplycode/pull/2288", "simplycode#2288"]) {
       expect(scoreThreadSearch(foldSearchQuery(query), subject, NOW), query).toBeNull();
     }
   });

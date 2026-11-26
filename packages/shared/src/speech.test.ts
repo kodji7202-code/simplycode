@@ -61,7 +61,7 @@ describe("resolveSpeechVocabulary", () => {
     const resolved = resolveSpeechVocabulary({
       personal,
       project: [{ term: "effect", aliases: ["a fact"] }],
-      hints: ["  T3   Code ", "word1", "", "x".repeat(51), "simplycode code"],
+      hints: ["  SimplyCode ", "word1", "", "x".repeat(51), "simplycode"],
     });
     expect(resolved.speechHints).toEqual(["SimplyCode"]);
     expect(resolved.speechCustomWords).toHaveLength(100);

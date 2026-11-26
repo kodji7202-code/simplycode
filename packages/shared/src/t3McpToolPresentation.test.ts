@@ -25,9 +25,10 @@ describe("resolveT3McpToolPresentation", () => {
         "SimplyCode ",
         "t3-code · ",
       ]) {
-        expect(resolveT3McpToolPresentation(`${prefix}${tool} completed`), tool).toEqual(
-          presentation,
-        );
+        expect(
+          resolveT3McpToolPresentation(`${prefix}${tool} completed`),
+          `${prefix}${tool}`,
+        ).toEqual(presentation);
       }
       expect(resolveT3McpToolPresentation(`mcp__another-server__${tool}`), tool).toBeNull();
     }
