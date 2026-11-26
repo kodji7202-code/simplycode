@@ -673,6 +673,14 @@ const FILE_EDITS: ReadonlyArray<{
     ],
   },
   {
+    // The archive builder expects the SEA executable at dist-exe/t3.
+    file: "apps/server/vite.config.ts",
+    edits: [
+      ['fileName: "t3",\n', 'fileName: "t3", // rebrand-keep\n'],
+      ['fileName: "simplycode",\n', 'fileName: "t3", // rebrand-keep\n'],
+    ],
+  },
+  {
     // Archive-internal executable name stays `t3`/`t3.exe`: every consumer that
     // extracts a release archive (install.sh validation, npm launcher,
     // service launcher, WSL runtime check) looks for that name.
