@@ -72,7 +72,6 @@ import * as ThreadForkService from "./ThreadForkService.ts";
 import * as TurnItemPositionStore from "./TurnItemPositionStore.ts";
 import * as ScheduledTaskService from "../scheduledTasks/ScheduledTaskService.ts";
 import * as SecretRequests from "../secrets/SecretRequests.ts";
-import * as FeedbackStore from "../feedback/FeedbackStore.ts";
 import * as WorkspaceFolders from "../workspace/WorkspaceFolders.ts";
 import * as TaskFolderStore from "../workspace/TaskFolderStore.ts";
 
@@ -348,10 +347,6 @@ const layerWorkflowsProvided = WorkflowRuntime.layer.pipe(
 const layerSecretRequestsProvided = SecretRequests.layer.pipe(
   Layer.provide(layerThreadManagementProvided),
 );
-// Cards are shown from /mcp and answered over WebSocket; one instance serializes both.
-const layerFeedbackStoreProvided = FeedbackStore.layer.pipe(
-  Layer.provide(layerThreadManagementProvided),
-);
 const layerBotHookProvided = BotService.botHookLayer.pipe(
   Layer.provide(
     Layer.mergeAll(layerBotStoreProvided, layerTeamStoreProvided, layerOrchestratorProvided),
@@ -508,7 +503,6 @@ export const layerProduction = Layer.mergeAll(
   layerWorkflowsProvided,
   layerScratchThreadPromotionProvided,
   layerSecretRequestsProvided,
-  layerFeedbackStoreProvided,
   GuestShareService.layer.pipe(
     Layer.provide(Layer.merge(layerOrchestratorProvided, layerCommandOutputHubProvided)),
   ),

@@ -568,23 +568,6 @@ const FILE_EDITS: ReadonlyArray<{
     ],
   },
   {
-    // The MCP subject-prefix matcher keeps the upstream `t3[-_]code` names:
-    // the servers still register as t3-code / t3-code-direct (model-facing).
-    file: "apps/server/src/feedback/FeedbackReport.ts",
-    edits: [
-      [
-        "|t3[-_]?code(?:[-_]direct)?[.:/])/iu;\n",
-        "|t3[-_]?code(?:[-_]direct)?[.:/])/iu; // rebrand-keep\n",
-      ],
-      [
-        "|simplycode[-_]?code(?:[-_]direct)?[.:/])/iu;\n",
-        "|t3[-_]?code(?:[-_]direct)?[.:/])/iu; // rebrand-keep\n",
-      ],
-      // Repairs lines where an older rule appended the marker repeatedly.
-      ["// rebrand-keep // rebrand-keep", "// rebrand-keep"],
-    ],
-  },
-  {
     // npm-global installs of this package live under its own name.
     file: "apps/server/src/cli/invocation.ts",
     edits: [

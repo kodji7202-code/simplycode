@@ -100,7 +100,6 @@ it("keeps agent feedback out of the preferences agents read and write", () => {
   expect(
     EnvironmentHandlers.preferences({
       ...DEFAULT_SERVER_SETTINGS,
-      agentFeedback: { mode: "auto" },
     }),
   ).not.toHaveProperty("agentFeedback");
   expect(

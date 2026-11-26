@@ -58,7 +58,6 @@ import { isScratchProject } from "@t3tools/client-runtime/state/projects";
 import { resolveWorktreeRepositorySelection } from "@t3tools/client-runtime/state/thread-repositories";
 import { visibleThreadPullRequests } from "@t3tools/shared/threadPullRequests";
 import type { UsageLimitSourceSnapshots } from "@t3tools/contracts";
-import { feedbackBannerItem } from "./chat/ComposerFeedback";
 import { freshSessionBannerItem } from "./chat/ComposerFreshSession";
 import { heldComposerSendBannerItem } from "./chat/ComposerHeldSendBanner";
 import { armFreshSession, disarmFreshSession, useFreshSessionArmed } from "./chat/freshSessionArms";
@@ -114,11 +113,9 @@ import {
 import { resolvePendingHandoff } from "@t3tools/client-runtime/handoff";
 import { HandoffRow } from "./chat/V2LifecycleRow";
 import {
-  codexFeedbackMessage,
   deriveWorkspaceMutationId,
   isCompleteTurnItemRow,
   shouldShowLoadEarlierControl,
-  type CodexFeedbackSubmission,
 } from "@t3tools/client-runtime/state/threads";
 import {
   parseScopedThreadKey,
@@ -429,7 +426,6 @@ const EMPTY_PROVIDER_MODELS: ServerProvider["models"] = [];
 const EMPTY_USAGE_LIMIT_SOURCES: UsageLimitSourceSnapshots = [];
 import type { CodexArtifactTemplate } from "@t3tools/shared/codexArtifactTemplates";
 
-const EMPTY_FEEDBACK_SUBMISSIONS: ReadonlyArray<CodexFeedbackSubmission> = [];
 const EMPTY_PROVIDER_SKILLS: ServerProvider["skills"] = [];
 const EMPTY_TURN_ITEMS: ThreadStructure["turnItems"] = [];
 const EMPTY_RUNS: ThreadStructure["runs"] = [];
@@ -728,14 +724,6 @@ export default function ChatView(props: ChatViewProps) {
     );
   // Draft ids survive promotion and expire on navigation, keeping the pending resend scoped correctly.
   const [workLocallyResendDraftId, setWorkLocallyResendDraftId] = useState<DraftId | null>(null);
-  const [feedbackSubmissionsByThreadKey, setFeedbackSubmissionsByThreadKey] = useState<
-    Record<string, ReadonlyArray<CodexFeedbackSubmission>>
-  >({});
-  const feedbackSubmissions =
-    feedbackSubmissionsByThreadKey[routeThreadKey] ?? EMPTY_FEEDBACK_SUBMISSIONS;
-  const feedbackUploading = feedbackSubmissions.some(
-    (submission) => submission.status === "uploading",
-  );
   const [localDraftErrorsByDraftId, setLocalDraftErrorsByDraftId] = useState<
     Record<string, LocalThreadErrorEntry>
   >({});
@@ -801,7 +789,6 @@ export default function ChatView(props: ChatViewProps) {
     );
   };
   const setMultipleModelSelectionsStable = useStableCallback(setMultipleModelSelections);
-  const feedbackUploadsInFlightRef = useRef(new Set<string>());
 
   const terminalUiState = useTerminalUiStateStore((state) =>
     selectThreadTerminalUiState(state.terminalUiStateByThreadKey, routeThreadRef),
@@ -1658,14 +1645,7 @@ export default function ChatView(props: ChatViewProps) {
     blobPreviews: optimisticBlobPreviews,
     setOptimisticUserMessages: setHeldOptimisticUserMessages,
   });
-  const anchoredTimelineMessages = feedbackSubmissions.flatMap((submission) =>
-    submission.status === "interrupted"
-      ? []
-      : [
-          { ...codexFeedbackMessage(submission, "user", messages), runId: null },
-          { ...codexFeedbackMessage(submission, "assistant", messages), runId: null },
-        ],
-  );
+  const anchoredTimelineMessages: Array<never> = [];
   const timelineEntriesInput = {
     optimisticMessages: optimisticUserMessages,
     anchoredMessages: anchoredTimelineMessages,
@@ -2662,7 +2642,6 @@ export default function ChatView(props: ChatViewProps) {
     threadDetailLoading ||
     isPreparingWorktree ||
     activeEnvironmentUnavailable ||
-    feedbackUploading ||
     pendingApprovals.length > 0 ||
     pendingUserInputs.length > 0;
   const compactDisabled = compactThreadUnavailable;
@@ -2731,21 +2710,6 @@ export default function ChatView(props: ChatViewProps) {
     void handleSwitchCheckoutToThread();
   };
   const handleRestoreThreadBranchStable = useStableCallback(handleRestoreThreadBranch);
-  const feedbackBannerItems = feedbackSubmissions.flatMap((submission) => {
-    const item = feedbackBannerItem(
-      submission,
-      () => {
-        setFeedbackSubmissionsByThreadKey((current) => ({
-          ...current,
-          [routeThreadKey]: (current[routeThreadKey] ?? []).filter(
-            (entry) => entry.id !== submission.id,
-          ),
-        }));
-      },
-      messages,
-    );
-    return item ? [item] : [];
-  });
   const limitRecoveryBanner = useUsageLimitRecoveryBannerItem(
     limitRecoveryRun !== null && activeThreadShell !== null
       ? {
@@ -2840,7 +2804,6 @@ export default function ChatView(props: ChatViewProps) {
       : [];
     if (!localCheckoutBranchMismatch || !showBranchMismatchBanner || !activeBranchMismatchKey) {
       return [
-        ...feedbackBannerItems,
         ...fallbackItems,
         ...limitRecoveryItems,
         ...extensionStatusItems,
@@ -2852,7 +2815,6 @@ export default function ChatView(props: ChatViewProps) {
       ];
     }
     return [
-      ...feedbackBannerItems,
       ...fallbackItems,
       ...limitRecoveryItems,
       ...extensionStatusItems,
@@ -3155,7 +3117,6 @@ export default function ChatView(props: ChatViewProps) {
     composerImagesRef,
     composerFilesRef,
     composerTerminalContextsRef,
-    feedbackUploadsInFlightRef,
     queuedRunEdit,
     isRevertingCheckpoint,
     threadDetailLoading,
@@ -3192,7 +3153,6 @@ export default function ChatView(props: ChatViewProps) {
       track: (message) => optimisticBlobPreviews.track(threadId, message),
       release: (message) => optimisticBlobPreviews.release(threadId, message),
     },
-    setFeedbackSubmissionsByThreadKey,
     setThreadError,
     setKeepFullHistory,
     anchorNewTurn,
@@ -3298,15 +3258,10 @@ export default function ChatView(props: ChatViewProps) {
     clientSettingsHydrated &&
     !needsLoadBalancing &&
     !activeEnvironmentUnavailable &&
-    !activePendingUserInput &&
-    !feedbackUploading;
+    !activePendingUserInput;
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- switches the draft to local mode, then resends the waiting message once sending is idle
   useEffect(() => {
-    if (
-      !workLocallyResendReady ||
-      sendInFlightRef.current ||
-      feedbackUploadsInFlightRef.current.has(routeThreadKey)
-    ) {
+    if (!workLocallyResendReady || sendInFlightRef.current) {
       return;
     }
     if (sendEnvMode !== "local") {
@@ -3316,10 +3271,8 @@ export default function ChatView(props: ChatViewProps) {
     resendAfterWorkLocallyStable();
   }, [
     composerDraftTarget,
-    feedbackUploadsInFlightRef,
     resendAfterWorkLocallyStable,
     sendInFlightRef,
-    routeThreadKey,
     sendEnvMode,
     setDraftThreadContext,
     workLocallyResendReady,
@@ -3893,13 +3846,11 @@ export default function ChatView(props: ChatViewProps) {
                                       ? gt("Preparing machine")
                                       : isRevertingCheckpoint
                                         ? gt("Rewinding conversation")
-                                        : feedbackUploading
-                                          ? gt("Sending feedback")
-                                          : threadDetailLoading
-                                            ? gt("Messages loading")
-                                            : worktreeSetupBlocksSend
-                                              ? gt("Preparing worktree")
-                                              : projectCloneSendBlockReason
+                                        : threadDetailLoading
+                                          ? gt("Messages loading")
+                                          : worktreeSetupBlocksSend
+                                            ? gt("Preparing worktree")
+                                            : projectCloneSendBlockReason
                                 }
                                 isPreparingWorktree={isPreparingWorktree && !sendQueuesBehindSetup}
                                 bannerItems={
