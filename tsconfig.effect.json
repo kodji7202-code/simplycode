@@ -100,6 +100,7 @@
           "processEnvInEffect": "error",
           "preferSchemaTaggedError": "error",
           "extendsNativeError": "error",
+          "schemaClassMissingBrand": "off",
           "schemaNumber": "off"
         },
         "overrides": [
